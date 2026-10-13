@@ -5,6 +5,7 @@ import { AlertCircle, RefreshCw } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
 import { AssignedProjectGroup } from './board/AssignedProjectGroup';
 import { AssignedTasksEmptyState } from './board/AssignedTasksEmptyState';
+import { AssignedTasksSkeleton } from './board/AssignedTasksSkeleton';
 import { AssignedTasksToolbar } from './board/AssignedTasksToolbar';
 import type { AssignedTasksBoardProps } from './board/types';
 import { useAssignedBoard } from './board/useAssignedBoard';
@@ -47,11 +48,8 @@ export default function AssignedTasksBoard({
         setAssignedSearch={board.setAssignedSearch}
       />
 
-      {loadingAssigned && assignedTasks.length === 0 ? (
-        <div className='py-10 px-5 text-center flex flex-col items-center gap-2'>
-          <span className='spinner w-[22px] h-[22px]' />
-          <span className='dim xs'>Memuat daftar task Anda dari Taiga...</span>
-        </div>
+      {loadingAssigned ? (
+        <AssignedTasksSkeleton />
       ) : assignedError ? (
         <EmptyState
           tone='rose'

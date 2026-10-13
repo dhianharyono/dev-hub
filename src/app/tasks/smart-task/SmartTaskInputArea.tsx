@@ -1,7 +1,7 @@
-'use client';
-
-import { AlertCircle, ListPlus, Plus, Sparkles } from 'lucide-react';
+import { useEffect } from 'react';
+import { ListPlus, Plus, Sparkles } from 'lucide-react';
 import { Select } from '@/components/Select';
+import { useNotification } from '@/components/Notification';
 import type { Meta } from './types';
 
 interface SmartTaskInputAreaProps {
@@ -39,6 +39,14 @@ export function SmartTaskInputArea({
   setBulkPasteInput,
   onBulkPasteAdd,
 }: SmartTaskInputAreaProps) {
+  const { notify } = useNotification();
+
+  useEffect(() => {
+    if (parseError) {
+      notify.error(parseError, 'Gagal Memproses Catatan');
+    }
+  }, [parseError, notify]);
+
   return (
     <section
       className='card flex flex-col gap-6'
@@ -199,12 +207,6 @@ export function SmartTaskInputArea({
             </button>
           </div>
 
-          {parseError && (
-            <div className='alert alert-error'>
-              <AlertCircle size={16} className='shrink-0' />
-              <span>{parseError}</span>
-            </div>
-          )}
         </>
       ) : (
         /* TAB MULTI-BARIS QUICK PASTE */

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { useSync } from '@/components/hooks';
+import { useNotification } from '@/components/Notification';
 
 interface GitlabSyncPanelProps {
   status: ReturnType<typeof useSync>['status'];
@@ -8,100 +9,57 @@ interface GitlabSyncPanelProps {
 const fmt = (n: number) => n.toLocaleString('id-ID');
 
 export function GitlabSyncPanel({ status }: GitlabSyncPanelProps) {
-  const [userDismissed, setUserDismissed] = useState(false);
-  const [autoHidden, setAutoHidden] = useState(false);
-  const [hiding, setHiding] = useState(false);
+  const { notify } = useNotification();
+  const lastFinished = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!status || status.running || status.error || !status.summary) {
-      return;
-    }
-    // Auto-hide 4 seconds after sync completes
-    const t1 = setTimeout(() => setHiding(true), 4000);
-    const t2 = setTimeout(() => setAutoHidden(true), 4400);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, [status]);
+    if (!status) return;
 
-  if (
-    !status ||
-    (!status.running && !status.error && !status.summary) ||
-    (!status.running && (userDismissed || autoHidden))
-  )
+    if (!status.running && status.summary) {
+      const key = `${status.phase}-${status.summary.commits}-${status.summary.mrs}`;
+      if (lastFinished.current !== key) {
+        lastFinished.current = key;
+        notify.success(
+          `${status.summary.projects} proyek disinkronkan (${fmt(status.summary.commits)} commit, ${status.summary.mrs} MR)`,
+          'Sinkronisasi GitLab Selesai',
+        );
+      }
+    }
+
+    if (status.error && lastFinished.current !== status.error) {
+      lastFinished.current = status.error;
+      notify.error(status.error, 'Sinkronisasi GitLab Gagal');
+    }
+  }, [status, notify]);
+
+  if (!status || !status.running) {
     return null;
+  }
 
   const pct = status.total
     ? Math.round((status.done / status.total) * 100)
-    : status.running
-      ? 5
-      : 100;
+    : 15;
 
   return (
-    <div
-      className={`alert mb-4.5 flex-col transition-all duration-400 ${
-        status.error ? 'alert-error' : status.running ? 'alert-info' : 'alert-ok'
-      } ${hiding ? 'opacity-0 -translate-y-2' : 'opacity-100 translate-y-0'}`}
-    >
-      <div className='row-between w-full'>
-        <strong className='flex items-center gap-2'>
-          <span>
-            {status.running
-              ? 'Sinkronisasi berjalan'
-              : status.error
-                ? 'Sinkronisasi gagal'
-                : '✓ Sinkronisasi selesai'}{' '}
-            · {status.phase}
+    <div className='mb-4 px-4 py-2.5 bg-surface border border-border rounded-xl shadow-xs flex items-center justify-between gap-4 animate-in fade-in'>
+      <div className='flex items-center gap-2.5 text-xs text-slate-text font-medium'>
+        <span className='spinner shrink-0' />
+        <span>Sinkronisasi GitLab: {status.phase || 'Memproses data...'}</span>
+        {status.total > 0 && (
+          <span className='text-slate-muted font-mono'>
+            ({status.done}/{status.total} proyek · {pct}%)
           </span>
-          {!status.running && !status.error && (
-            <span className='xs dim font-normal text-[11px]'>
-              (Otomatis tutup sebentar lagi)
-            </span>
-          )}
-        </strong>
-        <div className='row gap-2'>
-          {status.total > 0 && (
-            <span className='small muted mono'>
-              {status.done}/{status.total} proyek
-            </span>
-          )}
-          <button
-            type='button'
-            className='btn btn-ghost btn-sm xs px-2 h-6 text-[11px]'
-            onClick={() => setUserDismissed(true)}
-            title='Tutup notifikasi ini'
-          >
-            Tutup
-          </button>
-        </div>
+        )}
       </div>
-      {status.running && (() => {
-        const progressStyle: React.CSSProperties = { width: `${pct}%` };
-        return (
-          <div className='progress'>
-            <span style={progressStyle} />
-          </div>
-        );
-      })()}
-      {status.summary && (
-        <div className='small muted'>
-          {status.summary.projects} proyek · {fmt(status.summary.commits)}{' '}
-          commit · {status.summary.mrs} MR · {status.summary.pipelines} pipeline
-          {status.summary.projectErrors
-            ? ` · ${status.summary.projectErrors} proyek error`
-            : ''}
+
+      {status.total > 0 && (
+        <div className='w-28 sm:w-44 bg-surface-subtle border border-border rounded-full h-1.5 overflow-hidden'>
+          <div
+            className='bg-brand h-full rounded-full transition-all duration-300'
+            style={{ width: `${pct}%` }}
+          />
         </div>
       )}
-      {status.error && <div className='small'>{status.error}</div>}
-      <details>
-        <summary className='xs dim cursor-pointer'>
-          Log
-        </summary>
-        <pre className='mono xs dim whitespace-pre-wrap mt-1.5 max-h-40 overflow-auto'>
-          {status.log.join('\n')}
-        </pre>
-      </details>
     </div>
   );
 }

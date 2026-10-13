@@ -41,10 +41,14 @@ export async function POST(req: Request) {
       );
     }
 
-    saveSettings({
+    const newSettings: Record<string, string> = {
       taigaToken: token.replace(/^["']+|["']+$/g, '').trim(),
       taigaRefresh: (refresh || '').replace(/^["']+|["']+$/g, '').trim(),
-    });
+    };
+    if (typeof body.baseUrl === 'string' && body.baseUrl.trim()) {
+      newSettings.taigaBaseUrl = body.baseUrl.trim().replace(/\/+$/, '');
+    }
+    saveSettings(newSettings);
     invalidateIntegrationCache();
 
     return NextResponse.json(

@@ -145,12 +145,6 @@ export function MrAssistantMembersForm({
         </div>
       </div>
 
-      {error && (
-        <div className='alert alert-error px-3.5 py-2.5 text-[12.5px]'>
-          {error}
-        </div>
-      )}
-
       <button
         type='button'
         className='btn btn-primary w-full h-[42px] text-[13.5px] font-semibold flex items-center justify-center gap-2 mt-1'

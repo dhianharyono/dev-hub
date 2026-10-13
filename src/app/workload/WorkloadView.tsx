@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { FolderGit2, Settings, RefreshCw } from 'lucide-react';
 import { useIntegrations } from '@/components/hooks';
 import { EmptyState } from '@/components/EmptyState';
+import { useNotification } from '@/components/Notification';
 import {
   AssignmentBarChart,
   StatusProgressDonut,
@@ -52,6 +53,13 @@ export default function WorkloadView() {
 
   const isTaigaConnected = Boolean(integrations?.taiga?.connected);
   const taigaError = integrations?.taiga?.error;
+  const { notify } = useNotification();
+
+  React.useEffect(() => {
+    if (isTaigaConnected && error) {
+      notify.error(error, 'Workload Analysis');
+    }
+  }, [isTaigaConnected, error, notify]);
 
   return (
     <div className='flex flex-col gap-5'>
@@ -105,11 +113,6 @@ export default function WorkloadView() {
             </div>
           }
         />
-      )}
-
-      {/* Error Alert when connected */}
-      {isTaigaConnected && error && (
-        <div className='alert alert-error'>✕ {error}</div>
       )}
 
       {!loadingIntegrations && isTaigaConnected && data && (

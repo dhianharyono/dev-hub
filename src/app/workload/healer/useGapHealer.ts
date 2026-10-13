@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { WorkloadDaySummary, HealerSuggestion, MetaData, HealerDetectedCommit } from './types';
 import { normalizeMeta } from './types';
+import { useNotification } from '@/components/Notification';
 
 interface UseGapHealerProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export function useGapHealer({
   onSuccess,
   onClose,
 }: UseGapHealerProps) {
+  const { notify } = useNotification();
   const [meta, setMeta] = useState<MetaData | null>(null);
   const [generating, setGenerating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -242,16 +244,18 @@ export function useGapHealer({
         throw new Error(data.error || 'Gagal menyimpan task ke Taiga');
       }
 
-      setSuccessMsg(
-        `Berhasil membuat ${suggestions.length} task di Taiga (Status: In Progress & di-assign ke Anda) serta mengisi jam WAD!`,
-      );
+      const successText = `Berhasil membuat ${suggestions.length} task di Taiga & mengisi jam kerja WAD!`;
+      setSuccessMsg(successText);
+      notify.success(successText, 'Timesheet Healer Berhasil');
       setSuggestions([]);
       onSuccess();
       setTimeout(() => {
         onClose();
-      }, 1400);
+      }, 1000);
     } catch (e) {
-      setError((e as Error).message);
+      const errMsg = (e as Error).message;
+      setError(errMsg);
+      notify.error(errMsg, 'Gagal Mengisi Timesheet');
     } finally {
       setSubmitting(false);
     }

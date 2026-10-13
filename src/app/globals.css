@@ -753,6 +753,11 @@ body::before {
     flex: none;
   }
 
+  .btn-primary .spinner {
+    border-color: rgba(255, 255, 255, 0.35);
+    border-top-color: #ffffff;
+  }
+
   /* Prevent ApexCharts radar from clipping label text */
   .apexcharts-canvas,
   .apexcharts-canvas svg {
@@ -814,6 +819,23 @@ body::before {
     background: var(--surface-subtle);
     border: 1px solid var(--border);
     color: var(--primary);
+  }
+
+  .score-overview-container {
+    container-type: inline-size;
+  }
+  .score-overview-layout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+  }
+  @container (min-width: 350px) {
+    .score-overview-layout {
+      flex-direction: row;
+      align-items: center;
+    }
   }
 }
 

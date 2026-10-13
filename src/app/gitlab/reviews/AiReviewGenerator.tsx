@@ -5,6 +5,7 @@ import { Sparkles, ShieldCheck, ThumbsUp } from 'lucide-react';
 import type { IncomingMRItem, PreReviewOutput, ReviewToneMode } from './types';
 import { AiReviewScoreBanner } from './AiReviewScoreBanner';
 import { AiReviewEditor } from './AiReviewEditor';
+import { useNotification } from '@/components/Notification';
 
 interface AiReviewGeneratorProps {
   mr: IncomingMRItem | null;
@@ -58,6 +59,7 @@ export function AiReviewGenerator({
   onCommentPosted,
   onOpenDiscussions,
 }: AiReviewGeneratorProps) {
+  const { notify } = useNotification();
   const [toneMode, setToneMode] = useState<ReviewToneMode>('audit');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +102,9 @@ export function AiReviewGenerator({
       setReviewResult(revData);
       setCommentText(formatOrganicComment(mr, revData, selectedMode));
     } catch (e) {
-      setError((e as Error).message);
+      const errMsg = (e as Error).message;
+      setError(errMsg);
+      notify.error(errMsg, 'Gagal Analisis Kode');
     } finally {
       setLoading(false);
     }
@@ -140,9 +144,12 @@ export function AiReviewGenerator({
         : `Komentar review berhasil diposting ke MR !${mr.iid}!`;
 
       setSuccessMsg(msg);
+      notify.success(msg, 'Review Berhasil Diposting');
       onCommentPosted(msg);
     } catch (e) {
-      setPostError((e as Error).message);
+      const errMsg = (e as Error).message;
+      setPostError(errMsg);
+      notify.error(errMsg, 'Gagal Memposting Review');
     } finally {
       setPosting(false);
     }
@@ -199,12 +206,6 @@ export function AiReviewGenerator({
           </span>
         </button>
       </div>
-
-      {error && (
-        <div className='alert alert-error text-xs px-3 py-2'>
-          ✕ {error}
-        </div>
-      )}
 
       {/* Main Content Area */}
       {loading ? (

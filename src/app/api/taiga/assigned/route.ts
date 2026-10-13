@@ -26,6 +26,7 @@ export interface AssignedTaskItem {
   } | null;
   milestoneSlug: string | null;
   isClosed: boolean;
+  hours: number | null;
   createdDate: string;
   modifiedDate: string;
   url: string;
@@ -60,6 +61,13 @@ interface RawTaigaTask {
   modified_date: string;
 }
 
+interface ProjectTimeDefs {
+  minAttrId?: number;
+  hoursAttrId?: number;
+}
+const projectTimeDefsCache = new Map<number, ProjectTimeDefs>();
+const taskCavCache = new Map<number, { vals: Record<string, unknown>; modifiedDate: string }>();
+
 export async function GET(req: Request) {
   try {
     const s = getSettings();
@@ -93,8 +101,10 @@ export async function GET(req: Request) {
 
     const uniqueProjectIds = Array.from(projectMap.keys());
 
-    // 4. Fetch available task statuses for each unique project in parallel
+    // 4. Fetch available task statuses and custom attributes for each unique project in parallel
     const projectStatuses: Record<number, TaigaStatus[]> = {};
+    const projectTimeDefs: Record<number, ProjectTimeDefs> = {};
+
     await Promise.all(
       uniqueProjectIds.map(async (pid) => {
         try {
@@ -103,10 +113,101 @@ export async function GET(req: Request) {
         } catch {
           projectStatuses[pid] = [];
         }
+
+        if (projectTimeDefsCache.has(pid)) {
+          projectTimeDefs[pid] = projectTimeDefsCache.get(pid)!;
+        } else {
+          try {
+            const attrs = await taiga<Array<{ id: number; name: string }>>(`/task-custom-attributes?project=${pid}`, {
+              headers: { 'x-disable-pagination': 'true' },
+            });
+            // Minute attributes: e.g. "Total Time Spent", "Total Timespent", "Time Spent (min)"
+            // Exclude dates/start/end e.g. "Start Timespent", "End Timespent"
+            const minAttr = attrs.find((a) =>
+              !/start|end|date/i.test(a.name) &&
+              (/total\s*time\s*spent/i.test(a.name) || /total\s*timespent/i.test(a.name) || /time\s*spent\s*\(min\)/i.test(a.name))
+            );
+            // Hour attributes: e.g. "Time Spent Hours Calculated", "Time Spent (Hours)"
+            const hoursAttr = attrs.find((a) =>
+              !/start|end|date/i.test(a.name) &&
+              (/time\s*spent\s*hours/i.test(a.name) || /time\s*spent\s*\(h/i.test(a.name))
+            );
+            const defs = {
+              minAttrId: minAttr?.id,
+              hoursAttrId: hoursAttr?.id,
+            };
+            projectTimeDefsCache.set(pid, defs);
+            projectTimeDefs[pid] = defs;
+          } catch {}
+        }
       }),
     );
 
-    // 5. Format tasks
+    // 5. Fetch hours/time-spent for tasks
+    const taskHoursMap = new Map<number, number>();
+    await Promise.all(
+      rawTasks.map(async (t) => {
+        const def = projectTimeDefs[t.project];
+        let foundHours: number | null = null;
+
+        if (def?.minAttrId || def?.hoursAttrId) {
+          try {
+            let vals: Record<string, unknown> = {};
+            const cached = taskCavCache.get(t.id);
+            if (cached && cached.modifiedDate === t.modified_date) {
+              vals = cached.vals;
+            } else {
+              const cav = await taiga<{ attributes_values?: Record<string, unknown> }>(
+                `/tasks/custom-attributes-values/${t.id}`,
+              );
+              vals = cav?.attributes_values || {};
+              taskCavCache.set(t.id, { vals, modifiedDate: t.modified_date });
+            }
+
+            // Check minutes attribute first (e.g. 60 -> 1h, 120 -> 2h, 30 -> 0.5h)
+            if (def.minAttrId && vals[String(def.minAttrId)] != null && vals[String(def.minAttrId)] !== '') {
+              const num = Number(vals[String(def.minAttrId)]);
+              if (!isNaN(num) && num > 0) {
+                foundHours = num >= 15 ? Math.round((num / 60) * 10) / 10 : num;
+              }
+            }
+
+            // Check hours attribute if not found
+            if (foundHours == null && def.hoursAttrId && vals[String(def.hoursAttrId)] != null && vals[String(def.hoursAttrId)] !== '') {
+              const num = Number(vals[String(def.hoursAttrId)]);
+              if (!isNaN(num) && num > 0) {
+                foundHours = Math.round(num * 10) / 10;
+              }
+            }
+          } catch {}
+        }
+
+        // Fallback: extract estimate hours or duration range from subject e.g. "(2 jam)", "(1.5j)", "[09:00 - 11:00]"
+        if (foundHours == null) {
+          const estMatch = t.subject.match(/(\d+(?:[.,]\d+)?)\s*(?:jam|j|h|hours?)\b/i);
+          if (estMatch) {
+            const parsed = Number(estMatch[1].replace(',', '.'));
+            if (!isNaN(parsed) && parsed > 0) foundHours = parsed;
+          }
+        }
+
+        if (foundHours == null) {
+          const timeRangeMatch = t.subject.match(/(\d{1,2})[:.](\d{2})\s*[-–]\s*(\d{1,2})[:.](\d{2})/);
+          if (timeRangeMatch) {
+            const startMins = Number(timeRangeMatch[1]) * 60 + Number(timeRangeMatch[2]);
+            const endMins = Number(timeRangeMatch[3]) * 60 + Number(timeRangeMatch[4]);
+            const diffHours = (endMins - startMins) / 60;
+            if (diffHours > 0) foundHours = Math.round(diffHours * 10) / 10;
+          }
+        }
+
+        if (foundHours != null) {
+          taskHoursMap.set(t.id, foundHours);
+        }
+      }),
+    );
+
+    // 6. Format tasks
     const tasks: AssignedTaskItem[] = rawTasks.map((t) => {
       const pSlug = t.project_extra_info?.slug || s.taigaProjectSlug || 'project';
       return {
@@ -131,6 +232,7 @@ export async function GET(req: Request) {
           : null,
         milestoneSlug: t.milestone_slug,
         isClosed: Boolean(t.is_closed),
+        hours: taskHoursMap.get(t.id) ?? null,
         createdDate: t.created_date,
         modifiedDate: t.modified_date,
         url: `${s.taigaBaseUrl}/project/${pSlug}/task/${t.ref}`,

@@ -8,6 +8,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { Modal } from '@/components/Modal';
+import { useNotification } from '@/components/Notification';
 import type { WorkloadDaySummary } from './healer/types';
 import { useGapHealer } from './healer/useGapHealer';
 import { HealerDateSelector } from './healer/HealerDateSelector';
@@ -88,20 +89,6 @@ export function TimesheetGapHealerModal({
       }
     >
       <div className='flex flex-col gap-4'>
-        {error && (
-          <div className='alert alert-error px-3.5 py-2.5 text-[13px]'>
-            <AlertTriangle size={16} />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {successMsg && (
-          <div className='alert alert-ok px-3.5 py-2.5 text-[13px]'>
-            <CheckCircle2 size={16} />
-            <span>{successMsg}</span>
-          </div>
-        )}
-
         {/* Date Selector & Status Card */}
         <HealerDateSelector
           selectedDate={selectedDate}

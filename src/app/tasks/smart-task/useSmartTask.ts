@@ -11,8 +11,10 @@ import {
 import { useAssignedTasks } from './useAssignedTasks';
 import { useDrafts } from './useDrafts';
 import { useTaigaMeta } from './useTaigaMeta';
+import { useNotification } from '@/components/Notification';
 
 export function useSmartTask() {
+  const { notify } = useNotification();
   const metaState = useTaigaMeta();
   const assignedState = useAssignedTasks();
 
@@ -225,6 +227,26 @@ export function useSmartTask() {
         if (r.ok) okKeys.add(toSubmit[idx]?.key);
       });
 
+      const okCount = okKeys.size;
+      const failCount = apiResults.length - okCount;
+
+      if (failCount === 0 && okCount > 0) {
+        notify.success(
+          `Berhasil membuat ${okCount} item di Taiga.`,
+          'Submit Berhasil',
+        );
+      } else if (okCount > 0 && failCount > 0) {
+        notify.warning(
+          `Berhasil membuat ${okCount} item, namun ${failCount} item gagal dibuat.`,
+          'Submit Sebagian',
+        );
+      } else if (failCount > 0) {
+        notify.error(
+          'Semua item dalam antrean gagal dibuat ke Taiga.',
+          'Submit Gagal',
+        );
+      }
+
       draftsState.setDrafts((ds) => ds.filter((d) => !okKeys.has(d.key)));
 
       if (okKeys.size > 0) {
@@ -235,11 +257,13 @@ export function useSmartTask() {
         }
       }
     } catch (e) {
+      const errMsg = (e as Error).message;
+      notify.error(errMsg, 'Gagal Mengirim Batch');
       setResults([
         {
           ok: false,
           subject: 'Gagal mengirim batch',
-          error: (e as Error).message,
+          error: errMsg,
         },
       ]);
     } finally {

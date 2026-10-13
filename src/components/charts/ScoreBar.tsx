@@ -11,23 +11,24 @@ export function ScoreBar({
   value: number;
   weight?: string;
 }) {
+  const safeValue = Math.min(100, Math.max(0, value));
   const textToneClass =
-    value >= 70
+    safeValue >= 70
       ? 'text-emerald-600'
-      : value >= 55
+      : safeValue >= 55
         ? 'text-amber-600'
         : 'text-red-600';
   const bgToneClass =
-    value >= 70
+    safeValue >= 70
       ? 'bg-emerald-500'
-      : value >= 55
+      : safeValue >= 55
         ? 'bg-amber-500'
         : 'bg-red-500';
 
   return (
-    <div className='flex flex-col gap-1.5'>
-      <div className='flex items-center justify-between gap-2.5 text-[13px]'>
-        <span className='text-slate-muted'>
+    <div className='flex flex-col gap-1.5 w-full min-w-0'>
+      <div className='flex items-center justify-between gap-2 text-[12.5px] sm:text-[13px]'>
+        <span className='text-slate-muted truncate'>
           {label}{' '}
           {weight && (
             <span className='text-[10px] text-slate-dim font-medium'>
@@ -35,18 +36,13 @@ export function ScoreBar({
             </span>
           )}
         </span>
-        <strong className={textToneClass}>{value}</strong>
+        <strong className={`${textToneClass} shrink-0`}>{value}</strong>
       </div>
-      <div className='h-2 bg-slate-200 rounded-full overflow-hidden'>
-        {(() => {
-          const barFillStyle: React.CSSProperties = { width: `${value}%` };
-          return (
-            <span
-              className={`block h-full rounded-full transition-all duration-500 ${bgToneClass}`}
-              style={barFillStyle}
-            />
-          );
-        })()}
+      <div className='h-2 bg-slate-200 rounded-full overflow-hidden w-full'>
+        <span
+          className={`block h-full rounded-full transition-all duration-500 ${bgToneClass}`}
+          style={{ width: `${safeValue}%` }}
+        />
       </div>
     </div>
   );

@@ -170,14 +170,17 @@ export default function Home() {
       </header>
 
       <div className='grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start'>
-        <main ref={mainColRef} className='flex flex-col gap-6 min-w-0'>
+        <main
+          ref={mainColRef}
+          className='@container flex flex-col gap-6 min-w-0'
+        >
           <WadAnalyticsCard
             workload={workload}
             connected={taigaConnected}
             loading={effectiveWorkloadLoading}
           />
 
-          <div className='grid grid-cols-1 lg:grid-cols-2 gap-3'>
+          <div className='grid grid-cols-1 @[640px]:grid-cols-2 gap-4'>
             <GitlabVelocityCard
               metrics={metrics}
               connected={gitlabConnected}

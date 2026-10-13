@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Search, RefreshCw, GitPullRequest } from 'lucide-react';
 import { Select } from '@/components/Select';
 import { MrCard } from './MrCard';
+import { useNotification } from '@/components/Notification';
 import type {
   IncomingMRItem,
   ReviewScope,
@@ -42,6 +43,13 @@ export function MrList({
   onSearchChange,
   onRefresh,
 }: MrListProps) {
+  const { notify } = useNotification();
+
+  useEffect(() => {
+    if (error) {
+      notify.error(error, 'Merge Request');
+    }
+  }, [error, notify]);
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     if (!q) return mrs;
@@ -136,12 +144,6 @@ export function MrList({
           {filtered.length} Merge Request ditemukan
         </div>
       </div>
-
-      {error && (
-        <div className='alert alert-error text-[12.5px] px-3.5 py-2.5'>
-          ✕ {error}
-        </div>
-      )}
 
       {/* Loading state */}
       {loading ? (

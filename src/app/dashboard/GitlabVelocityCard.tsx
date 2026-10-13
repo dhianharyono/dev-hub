@@ -65,7 +65,7 @@ export function GitlabVelocityCard({
 
   return (
     <section
-      className='card flex flex-col gap-5'
+      className='card flex flex-col gap-5 @container min-w-0'
       aria-label='GitLab Velocity dan Kode'
     >
       {/* Header */}
@@ -81,7 +81,7 @@ export function GitlabVelocityCard({
       </div>
 
       {isDisconnected ? (
-        <div className='py-4 pb-6'>
+        <div className='py-2 pb-4 w-full'>
           <EmptyState
             tone='rose'
             icon={<GitBranch size={24} />}
@@ -90,10 +90,10 @@ export function GitlabVelocityCard({
             action={
               <Link
                 href='/settings'
-                className='btn btn-primary no-underline'
+                className='btn btn-primary no-underline max-w-full text-center whitespace-normal h-auto min-h-[42px] py-2 px-4 text-[13px] leading-snug'
                 id='btn-gl-settings'
               >
-                <Settings size={15} />
+                <Settings size={15} className='shrink-0' />
                 <span>Konfigurasi GitLab di Pengaturan</span>
               </Link>
             }
@@ -102,7 +102,7 @@ export function GitlabVelocityCard({
       ) : (
         <>
           {/* Grade Highlight Hero Banner */}
-          <div className='grid grid-cols-1 min-[500px]:grid-cols-[150px_minmax(0,1fr)] gap-5 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-blue-600/[0.06] to-cyan-500/[0.09] border border-blue-600/[0.18] items-center'>
+          <div className='flex flex-cols-2 gap-4 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-blue-600/[0.06] to-cyan-500/[0.09] border border-blue-600/[0.18] items-center'>
             <div className='flex items-center gap-3.5'>
               <div className='w-[54px] h-[54px] rounded-2xl bg-gradient-to-br from-[#1977f3] to-[#06b6d4] text-white grid place-items-center text-[28px] font-black shadow-[0_4px_14px_rgba(25,119,243,0.35)] shrink-0'>
                 {grade}
@@ -111,25 +111,25 @@ export function GitlabVelocityCard({
                 <span className='text-xl font-extrabold text-slate-text leading-tight'>
                   {score}
                 </span>
-                <span className='text-[11.5px] font-bold text-sky-600 uppercase tracking-wider'>
-                  Grade {grade} · {gradeLabel}
+                <span className='text-[11.5px] font-bold text-sky-600 uppercase tracking-wider whitespace-nowrap'>
+                  Grade {grade}
                 </span>
               </div>
             </div>
 
-            <div className='grid grid-cols-2 gap-x-4 gap-y-2.5'>
+            <div className='grid grid-cols-2 gap-x-4 gap-y-2.5 justify-end flex-1 min-w-0'>
               {pillars.map((p) => (
-                <div key={p.label} className='flex flex-col gap-1'>
-                  <div className='flex items-center justify-between text-[11px] font-semibold text-slate-text-2'>
-                    <span>{p.label}</span>
-                    <strong className='font-extrabold text-slate-text'>
+                <div key={p.label} className='flex flex-col gap-1 min-w-0'>
+                  <div className='flex items-center justify-between gap-1.5 text-[11px] font-semibold text-slate-text-2 min-w-0'>
+                    <span className='truncate'>{p.label}</span>
+                    <strong className='font-extrabold text-slate-text shrink-0'>
                       {p.val}%
                     </strong>
                   </div>
                   <div className='w-full h-[6px] rounded-full bg-slate-200 overflow-hidden'>
                     {(() => {
                       const velocityWidthStyle: React.CSSProperties = {
-                        width: `${p.val}%`,
+                        width: `${Math.min(100, Math.max(0, p.val))}%`,
                       };
                       return (
                         <div

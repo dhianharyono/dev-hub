@@ -123,7 +123,7 @@ export function TaigaDeliveryCard({
       </div>
 
       {isDisconnected ? (
-        <div className='py-4 pb-6'>
+        <div className='py-2 pb-4 w-full'>
           <EmptyState
             tone='purple'
             icon={<CheckCircle2 size={24} />}
@@ -132,10 +132,10 @@ export function TaigaDeliveryCard({
             action={
               <Link
                 href='/settings'
-                className='btn btn-primary no-underline'
+                className='btn btn-primary no-underline max-w-full text-center whitespace-normal h-auto min-h-[42px] py-2 px-4 text-[13px] leading-snug'
                 id='btn-taiga-settings'
               >
-                <Settings size={15} />
+                <Settings size={15} className='shrink-0' />
                 <span>Konfigurasi Taiga di Pengaturan</span>
               </Link>
             }

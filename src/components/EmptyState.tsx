@@ -43,11 +43,11 @@ export function EmptyState({
 
   return (
     <div
-      className={`w-full text-center py-10 px-6 flex flex-col items-center justify-center rounded-2xl transition-all border border-(--border) bg-[#fafcff] shadow-[0_2px_10px_rgba(27,46,94,0.02)] ${className}`}
+      className={`w-full text-center py-7 sm:py-9 px-4 sm:px-6 flex flex-col items-center justify-center rounded-2xl transition-all border border-(--border) bg-[#fafcff] shadow-[0_2px_10px_rgba(27,46,94,0.02)] overflow-hidden ${className}`}
     >
       {icon && (
         <div
-          className={`w-13 h-13 rounded-2xl flex items-center justify-center mb-3.5 border ${iconClasses}`}
+          className={`w-13 h-13 rounded-2xl flex items-center justify-center mb-3.5 border shrink-0 ${iconClasses}`}
         >
           {icon}
         </div>
@@ -58,13 +58,13 @@ export function EmptyState({
       </strong>
 
       {description && (
-        <p className='text-[12.5px] max-w-md mt-1.5 mb-4 leading-relaxed text-(--text-2)'>
+        <p className='text-[12.5px] max-w-md w-full mt-1.5 mb-3 leading-relaxed text-(--text-2)'>
           {description}
         </p>
       )}
 
       {action && (
-        <div className='flex flex-wrap items-center justify-center gap-3 mt-3'>
+        <div className='flex flex-wrap items-center justify-center gap-2.5 mt-2 w-full max-w-full px-1'>
           {action}
         </div>
       )}

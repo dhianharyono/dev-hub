@@ -186,13 +186,6 @@ export function PreReviewForm({
           </div>
         </div>
 
-        {error && (
-          <div className='alert alert-error p-3 text-xs'>
-            <AlertCircle size={15} />
-            <span>{error}</span>
-          </div>
-        )}
-
         <button
           type='button'
           className='btn btn-primary w-full h-11 text-sm font-semibold inline-flex items-center justify-center gap-2 mt-1 rounded-xl'

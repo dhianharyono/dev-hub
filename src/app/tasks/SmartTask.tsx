@@ -109,7 +109,7 @@ export default function SmartTask() {
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
           }`}
         >
-          <span>Input &amp; Review Draft</span>
+          <span>AI Task Generator</span>
           {isTaigaConnected && taskState.drafts.length > 0 && (
             <span
               className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${

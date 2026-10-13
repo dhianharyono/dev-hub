@@ -89,10 +89,10 @@ export function WadAnalyticsCard({
             action={
               <Link
                 href='/settings'
-                className='btn btn-primary no-underline'
+                className='btn btn-primary no-underline max-w-full text-center whitespace-normal h-auto min-h-[42px] py-2 px-4 text-[13px] leading-snug'
                 id='btn-wad-settings'
               >
-                <Settings size={15} />
+                <Settings size={15} className='shrink-0' />
                 <span>Konfigurasi Taiga di Pengaturan</span>
               </Link>
             }
@@ -118,7 +118,7 @@ export function WadAnalyticsCard({
                 </span>
               </div>
               <div>
-                <div className='text-lg font-bold text-slate-text leading-snug my-4'>
+                <div className='text-xl font-extrabold text-slate-text leading-snug my-2'>
                   {kpis?.compliance ||
                     (percentage === 0
                       ? 'Belum Ada Log Hari Ini'
@@ -144,13 +144,6 @@ export function WadAnalyticsCard({
                     / {workload?.kpis?.expectedHours || 0}h
                   </span>
                 </div>
-                <span className='text-[10px] text-slate-dim truncate leading-tight'>
-                  {workload?.kpis?.timeSpent &&
-                  workload.kpis.expectedHours &&
-                  workload.kpis.timeSpent >= workload.kpis.expectedHours
-                    ? 'Kapasitas Terpenuhi'
-                    : 'Target Jam Bulanan'}
-                </span>
               </div>
 
               <div className='bg-slate-50/80 border border-border rounded-xl p-2.5 px-3 flex flex-col justify-between min-h-[55px] gap-0.5 transition-all hover:bg-surface-hover hover:border-border-strong hover:shadow-xs'>
@@ -165,12 +158,6 @@ export function WadAnalyticsCard({
                     / {workload?.kpis?.activitiesCount || 0}
                   </span>
                 </div>
-                <span className='text-[10px] text-slate-dim truncate leading-tight'>
-                  {workload?.kpis?.activitiesCount &&
-                  workload.kpis.activitiesCount > 0
-                    ? `${Math.round(((workload?.statusBreakdown?.done || 0) / workload.kpis.activitiesCount) * 100)}% Selesai`
-                    : 'Aktivitas Tercatat'}
-                </span>
               </div>
 
               <div className='bg-slate-50/80 border border-border rounded-xl p-2.5 px-3 flex flex-col justify-between min-h-[55px] gap-0.5 transition-all hover:bg-surface-hover hover:border-border-strong hover:shadow-xs'>
@@ -185,24 +172,28 @@ export function WadAnalyticsCard({
                     / {workload?.kpis?.totalMonthWorkdays || 0}
                   </span>
                 </div>
-                <span className='text-[10px] text-slate-dim truncate leading-tight'>
-                  Hari Bulan Ini
-                </span>
               </div>
 
               <div className='bg-slate-50/80 border border-border rounded-xl p-2.5 px-3 flex flex-col justify-between min-h-[55px] gap-0.5 transition-all hover:bg-surface-hover hover:border-border-strong hover:shadow-xs'>
                 <span className='text-[10px] font-bold uppercase tracking-wider text-slate-muted leading-tight'>
                   Status Portal
                 </span>
-                <span className='text-[15px] font-extrabold tracking-tight font-mono text-sky-600 leading-none truncate'>
-                  {workload?.kpis?.status === 'Fit'
+                <span
+                  className={`text-[15px] font-extrabold tracking-tight font-mono leading-none truncate ${
+                    statusType === 'Fit'
+                      ? 'text-emerald-600'
+                      : statusType === 'Overload'
+                        ? 'text-purple-600'
+                        : statusType === 'Empty'
+                          ? 'text-rose-600'
+                          : 'text-amber-600'
+                  }`}
+                >
+                  {statusType === 'Fit'
                     ? 'Fit'
-                    : workload?.kpis?.status === 'Overload'
+                    : statusType === 'Overload'
                       ? 'Lembur'
                       : 'Perlu Pengisian'}
-                </span>
-                <span className='text-[10px] text-slate-dim truncate leading-tight'>
-                  Portal Timesheet (WAD)
                 </span>
               </div>
             </div>

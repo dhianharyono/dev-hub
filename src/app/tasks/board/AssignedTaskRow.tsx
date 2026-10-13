@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, ExternalLink, Pencil, X } from 'lucide-react';
+import { CheckCircle2, Clock, ExternalLink, Pencil, X } from 'lucide-react';
 import { Select } from '@/components/Select';
 import { formatTaskSubject } from '@/lib/task-utils';
 import type { AssignedTaskItem } from '@/app/api/taiga/assigned/route';
@@ -62,7 +62,7 @@ export function AssignedTaskRow({
       </td>
 
       {/* Subject & Inline Edit */}
-      <td className='align-middle'>
+      <td className='align-middle min-w-[240px]'>
         {isEditingThis ? (
           <div className='flex items-center gap-2'>
             <input
@@ -121,7 +121,7 @@ export function AssignedTaskRow({
       </td>
 
       {/* User Story Parent */}
-      <td className='align-middle'>
+      <td className='align-middle whitespace-nowrap'>
         {task.userStory ? (
           <a
             href={`${baseUrl}/project/${projectSlug}/us/${task.userStory.ref}`}
@@ -140,8 +140,20 @@ export function AssignedTaskRow({
         )}
       </td>
 
+      {/* Hours / Jam Cell */}
+      <td className='align-middle text-center whitespace-nowrap'>
+        {task.hours != null ? (
+          <span className='inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200/80 font-mono'>
+            <Clock size={11} className='text-sky-600 shrink-0' />
+            <span>{task.hours}h</span>
+          </span>
+        ) : (
+          <span className='text-xs text-slate-400 font-mono'>-</span>
+        )}
+      </td>
+
       {/* Status Selector Cell */}
-      <td className='align-middle text-right'>
+      <td className='align-middle text-right whitespace-nowrap'>
         <div className='inline-flex items-center justify-end gap-2'>
           <div className='relative inline-flex items-center w-[165px]'>
             <Select

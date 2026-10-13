@@ -7,7 +7,7 @@ interface ScoreInsightsCardProps {
 export function ScoreInsightsCard({ insights }: ScoreInsightsCardProps) {
   return (
     <section
-      className='card flex flex-col gap-5'
+      className='card flex flex-col gap-5 overflow-hidden min-w-0'
       aria-labelledby='insight-title'
     >
       <div className='card-title' id='insight-title'>

@@ -1,7 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Eye, EyeOff, RefreshCw, Cpu } from 'lucide-react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  Cpu,
+  Eye,
+  EyeOff,
+  RefreshCw,
+} from 'lucide-react';
 import { Select } from '@/components/Select';
 import type { PublicSettings, TestResult, TestingState } from '../types';
 
@@ -49,10 +56,12 @@ export function GeminiSettingsSection({
   };
 
   return (
-    <section className='card flex flex-col gap-6'>
+    <section className='card flex flex-col gap-6 p-6'>
       <div className='flex items-center justify-between flex-wrap gap-4 pb-4 border-b border-border'>
         <div className='flex items-start gap-2.5 flex-1 min-w-0'>
-          <span className='w-[26px] h-[26px] rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-xs font-extrabold text-slate-muted shrink-0 mt-0.5'>3</span>
+          <span className='w-[26px] h-[26px] rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-xs font-extrabold text-slate-muted shrink-0 mt-0.5'>
+            3
+          </span>
           <div className='flex-1 min-w-0'>
             <span className='text-[15px] font-bold text-slate-text tracking-tight'>
               Kecerdasan Buatan (AI &amp; LLM Engine)
@@ -61,19 +70,10 @@ export function GeminiSettingsSection({
               Engine AI untuk ekstraksi User Story &amp; Task, auto-heal WAD,
               analisis produktivitas, dan review MR
             </div>
-            {testResult && (
-              <div className='mt-2'>
-                <span
-                  className={`badge ${testResult.ok ? 'badge-violet' : 'badge-rose'} whitespace-normal break-words inline-block max-w-full text-left leading-[1.45] px-3 py-1.5`}
-                >
-                  {testResult.ok ? '✓ ' + testResult.message : testResult.message}
-                </span>
-              </div>
-            )}
           </div>
         </div>
 
-        <div className='shrink-0'>
+        <div className='shrink-0 flex flex-col items-start sm:items-end gap-2 max-w-full sm:max-w-md'>
           <button
             type='button'
             className='btn btn-sm'
@@ -83,6 +83,33 @@ export function GeminiSettingsSection({
             {testing ? <span className='spinner' /> : <RefreshCw size={13} />}
             <span>Uji Koneksi AI</span>
           </button>
+
+          {!testing && testResult && (
+            <div
+              className={`flex items-start gap-2.5 px-3 py-2 rounded-xl text-xs border w-full sm:w-auto animate-in fade-in ${
+                testResult.ok
+                  ? 'bg-emerald-50/70 border-emerald-200/80 text-emerald-800'
+                  : 'bg-rose-50/70 border-rose-200/80 text-rose-800'
+              }`}
+            >
+              {testResult.ok ? (
+                <CheckCircle2
+                  size={14}
+                  className='text-emerald-600 shrink-0 mt-0.5'
+                />
+              ) : (
+                <AlertCircle
+                  size={14}
+                  className='text-rose-600 shrink-0 mt-0.5'
+                />
+              )}
+              <div className='flex flex-col gap-1 min-w-0 text-left'>
+                <span className='font-medium leading-relaxed break-words'>
+                  {testResult.message}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

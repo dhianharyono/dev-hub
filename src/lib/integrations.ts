@@ -22,7 +22,9 @@ export function invalidateIntegrationCache() {
   cachedStatus = null;
 }
 
-export async function checkIntegrationsStatus(force = false): Promise<IntegrationStatus> {
+export async function checkIntegrationsStatus(
+  force = false,
+): Promise<IntegrationStatus> {
   const now = Date.now();
   if (!force && cachedStatus && now - cachedStatus.timestamp < CACHE_TTL_MS) {
     return cachedStatus.data;
@@ -38,7 +40,9 @@ export async function checkIntegrationsStatus(force = false): Promise<Integratio
 
   if (gitlabConfigured) {
     try {
-      const baseUrl = (s.gitlabBaseUrl || 'https://gitlab.playcourt.id').trim().replace(/\/+$/, '');
+      const baseUrl = (s.gitlabBaseUrl || 'https://gitlab.com/')
+        .trim()
+        .replace(/\/+$/, '');
       const ctrl = new AbortController();
       const timeout = setTimeout(() => ctrl.abort(), 4000);
       const res = await fetch(`${baseUrl}/api/v4/user`, {
@@ -54,11 +58,17 @@ export async function checkIntegrationsStatus(force = false): Promise<Integratio
         if (u.username) gitlabUsername = u.username;
       } else {
         gitlabConnected = false;
-        gitlabError = res.status === 401 ? 'Token GitLab tidak valid atau dicabut' : `HTTP ${res.status}`;
+        gitlabError =
+          res.status === 401
+            ? 'Token GitLab tidak valid atau dicabut'
+            : `HTTP ${res.status}`;
       }
     } catch (err) {
       gitlabConnected = false;
-      gitlabError = (err as Error).name === 'AbortError' ? 'Koneksi GitLab timeout' : (err as Error).message;
+      gitlabError =
+        (err as Error).name === 'AbortError'
+          ? 'Koneksi GitLab timeout'
+          : (err as Error).message;
     }
   } else {
     gitlabError = 'Token belum diatur';
@@ -68,11 +78,13 @@ export async function checkIntegrationsStatus(force = false): Promise<Integratio
   let taigaConnected = false;
   let taigaUsername = '';
   let taigaError = '';
-  const taigaConfigured = Boolean(s.taigaToken && s.taigaToken.trim());
+  const taigaConfigured = Boolean(
+    s.taigaToken && s.taigaToken.trim() && s.taigaBaseUrl && s.taigaBaseUrl.trim()
+  );
 
   if (taigaConfigured) {
     try {
-      const baseUrl = (s.taigaBaseUrl || 'https://tree.taiga.io').trim().replace(/\/+$/, '');
+      const baseUrl = s.taigaBaseUrl.trim().replace(/\/+$/, '');
       const ctrl = new AbortController();
       const timeout = setTimeout(() => ctrl.abort(), 4000);
       let res = await fetch(`${baseUrl}/api/v1/users/me`, {
@@ -109,20 +121,30 @@ export async function checkIntegrationsStatus(force = false): Promise<Integratio
         if (me.username) taigaUsername = me.username;
       } else {
         taigaConnected = false;
-        taigaError = res.status === 401 ? 'Sesi Taiga kedaluwarsa atau tidak valid' : `HTTP ${res.status}`;
+        taigaError =
+          res.status === 401
+            ? 'Sesi Taiga kedaluwarsa atau tidak valid'
+            : `HTTP ${res.status}`;
       }
     } catch (err) {
       taigaConnected = false;
-      taigaError = (err as Error).name === 'AbortError' ? 'Koneksi Taiga timeout' : (err as Error).message;
+      taigaError =
+        (err as Error).name === 'AbortError'
+          ? 'Koneksi Taiga timeout'
+          : (err as Error).message;
     }
   } else {
-    taigaError = 'Token belum diatur';
+    taigaError = !s.taigaToken?.trim()
+      ? 'Token belum diatur'
+      : 'Taiga Base URL belum diatur';
   }
 
   // 3. WAD depends on Taiga connectivity
   const wadConnected = taigaConnected;
   const wadConfigured = taigaConfigured;
-  const wadError = taigaConnected ? '' : (taigaError || 'Memerlukan koneksi Taiga yang aktif');
+  const wadError = taigaConnected
+    ? ''
+    : taigaError || 'Memerlukan koneksi Taiga yang aktif';
 
   const result: IntegrationStatus = {
     gitlab: {

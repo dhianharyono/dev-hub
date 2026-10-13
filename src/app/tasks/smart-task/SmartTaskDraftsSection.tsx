@@ -126,39 +126,6 @@ export function SmartTaskDraftsSection({
         />
       )}
 
-      {submitProgress && (
-        <div className='alert alert-info'>
-          <span className='spinner' />
-          <span>{submitProgress}</span>
-        </div>
-      )}
-
-      {results && (
-        <div className='stack gap-2'>
-          {results.map((r, i) => (
-            <div
-              key={i}
-              className={`alert ${r.ok ? 'alert-ok' : 'alert-error'}`}
-            >
-              <span>{r.ok ? '✓' : '✕'}</span>
-              <div className='truncate'>
-                {r.ok ? (
-                  <a href={r.url} target='_blank' rel='noreferrer'>
-                    <span className='mono'>#{r.ref}</span> {r.subject}{' '}
-                    <span className='dim'>↗ (Buka di Taiga)</span>
-                  </a>
-                ) : (
-                  <>
-                    <strong>{r.subject}</strong>{' '}
-                    <span className='muted'>{r.error}</span>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
       {drafts.length === 0 && !parsing && (
         <SmartTaskEmptyState onUseExample={onUseExample} />
       )}

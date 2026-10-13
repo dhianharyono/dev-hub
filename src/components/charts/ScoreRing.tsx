@@ -67,14 +67,21 @@ export function ScoreRing({
     labels: [label || 'Skor'],
   };
 
-  const dimensionClass = size === 164 ? 'w-[164px] h-[164px]' : 'w-[180px] h-[180px]';
+  const dimensionClass =
+    size === 164 ? 'w-[164px] h-[164px]' : 'w-[180px] h-[180px]';
 
   if (!mounted) {
     return (
       <div className={`grid place-items-center ${dimensionClass}`}>
         <div className='absolute inset-0 flex flex-col items-center justify-center'>
-          <span className='text-[40px] font-extrabold tracking-tight leading-none text-slate-text'>{value}</span>
-          {label && <span className='text-xs font-bold tracking-wider uppercase text-slate-muted mt-1.5'>{label}</span>}
+          <span className='text-[40px] font-extrabold tracking-tight leading-none text-slate-text'>
+            {value}
+          </span>
+          {label && (
+            <span className='text-xs font-bold tracking-wider uppercase text-slate-muted mt-1.5'>
+              {label}
+            </span>
+          )}
           {sub && <span className='text-xs text-slate-dim'>{sub}</span>}
         </div>
       </div>
@@ -82,7 +89,9 @@ export function ScoreRing({
   }
 
   return (
-    <div className={`relative flex items-center justify-center ${dimensionClass}`}>
+    <div
+      className={`relative flex items-center justify-center ${dimensionClass}`}
+    >
       <ReactApexChart
         options={options}
         series={[value]}

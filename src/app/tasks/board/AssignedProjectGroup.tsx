@@ -63,15 +63,18 @@ export function AssignedProjectGroup({
 
       {/* Table of Tasks */}
       <div className='overflow-x-auto'>
-        <table className='table'>
+        <table className='table min-w-[780px]'>
           <thead>
-            <tr className='bg-surface-subtle/50'>
+            <tr className='bg-surface-subtle/50 whitespace-nowrap'>
               <th className='w-[85px]'>#Ref</th>
-              <th>Judul Task</th>
-              <th className='w-[260px]'>
+              <th className='min-w-[240px]'>Judul Task</th>
+              <th className='w-[240px]'>
                 User Story Induk
               </th>
-              <th className='w-[240px] text-right'>
+              <th className='w-[105px] text-center'>
+                Jam
+              </th>
+              <th className='w-[210px] text-right'>
                 Status
               </th>
             </tr>

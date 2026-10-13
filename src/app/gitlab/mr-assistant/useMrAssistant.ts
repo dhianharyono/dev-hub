@@ -2,8 +2,10 @@ import { useState } from 'react';
 import type { MrResult, CreatedMr } from './types';
 import { useGitlabRepoMeta } from './useGitlabRepoMeta';
 import { useTaigaMeta } from './useTaigaMeta';
+import { useNotification } from '@/components/Notification';
 
 export function useMrAssistant() {
+  const { notify } = useNotification();
   const gitlabMeta = useGitlabRepoMeta();
   const taigaMeta = useTaigaMeta();
 
@@ -104,8 +106,11 @@ export function useMrAssistant() {
         releaseNotes: json.releaseNotes,
         source: json.source,
       });
+      notify.success('Draf deskripsi Merge Request berhasil digenerate.', 'Draf Siap');
     } catch (e) {
-      setError((e as Error).message);
+      const msg = (e as Error).message;
+      setError(msg);
+      notify.error(msg, 'Gagal Membuat Draf MR');
     } finally {
       setLoading(false);
     }
@@ -133,8 +138,11 @@ export function useMrAssistant() {
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || 'Gagal membuat Merge Request di GitLab');
       setCreatedMr(data.mr);
+      notify.success(`Merge Request !${data.mr.iid} berhasil dibuat di GitLab!`, 'MR Terbuat');
     } catch (e) {
-      setCreateMrError((e as Error).message);
+      const msg = (e as Error).message;
+      setCreateMrError(msg);
+      notify.error(msg, 'Gagal Membuat MR');
     } finally {
       setCreatingMr(false);
     }

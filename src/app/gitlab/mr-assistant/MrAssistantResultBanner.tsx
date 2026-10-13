@@ -100,12 +100,6 @@ export function MrAssistantResultBanner({
         )}
       </div>
 
-      {createMrError && (
-        <div className='alert alert-error text-xs px-3 py-2 m-0'>
-          ✕ Gagal membuat MR: {createMrError}
-        </div>
-      )}
-
       {createdMr && (
         <div className='bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-2 text-[12.5px] text-slate-text flex items-center gap-2'>
           <CheckCircle2

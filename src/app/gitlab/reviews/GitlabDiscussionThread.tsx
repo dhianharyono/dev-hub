@@ -13,6 +13,7 @@ import { GitlabIdenticon } from './GitlabIdenticon';
 import { GitlabDiffSnippet } from './GitlabDiffSnippet';
 import { GitlabThreadReplyBar } from './GitlabThreadReplyBar';
 import { Markdown } from '@/components/Markdown';
+import { useNotification } from '@/components/Notification';
 
 interface GitlabDiscussionThreadProps {
   projectId: number;
@@ -44,8 +45,8 @@ export function GitlabDiscussionThread({
   discussion,
   onRefresh,
 }: GitlabDiscussionThreadProps) {
+  const { notify } = useNotification();
   const [collapsed, setCollapsed] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const rootNote = discussion.notes[0];
   if (!rootNote) return null;
@@ -102,12 +103,6 @@ export function GitlabDiscussionThread({
       {/* 2. Expanded Thread Body */}
       {!collapsed && (
         <div className='p-3 sm:px-4'>
-          {errorMsg && (
-            <div className='alert alert-error text-[11.5px] px-2.5 py-1.5 mb-2.5'>
-              ✕ {errorMsg}
-            </div>
-          )}
-
           {/* Diff context snippet table */}
           {discussion.diffContext && (
             <GitlabDiffSnippet diffContext={discussion.diffContext} />
@@ -183,7 +178,7 @@ export function GitlabDiscussionThread({
           discussionId={discussion.id}
           isResolved={isResolved}
           onRefresh={onRefresh}
-          onError={setErrorMsg}
+          onError={(err) => notify.error(err, 'Diskusi GitLab')}
         />
       )}
     </div>

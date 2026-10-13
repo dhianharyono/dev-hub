@@ -4,6 +4,7 @@ import {
   GitPullRequest,
   ShieldCheck,
   MessageSquareCode,
+  RefreshCw,
 } from 'lucide-react';
 import type { MetricsData } from '@/components/hooks';
 
@@ -114,7 +115,7 @@ export function GitlabHeaderTabs({
             <button
               type='button'
               id='btn-sync'
-              className='btn btn-primary'
+              className='btn btn-primary inline-flex items-center justify-center gap-2'
               onClick={onSync}
               disabled={!connected || isSyncing}
               title={
@@ -126,8 +127,17 @@ export function GitlabHeaderTabs({
                 !connected ? { opacity: 0.6, cursor: 'not-allowed' } : undefined
               }
             >
-              {isSyncing ? <span className='spinner' /> : ''}{' '}
-              {isSyncing ? 'Sinkron…' : 'Sinkron GitLab'}
+              {isSyncing ? (
+                <>
+                  <span className='spinner' />
+                  <span>Sinkron...</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={14} />
+                  <span>Sinkron GitLab</span>
+                </>
+              )}
             </button>
             <Link
               href={connected ? `/report?days=${days}` : '#'}

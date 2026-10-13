@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { PublicSettings, TestResult, TestingState } from '../types';
 import type { IntegrationStatus } from '@/components/hooks';
+import { useNotification } from '@/components/Notification';
 
 export function useSettings() {
+  const { notify } = useNotification();
   const [form, setForm] = useState<Partial<PublicSettings>>({});
   const [integrations, setIntegrations] = useState<IntegrationStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,6 +49,7 @@ export function useSettings() {
         const searchParams = new URLSearchParams(window.location.search);
         const urlToken = searchParams.get('taiga_token');
         const urlRefresh = searchParams.get('taiga_refresh');
+        const urlBaseUrl = searchParams.get('taiga_url');
         if (urlToken) {
           const cleanToken = urlToken.replace(/^["']+|["']+$/g, '').trim();
           const cleanRefresh = (urlRefresh || '').replace(/^["']+|["']+$/g, '').trim();
@@ -57,15 +60,19 @@ export function useSettings() {
           setTaigaSessionInput(cleanToken);
           setSaving(true);
           try {
+            const updatePayload: Record<string, unknown> = {
+              ...initialForm,
+              taigaSession: sessionPayload,
+              taigaToken: cleanToken,
+              taigaRefresh: cleanRefresh,
+            };
+            if (urlBaseUrl) {
+              updatePayload.taigaBaseUrl = decodeURIComponent(urlBaseUrl).trim().replace(/\/+$/, '');
+            }
             const res = await fetch('/api/settings', {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                ...initialForm,
-                taigaSession: sessionPayload,
-                taigaToken: cleanToken,
-                taigaRefresh: cleanRefresh,
-              }),
+              body: JSON.stringify(updatePayload),
             });
             const savedData = await res.json();
             if (res.ok) {
@@ -127,11 +134,14 @@ export function useSettings() {
       } else if (data.taigaToken) {
         setTaigaSessionInput(data.taigaToken);
       }
-      setSaveMsg('✓ Pengaturan berhasil disimpan!');
+      setSaveMsg('Pengaturan berhasil disimpan!');
+      notify.success('Pengaturan kredensial berhasil disimpan!', 'Berhasil Disimpan');
       setTimeout(() => setSaveMsg(null), 4000);
       await fetchIntegrations(true);
     } catch (err) {
-      setSaveMsg('✕ Gagal menyimpan: ' + (err as Error).message);
+      const errText = (err as Error).message;
+      setSaveMsg('Gagal menyimpan: ' + errText);
+      notify.error(errText, 'Gagal Menyimpan');
     } finally {
       setSaving(false);
     }
@@ -139,6 +149,7 @@ export function useSettings() {
 
   const runTest = async (target: 'taiga' | 'gitlab' | 'gemini' | 'ai') => {
     const key = target === 'ai' ? 'ai' : target;
+    const targetLabel = target === 'ai' || target === 'gemini' ? 'AI Engine' : target.toUpperCase();
     setTesting((prev) => ({ ...prev, [key]: true, ...(target === 'ai' ? { gemini: true } : {}) }));
     try {
       const payload = {
@@ -161,16 +172,21 @@ export function useSettings() {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
+      const isOk = Boolean(res.ok && data.ok !== false);
+      const message = isOk ? data.message : (data.error || 'Uji koneksi gagal.');
+
       setTestResult((prev) => ({
         ...prev,
-        [key]: { ok: res.ok, message: res.ok ? data.message : data.error },
-        ...(target === 'ai' ? { gemini: { ok: res.ok, message: res.ok ? data.message : data.error } } : {}),
+        [key]: { ok: isOk, message },
+        ...(target === 'ai' ? { gemini: { ok: isOk, message } } : {}),
       }));
+
       await fetchIntegrations(true);
     } catch (err) {
+      const errText = (err as Error).message;
       setTestResult((prev) => ({
         ...prev,
-        [key]: { ok: false, message: (err as Error).message },
+        [key]: { ok: false, message: errText },
       }));
     } finally {
       setTesting((prev) => ({ ...prev, [key]: false, ...(target === 'ai' ? { gemini: false } : {}) }));

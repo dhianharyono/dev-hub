@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { MessageSquare, RefreshCw, Sparkles, Filter } from 'lucide-react';
 import type { IncomingMRItem, MRDiscussionItem, MRNoteItem } from './types';
 import { GitlabDiscussionThread } from './GitlabDiscussionThread';
+import { useNotification } from '@/components/Notification';
 
 interface MrCommentsListProps {
   mr: IncomingMRItem | null;
@@ -16,11 +17,18 @@ export function MrCommentsList({
   refreshTrigger,
   onOpenAiReview,
 }: MrCommentsListProps) {
+  const { notify } = useNotification();
   const [discussions, setDiscussions] = useState<MRDiscussionItem[]>([]);
   const [notes, setNotes] = useState<MRNoteItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unresolvedOnly, setUnresolvedOnly] = useState(false);
+
+  useEffect(() => {
+    if (error) {
+      notify.error(error, 'Komentar MR');
+    }
+  }, [error, notify]);
 
   const fetchDiscussions = useCallback(async () => {
     if (!mr) {
@@ -148,12 +156,6 @@ export function MrCommentsList({
           </button>
         </div>
       </div>
-
-      {error && (
-        <div className='alert alert-error text-xs px-3 py-2'>
-          ✕ {error}
-        </div>
-      )}
 
       {/* Loading state */}
       {loading ? (

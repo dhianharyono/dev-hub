@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   GitBranch,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useSync, useMetrics, useIntegrations } from '@/components/hooks';
 import { EmptyState } from '@/components/EmptyState';
+import { useNotification } from '@/components/Notification';
 import { MrAssistantCard } from './MrAssistantCard';
 import { PreReviewCard } from './PreReviewCard';
 import { IncomingReviewsCard } from './IncomingReviewsCard';
@@ -37,6 +38,13 @@ export default function GitlabDashboard() {
 
   const isGitlabConnected = Boolean(integrations?.gitlab?.connected);
   const gitlabError = integrations?.gitlab?.error;
+  const { notify } = useNotification();
+
+  useEffect(() => {
+    if (error && isGitlabConnected) {
+      notify.error(error, 'GitLab Productivity');
+    }
+  }, [error, isGitlabConnected, notify]);
 
   const empty =
     data &&
@@ -124,12 +132,6 @@ export default function GitlabDashboard() {
 
       {activeView === 'productivity' && (
         <>
-          {error && isGitlabConnected && (
-            <div className='alert alert-error mb-4.5'>
-              ✕ {error}
-            </div>
-          )}
-
           {(loadingIntegrations || (loading && !data)) && (
             <GitlabSkeletonGrid />
           )}

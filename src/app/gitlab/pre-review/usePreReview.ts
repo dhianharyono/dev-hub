@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import type { GitLabProjectSummary } from '@/app/api/gitlab/projects/route';
 import type { GitLabBranchSummary } from '@/app/api/gitlab/branches/route';
 import type { PreReviewOutput, AuditStats } from './types';
+import { useNotification } from '@/components/Notification';
 
 export function usePreReview() {
+  const { notify } = useNotification();
   const [projects, setProjects] = useState<GitLabProjectSummary[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | ''>('');
@@ -87,7 +89,9 @@ export function usePreReview() {
 
   const handleReview = async () => {
     if (!selectedProjectId || !branch || !targetBranch) {
-      setError('Pilih project, branch yang ingin di-review, dan target branch.');
+      const msg = 'Pilih project, branch yang ingin di-review, dan target branch.';
+      setError(msg);
+      notify.warning(msg, 'Form Belum Lengkap');
       return;
     }
 
@@ -134,8 +138,14 @@ export function usePreReview() {
       }
 
       setResult(json);
+      notify.success(
+        `Audit kode branch ${branch} selesai (${json.score}/100)!`,
+        'Pre-Review Selesai',
+      );
     } catch (e) {
-      setError((e as Error).message);
+      const msg = (e as Error).message;
+      setError(msg);
+      notify.error(msg, 'Pre-Review Gagal');
     } finally {
       setLoading(false);
     }
@@ -196,6 +206,7 @@ export function usePreReview() {
     if (!text) return;
     navigator.clipboard.writeText(text);
     setCopiedFullReview(true);
+    notify.info('Laporan audit berhasil disalin ke clipboard', 'Tersalin');
     setTimeout(() => setCopiedFullReview(false), 2500);
   };
 
