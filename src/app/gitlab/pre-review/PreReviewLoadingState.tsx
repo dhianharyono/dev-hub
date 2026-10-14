@@ -18,7 +18,7 @@ export function PreReviewLoadingState({ branch }: PreReviewLoadingStateProps) {
         </strong>
       </div>
 
-      <p className='text-[12.5px] text-slate-text-3 max-w-[380px] mt-0 mb-5 leading-normal'>
+      <p className='text-[12.5px] text-slate-text-3 max-w-[380px] mt-0 mb-4 leading-normal'>
         Mengekstrak Git Diff dari branch{' '}
         <code className='text-primary font-semibold'>
           {branch}

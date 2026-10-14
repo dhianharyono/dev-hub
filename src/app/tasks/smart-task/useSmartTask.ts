@@ -12,9 +12,11 @@ import { useAssignedTasks } from './useAssignedTasks';
 import { useDrafts } from './useDrafts';
 import { useTaigaMeta } from './useTaigaMeta';
 import { useNotification } from '@/components/Notification';
+import { useAiTask } from '@/components/ai-task/AiTaskContext';
 
 export function useSmartTask() {
   const { notify } = useNotification();
+  const { runAiTask, getTask, minimizeTask } = useAiTask();
   const metaState = useTaigaMeta();
   const assignedState = useAssignedTasks();
 
@@ -77,70 +79,121 @@ export function useSmartTask() {
     [metaState.meta],
   );
 
+  const taskId = 'smart-task-generator';
+  const currentTask = getTask(taskId);
+  const isGenerating = parsing || currentTask?.status === 'running';
+
+  // Sync background drafts if completed
+  useEffect(() => {
+    if (currentTask?.status === 'completed' && currentTask.result && Array.isArray(currentTask.result)) {
+      draftsState.setDrafts((prev) => {
+        // avoid double appending
+        const newItems = currentTask.result as Draft[];
+        const existingKeys = new Set(prev.map((d) => d.key));
+        const filtered = newItems.filter((item) => !existingKeys.has(item.key));
+        return filtered.length > 0 ? [...prev, ...filtered] : prev;
+      });
+    }
+  }, [currentTask, draftsState]);
+
+  const handleMinimize = () => {
+    minimizeTask(taskId);
+  };
+
   async function parse() {
     if (input.trim().length < 3) return;
     setParsing(true);
     setParseError(null);
     setResults(null);
+
+    const taskTitleSnippet = input.trim().split('\n')[0].slice(0, 35);
+
     try {
-      const allStatuses = [
-        ...new Set(
-          [...(metaState.meta?.usStatuses ?? []), ...(metaState.meta?.taskStatuses ?? [])].map(
-            (s) => s.name,
-          ),
-        ),
-      ];
-      const r = await fetch('/api/ai/parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const newItems = await runAiTask<Draft[]>({
+        id: taskId,
+        type: 'smart_task',
+        title: `Buat Tiket Taiga: ${taskTitleSnippet}...`,
+        subtitle: `Mode: ${mode}`,
+        initialStep: 'Menganalisis catatan kerja & struktur task...',
+        params: {
           input,
           mode,
-          defaultParentId: parentId,
-          userStories: (metaState.meta?.userStories ?? []).map(({ id, ref, subject }) => ({
-            id,
-            ref,
-            subject,
-          })),
-          statuses: allStatuses,
-        }),
+          parentId,
+        },
+        runner: async (updateStep, signal) => {
+          const allStatuses = [
+            ...new Set(
+              [...(metaState.meta?.usStatuses ?? []), ...(metaState.meta?.taskStatuses ?? [])].map(
+                (s) => s.name,
+              ),
+            ),
+          ];
+
+          updateStep('Memecah task & mendeteksi estimasi jam dengan AI...', 60);
+
+          const r = await fetch('/api/ai/parse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              input,
+              mode,
+              defaultParentId: parentId,
+              userStories: (metaState.meta?.userStories ?? []).map(({ id, ref, subject }) => ({
+                id,
+                ref,
+                subject,
+              })),
+              statuses: allStatuses,
+            }),
+            signal,
+          });
+
+          const j = await r.json();
+          if (!r.ok) throw new Error(j.error);
+          setSource(j.source);
+
+          updateStep('Menyusun draft tiket Taiga...', 90);
+
+          const items: Draft[] = (
+            j.items as Array<{
+              kind: Draft['kind'];
+              subject: string;
+              description: string;
+              parentUserStoryId: number | null;
+              statusName: string | null;
+              estimateHours: number | null;
+            }>
+          ).map((it) => {
+            const st = (
+              it.kind === 'task' ? metaState.meta?.taskStatuses : metaState.meta?.usStatuses
+            )?.find((s) => s.name === it.statusName);
+            return {
+              key: uid(),
+              selected: true,
+              kind: it.kind,
+              subject: formatTaskSubject(it.subject),
+              description: it.description,
+              userStoryId: it.parentUserStoryId ?? parentId,
+              statusId: st?.id ?? null,
+              assignToMe: true,
+              tags: [],
+              estimateHours: it.estimateHours,
+              activityDate: getTodayDateString(),
+              startTime: '09:00',
+              totalTimeSpentMinutes:
+                it.estimateHours != null ? Math.round(it.estimateHours * 60) : 60,
+            };
+          });
+
+          return items;
+        },
       });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error);
-      setSource(j.source);
-      const newItems: Draft[] = (
-        j.items as Array<{
-          kind: Draft['kind'];
-          subject: string;
-          description: string;
-          parentUserStoryId: number | null;
-          statusName: string | null;
-          estimateHours: number | null;
-        }>
-      ).map((it) => {
-        const st = (
-          it.kind === 'task' ? metaState.meta?.taskStatuses : metaState.meta?.usStatuses
-        )?.find((s) => s.name === it.statusName);
-        return {
-          key: uid(),
-          selected: true,
-          kind: it.kind,
-          subject: formatTaskSubject(it.subject),
-          description: it.description,
-          userStoryId: it.parentUserStoryId ?? parentId,
-          statusId: st?.id ?? null,
-          assignToMe: true,
-          tags: [],
-          estimateHours: it.estimateHours,
-          activityDate: getTodayDateString(),
-          startTime: '09:00',
-          totalTimeSpentMinutes:
-            it.estimateHours != null ? Math.round(it.estimateHours * 60) : 60,
-        };
-      });
+
       draftsState.setDrafts((prev) => [...prev, ...newItems]);
     } catch (e) {
-      setParseError((e as Error).message);
+      if ((e as Error).name !== 'AbortError') {
+        setParseError((e as Error).message);
+      }
     } finally {
       setParsing(false);
     }
@@ -283,7 +336,9 @@ export function useSmartTask() {
     setParentId,
     input,
     setInput,
-    parsing,
+    parsing: isGenerating,
+    isGenerating,
+    handleMinimize,
     parseError,
     source,
     activeTab,

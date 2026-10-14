@@ -4,7 +4,7 @@ import {
   FolderGit2,
   GitBranch,
   GitCompare,
-  Sparkles,
+  ShieldCheck,
 } from 'lucide-react';
 import type { GitLabProjectSummary } from '@/app/api/gitlab/projects/route';
 import type { GitLabBranchSummary } from '@/app/api/gitlab/branches/route';
@@ -199,7 +199,7 @@ export function PreReviewForm({
             </>
           ) : (
             <>
-              <Sparkles size={16} />
+              <ShieldCheck size={16} />
               <span>Jalankan Pre-Review &amp; Audit Keamanan</span>
             </>
           )}

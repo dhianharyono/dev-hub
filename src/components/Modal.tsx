@@ -9,6 +9,7 @@ export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
 export interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onMinimize?: () => void;
   header?: React.ReactNode;
   title?: React.ReactNode;
   subtitle?: React.ReactNode;
@@ -37,6 +38,7 @@ const sizeClasses: Record<ModalSize, string> = {
 export function Modal({
   isOpen,
   onClose,
+  onMinimize,
   header,
   title,
   subtitle,
@@ -130,6 +132,17 @@ export function Modal({
                   aria-label={isFullscreen ? 'Keluar layar penuh' : 'Layar penuh'}
                 >
                   {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                </button>
+              )}
+              {onMinimize && (
+                <button
+                  type='button'
+                  onClick={onMinimize}
+                  className='p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors'
+                  title='Minimize modal'
+                  aria-label='Minimize modal'
+                >
+                  <Minimize2 size={16} />
                 </button>
               )}
               <button

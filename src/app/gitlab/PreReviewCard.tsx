@@ -1,5 +1,6 @@
 'use client';
 
+import { Trash2 } from 'lucide-react';
 import { usePreReview } from './pre-review/usePreReview';
 import { PreReviewForm } from './pre-review/PreReviewForm';
 import { PreReviewScoreBanner } from './pre-review/PreReviewScoreBanner';
@@ -30,6 +31,8 @@ export function PreReviewCard() {
     copiedFullReview,
     handleReview,
     handleCopyFullReview,
+    handleClearResult,
+    handleMinimize,
   } = usePreReview();
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
@@ -80,10 +83,25 @@ export function PreReviewCard() {
                   {result.source === 'gemini' ? 'Gemini AI' : 'Fallback Engine'}
                 </span>
               )}
+              {(result || auditStats) && (
+                <button
+                  type='button'
+                  onClick={handleClearResult}
+                  className='btn btn-ghost btn-sm text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 px-2.5 py-1 h-auto min-h-0 rounded-lg flex items-center gap-1.5 transition-colors border border-rose-200 dark:border-rose-900/40 ml-1'
+                  title='Hapus Laporan Hasil Audit'
+                >
+                  <Trash2 size={13} />
+                  <span>Hapus</span>
+                </button>
+              )}
             </div>
           </div>
 
-          {loading && <PreReviewLoadingState branch={branch} />}
+          {loading && (
+            <PreReviewLoadingState
+              branch={branch}
+            />
+          )}
 
           {!loading && !result && <PreReviewEmptyState />}
 

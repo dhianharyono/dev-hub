@@ -179,20 +179,36 @@ export function NotificationProvider({
 
   const pushNotification = useCallback(
     (item: Omit<NotificationItem, 'id'>) => {
-      const id =
-        Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
-      const newItem: NotificationItem = { ...item, id };
+      let createdId = '';
 
-      setNotifications((prev) => [...prev, newItem]);
+      setNotifications((prev) => {
+        // Prevent duplicate toasts with identical type, title, and message
+        const isDuplicate = prev.some(
+          (n) =>
+            n.type === item.type &&
+            n.title === item.title &&
+            n.message === item.message,
+        );
+        if (isDuplicate) {
+          return prev;
+        }
 
-      const duration = item.duration ?? 4500;
-      if (duration > 0) {
-        setTimeout(() => {
-          removeNotification(id);
-        }, duration);
-      }
+        const id =
+          Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+        createdId = id;
+        const newItem: NotificationItem = { ...item, id };
 
-      return id;
+        const duration = item.duration ?? 4500;
+        if (duration > 0) {
+          setTimeout(() => {
+            removeNotification(id);
+          }, duration);
+        }
+
+        return [...prev, newItem];
+      });
+
+      return createdId;
     },
     [removeNotification],
   );

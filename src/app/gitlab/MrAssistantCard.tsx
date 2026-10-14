@@ -1,5 +1,6 @@
 'use client';
 
+import { Trash2 } from 'lucide-react';
 import { useMrAssistant } from './mr-assistant/useMrAssistant';
 import { MrAssistantGitlabForm } from './mr-assistant/MrAssistantGitlabForm';
 import { MrAssistantTaigaForm } from './mr-assistant/MrAssistantTaigaForm';
@@ -55,6 +56,8 @@ export function MrAssistantCard() {
     handleReloadMembers,
     handleGenerate,
     handleCreateMr,
+    handleClearResult,
+    handleMinimize,
   } = useMrAssistant();
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
@@ -133,22 +136,33 @@ export function MrAssistantCard() {
             </div>
 
             {result && (
-              <div className='segmented p-0.5'>
+              <div className='flex items-center gap-2'>
+                <div className='segmented p-0.5'>
+                  <button
+                    type='button'
+                    aria-pressed={activeTab === 'preview'}
+                    onClick={() => setActiveTab('preview')}
+                    className='text-xs px-3 py-1'
+                  >
+                    Pratinjau
+                  </button>
+                  <button
+                    type='button'
+                    aria-pressed={activeTab === 'raw'}
+                    onClick={() => setActiveTab('raw')}
+                    className='text-xs px-3 py-1'
+                  >
+                    Raw Markdown
+                  </button>
+                </div>
                 <button
                   type='button'
-                  aria-pressed={activeTab === 'preview'}
-                  onClick={() => setActiveTab('preview')}
-                  className='text-xs px-3 py-1'
+                  onClick={handleClearResult}
+                  className='btn btn-ghost btn-sm text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 px-2.5 py-1 h-auto min-h-0 rounded-lg flex items-center gap-1.5 transition-colors border border-rose-200 dark:border-rose-900/40'
+                  title='Hapus Hasil Draf'
                 >
-                  Pratinjau
-                </button>
-                <button
-                  type='button'
-                  aria-pressed={activeTab === 'raw'}
-                  onClick={() => setActiveTab('raw')}
-                  className='text-xs px-3 py-1'
-                >
-                  Raw Markdown
+                  <Trash2 size={13} />
+                  <span>Hapus</span>
                 </button>
               </div>
             )}

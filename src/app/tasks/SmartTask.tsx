@@ -75,7 +75,12 @@ export default function SmartTask() {
           role='tab'
           id='tab-my-tasks'
           aria-selected={mainTab === 'my_tasks'}
-          onClick={() => setMainTab('my_tasks')}
+          onClick={() => {
+            if (taskState.parsing) {
+              taskState.handleMinimize();
+            }
+            setMainTab('my_tasks');
+          }}
           className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all cursor-pointer ${
             mainTab === 'my_tasks'
               ? 'bg-brand text-white shadow-sm border border-brand'
@@ -240,6 +245,7 @@ export default function SmartTask() {
               parsing={taskState.parsing}
               parseError={taskState.parseError}
               onParse={taskState.parse}
+              onMinimize={taskState.handleMinimize}
               bulkPasteInput={taskState.bulkPasteInput}
               setBulkPasteInput={taskState.setBulkPasteInput}
               onBulkPasteAdd={taskState.handleBulkPasteAdd}

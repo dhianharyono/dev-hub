@@ -1,16 +1,18 @@
 'use client';
 
-import { useState } from 'react';
-import { Sparkles, ShieldCheck, ThumbsUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ShieldCheck, ThumbsUp, Minimize2 } from 'lucide-react';
 import type { IncomingMRItem, PreReviewOutput, ReviewToneMode } from './types';
 import { AiReviewScoreBanner } from './AiReviewScoreBanner';
 import { AiReviewEditor } from './AiReviewEditor';
 import { useNotification } from '@/components/Notification';
+import { useAiTask } from '@/components/ai-task/AiTaskContext';
 
 interface AiReviewGeneratorProps {
   mr: IncomingMRItem | null;
   onCommentPosted: (msg: string) => void;
   onOpenDiscussions?: () => void;
+  onMinimize?: () => void;
 }
 
 function formatOrganicComment(
@@ -58,18 +60,34 @@ export function AiReviewGenerator({
   mr,
   onCommentPosted,
   onOpenDiscussions,
+  onMinimize,
 }: AiReviewGeneratorProps) {
   const { notify } = useNotification();
+  const { getTask, startMrReviewTask, minimizeTask } = useAiTask();
+
+  const taskId = mr ? `mr-review-${mr.projectId}-${mr.iid}` : '';
+  const currentTask = taskId ? getTask(taskId) : undefined;
+  const isGenerating = currentTask?.status === 'running';
+
   const [toneMode, setToneMode] = useState<ReviewToneMode>('audit');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [reviewResult, setReviewResult] = useState<PreReviewOutput | null>(
-    null,
-  );
+  const [reviewResult, setReviewResult] = useState<PreReviewOutput | null>(null);
   const [commentText, setCommentText] = useState('');
   const [posting, setPosting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [postError, setPostError] = useState<string | null>(null);
+
+  // Sync state if background task completed or updated
+  useEffect(() => {
+    if (mr && currentTask?.status === 'completed' && currentTask.result) {
+      const revData = currentTask.result as PreReviewOutput;
+      setReviewResult(revData);
+      const effectiveMode = (currentTask.params?.toneMode as ReviewToneMode) || toneMode;
+      setToneMode(effectiveMode);
+      setCommentText(formatOrganicComment(mr, revData, effectiveMode));
+    }
+  }, [currentTask, mr, toneMode]);
 
   const handleGenerate = async (selectedMode: ReviewToneMode = toneMode) => {
     if (!mr) return;
@@ -78,35 +96,26 @@ export function AiReviewGenerator({
     setSuccessMsg(null);
     setPostError(null);
     try {
-      const diffRes = await fetch(
-        `/api/gitlab/incoming-reviews/diff?projectId=${mr.projectId}&mrIid=${mr.iid}`,
-      );
-      const diffData = await diffRes.json();
-      if (!diffRes.ok || !diffData.ok)
-        throw new Error(diffData.error || 'Gagal mengambil diff MR.');
-      if (!diffData.diff?.trim())
-        throw new Error('MR ini tidak memiliki baris perubahan kode.');
-
-      const revRes = await fetch('/api/gitlab/pre-review', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          codeOrDiff: diffData.diff,
-          context: `Review MR !${mr.iid}: ${mr.title} (${mr.sourceBranch} -> ${mr.targetBranch})`,
-        }),
-      });
-      const revData = await revRes.json();
-      if (!revRes.ok || !revData.ok)
-        throw new Error(revData.error || 'Gagal generate review.');
-
+      const revData = await startMrReviewTask({ mr, toneMode: selectedMode });
       setReviewResult(revData);
       setCommentText(formatOrganicComment(mr, revData, selectedMode));
     } catch (e) {
-      const errMsg = (e as Error).message;
-      setError(errMsg);
-      notify.error(errMsg, 'Gagal Analisis Kode');
+      if ((e as Error).name !== 'AbortError') {
+        const errMsg = (e as Error).message;
+        setError(errMsg);
+        notify.error(errMsg, 'Gagal Analisis Kode');
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMinimizeSelf = () => {
+    if (taskId) {
+      minimizeTask(taskId);
+    }
+    if (onMinimize) {
+      onMinimize();
     }
   };
 
@@ -194,11 +203,11 @@ export function AiReviewGenerator({
           type='button'
           className='btn btn-primary text-[12.5px] px-4 py-3 gap-2 font-semibold'
           onClick={() => handleGenerate(toneMode)}
-          disabled={loading}
+          disabled={loading || isGenerating}
         >
-          {loading ? <span className='spinner' /> : <Sparkles size={14} />}
+          {loading || isGenerating ? <span className='spinner' /> : <ShieldCheck size={14} />}
           <span>
-            {loading
+            {loading || isGenerating
               ? 'Menganalisis Kode...'
               : reviewResult
                 ? 'Generate Ulang'
@@ -208,27 +217,38 @@ export function AiReviewGenerator({
       </div>
 
       {/* Main Content Area */}
-      {loading ? (
+      {loading || isGenerating ? (
         /* Prominent Centered Loading Card */
-        <div className='flex-1 min-h-[340px] max-h-[520px] flex flex-col items-center justify-center text-center p-8 sm:px-6 border border-dashed border-border rounded-xl bg-surface-subtle gap-4 my-2'>
+        <div className='flex-1 min-h-[340px] max-h-[520px] flex flex-col items-center justify-center text-center p-8 sm:px-6 border border-dashed border-border rounded-xl bg-surface-subtle gap-4 my-2 animate-fade-up'>
           <div className='w-14 h-14 rounded-full bg-blue-600/[0.08] text-primary flex items-center justify-center'>
-            <Sparkles size={28} className='spin' />
+            <ShieldCheck size={28} className='animate-pulse' />
           </div>
-          <div>
+          <div className='flex flex-col items-center max-w-[460px]'>
             <strong className='text-[15px] text-slate-text block mb-1.5 font-bold'>
               Sedang Menganalisis Kode MR...
             </strong>
-            <p className='text-[12.5px] text-slate-600 max-w-[440px] m-0 leading-normal'>
-              Mengambil Git Diff, memeriksa kualitas & keamanan kode, serta
-              menyusun draf rekomendasi review.
+            <p className='text-[12.5px] text-slate-600 m-0 leading-normal'>
+              {currentTask?.stepText ||
+                'Mengambil Git Diff, memeriksa kualitas & keamanan kode, serta menyusun draf rekomendasi review.'}
             </p>
+
+            {/* Progress Bar inside loading card */}
+            <div className='w-64 max-w-full h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden mt-4 relative'>
+              <div
+                className='h-full bg-primary rounded-full transition-all duration-300'
+                style={{ width: `${currentTask?.progressPercent || 35}%` }}
+              />
+            </div>
+            <span className='text-[11px] font-mono text-slate-500 mt-1.5'>
+              {currentTask?.progressPercent || 35}% selesai
+            </span>
           </div>
         </div>
       ) : !reviewResult ? (
         /* Initial State */
         <div className='flex-1 min-h-[340px] max-h-[520px] flex flex-col items-center justify-center text-center p-8 sm:px-6 border border-dashed border-border rounded-xl bg-surface-subtle gap-3.5 my-2'>
           <div className='w-[52px] h-[52px] rounded-full bg-blue-600/[0.08] text-primary flex items-center justify-center'>
-            <Sparkles size={24} />
+            <ShieldCheck size={24} />
           </div>
           <div>
             <strong className='text-[14.5px] text-slate-text block mb-1.5 font-bold'>

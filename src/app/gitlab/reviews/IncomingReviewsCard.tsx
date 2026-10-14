@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MrList } from './MrList';
 import { MrReviewModal } from './MrReviewModal';
+import { useAiTask } from '@/components/ai-task/AiTaskContext';
 import type {
   IncomingMRItem,
   ReviewScope,
@@ -11,6 +12,7 @@ import type {
 } from './types';
 
 export function IncomingReviewsCard() {
+  const { restoreTarget, clearRestoreTarget } = useAiTask();
   const [mrs, setMrs] = useState<IncomingMRItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +24,16 @@ export function IncomingReviewsCard() {
   const [selectedMr, setSelectedMr] = useState<IncomingMRItem | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTab, setModalTab] = useState<DetailTab>('discussions');
+
+  // Handle restoring modal when clicked from bottom-right progress dock
+  useEffect(() => {
+    if (restoreTarget?.mr) {
+      setSelectedMr(restoreTarget.mr);
+      setModalTab(restoreTarget.tab || 'ai_review');
+      setModalOpen(true);
+      clearRestoreTarget();
+    }
+  }, [restoreTarget, clearRestoreTarget]);
 
   const fetchMrs = useCallback(async () => {
     setLoading(true);

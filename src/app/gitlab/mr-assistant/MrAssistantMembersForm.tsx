@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { RotateCw, Sparkles, User, UserCheck } from 'lucide-react';
+import { RotateCw, FileText, User, UserCheck } from 'lucide-react';
 import type { GitLabMemberSummary } from '@/app/api/gitlab/members/route';
 import { Select, type SelectOptionItem } from '@/components/Select';
 
@@ -158,7 +158,7 @@ export function MrAssistantMembersForm({
           </>
         ) : (
           <>
-            <Sparkles size={16} />
+            <FileText size={16} />
             <span>Generate Deskripsi MR &amp; Release Note</span>
           </>
         )}

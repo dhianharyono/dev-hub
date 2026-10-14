@@ -5,7 +5,8 @@ import {
   FolderGit2,
   ListPlus,
   Plus,
-  Sparkles,
+  FileText,
+  Minimize2,
 } from 'lucide-react';
 import { Select } from '@/components/Select';
 import { useNotification } from '@/components/Notification';
@@ -29,6 +30,7 @@ interface SmartTaskInputAreaProps {
   parsing: boolean;
   parseError: string | null;
   onParse: () => void;
+  onMinimize?: () => void;
   bulkPasteInput: string;
   setBulkPasteInput: (value: string) => void;
   onBulkPasteAdd: () => void;
@@ -52,6 +54,7 @@ export function SmartTaskInputArea({
   parsing,
   parseError,
   onParse,
+  onMinimize,
   bulkPasteInput,
   setBulkPasteInput,
   onBulkPasteAdd,
@@ -75,33 +78,43 @@ export function SmartTaskInputArea({
           Input Catatan Kerja
         </div>
 
-        <div className='flex gap-1.5 bg-surface-subtle p-1.5 rounded-xl border border-border' role='tablist'>
+        <div
+          className='inline-flex items-center p-1 bg-surface-subtle border border-border rounded-xl gap-1 shadow-2xs'
+          role='tablist'
+          aria-label='Pilihan Mode Input'
+        >
           <button
             type='button'
             role='tab'
             aria-selected={activeTab === 'smart'}
-            className={`flex-1 inline-flex items-center justify-center gap-2 h-10 px-4 text-xs sm:text-[13px] font-semibold border-0 rounded-lg cursor-pointer transition-all ${
+            className={`inline-flex items-center justify-center gap-1.5 h-8 px-3.5 text-xs rounded-lg transition-all cursor-pointer ${
               activeTab === 'smart'
-                ? 'text-white bg-brand shadow-sm font-bold'
-                : 'text-slate-muted bg-transparent hover:text-slate-text hover:bg-black/5'
+                ? 'bg-surface text-slate-text shadow-xs border border-border font-semibold'
+                : 'text-slate-500 hover:text-slate-text hover:bg-surface/50 font-medium'
             }`}
             onClick={() => setActiveTab('smart')}
           >
-            <Sparkles size={14} />
+            <FileText
+              size={13}
+              className={activeTab === 'smart' ? 'text-primary' : 'text-slate-400'}
+            />
             <span>Naratif</span>
           </button>
           <button
             type='button'
             role='tab'
             aria-selected={activeTab === 'bulk'}
-            className={`flex-1 inline-flex items-center justify-center gap-2 h-10 px-4 text-xs sm:text-[13px] font-semibold border-0 rounded-lg cursor-pointer transition-all ${
+            className={`inline-flex items-center justify-center gap-1.5 h-8 px-3.5 text-xs rounded-lg transition-all cursor-pointer ${
               activeTab === 'bulk'
-                ? 'text-white bg-brand shadow-sm font-bold'
-                : 'text-slate-muted bg-transparent hover:text-slate-text hover:bg-black/5'
+                ? 'bg-surface text-slate-text shadow-xs border border-border font-semibold'
+                : 'text-slate-500 hover:text-slate-text hover:bg-surface/50 font-medium'
             }`}
             onClick={() => setActiveTab('bulk')}
           >
-            <ListPlus size={14} />
+            <ListPlus
+              size={13}
+              className={activeTab === 'bulk' ? 'text-primary' : 'text-slate-400'}
+            />
             <span>Multi</span>
           </button>
         </div>
@@ -297,13 +310,26 @@ export function SmartTaskInputArea({
               onClick={onParse}
               disabled={parsing || input.trim().length < 3}
             >
-              {parsing ? <span className='spinner' /> : <Sparkles size={16} />}
+              {parsing ? <span className='spinner' /> : <ListPlus size={16} />}
               <span>
                 {parsing
                   ? 'Sedang Memproses dengan AI...'
                   : 'Rapikan & Pecah Task (AI)'}
               </span>
             </button>
+
+            {parsing && onMinimize && (
+              <div className='flex justify-center mt-2'>
+                <button
+                  type='button'
+                  onClick={onMinimize}
+                  className='btn btn-ghost btn-xs text-[11px] gap-1 text-primary hover:bg-primary/5'
+                >
+                  <Minimize2 size={12} />
+                  <span>Minimize ke Latar Belakang</span>
+                </button>
+              </div>
+            )}
           </div>
 
         </>

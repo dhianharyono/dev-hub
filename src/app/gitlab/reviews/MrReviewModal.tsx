@@ -7,10 +7,12 @@ import {
   ExternalLink,
   GitBranch,
   User,
+  Minimize2,
 } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { MrCommentsList } from './MrCommentsList';
 import { AiReviewGenerator } from './AiReviewGenerator';
+import { useAiTask } from '@/components/ai-task/AiTaskContext';
 import type { IncomingMRItem, DetailTab } from './types';
 
 interface MrReviewModalProps {
@@ -31,7 +33,39 @@ export function MrReviewModal({
   const [activeTab, setActiveTab] = useState<DetailTab>(initialTab);
   const [commentRefreshTrigger, setCommentRefreshTrigger] = useState(0);
 
+  const { getTask, requestConfirmLeave, minimizeTask } = useAiTask();
+  const taskId = mr ? `mr-review-${mr.projectId}-${mr.iid}` : '';
+  const currentTask = taskId ? getTask(taskId) : undefined;
+  const isGenerating = currentTask?.status === 'running';
+
   if (!mr) return null;
+
+  const handleMinimize = () => {
+    if (taskId) {
+      minimizeTask(taskId);
+    }
+    onClose();
+  };
+
+  const handleCloseRequest = () => {
+    if (isGenerating && taskId) {
+      requestConfirmLeave(taskId, {
+        onStay: () => {
+          // Stay inside modal, do nothing
+        },
+        onMinimize: () => {
+          // Minimized to bottom-right dock, close main modal
+          onClose();
+        },
+        onAbort: () => {
+          // Task cancelled, close main modal
+          onClose();
+        },
+      });
+    } else {
+      onClose();
+    }
+  };
 
   const headerNode = (
     <div className='px-6 py-4 border-b border-border flex items-center justify-between gap-4 bg-surface-subtle flex-wrap'>
@@ -91,7 +125,7 @@ export function MrReviewModal({
         </div>
       </div>
 
-      {/* Right Controls: Tabs + GitLab Link + Close */}
+      {/* Right Controls: Tabs + GitLab Link + Minimize + Close */}
       <div className='flex items-center gap-2 flex-wrap'>
         <div className='flex items-center bg-surface p-0.5 rounded-lg border border-border'>
           <button
@@ -122,10 +156,26 @@ export function MrReviewModal({
           <ExternalLink size={13} />
         </a>
 
+        {/* Minimize Button */}
         <button
           type='button'
-          className='btn btn-ghost w-8 h-8 p-0 rounded-lg flex items-center justify-center text-slate-text-2'
-          onClick={onClose}
+          className={`btn btn-ghost w-8 h-8 p-0 rounded-lg flex items-center justify-center transition-colors ${
+            isGenerating
+              ? 'text-primary bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100'
+              : 'text-slate-text-2 hover:text-slate-text hover:bg-surface-subtle'
+          }`}
+          onClick={handleMinimize}
+          aria-label='Minimize modal'
+          title='Minimize modal'
+        >
+          <Minimize2 size={16} />
+        </button>
+
+        {/* Close Button with Leave Confirmation Interception */}
+        <button
+          type='button'
+          className='btn btn-ghost w-8 h-8 p-0 rounded-lg flex items-center justify-center text-slate-text-2 hover:text-slate-text'
+          onClick={handleCloseRequest}
           aria-label='Tutup modal'
         >
           <X size={18} />
@@ -137,7 +187,7 @@ export function MrReviewModal({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleCloseRequest}
       header={headerNode}
       size='full'
       bodyClassName='p-4 sm:p-6'
@@ -157,6 +207,7 @@ export function MrReviewModal({
               onRefreshMrs();
             }}
             onOpenDiscussions={() => setActiveTab('discussions')}
+            onMinimize={handleMinimize}
           />
         )}
       </div>

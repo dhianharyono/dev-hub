@@ -22,7 +22,7 @@ export function MrAssistantLoadingState({
         </strong>
       </div>
 
-      <p className='text-[12.5px] text-slate-text-3 max-w-[380px] mt-0 mb-5 leading-normal'>
+      <p className='text-[12.5px] text-slate-text-3 max-w-[380px] mt-0 mb-4 leading-normal'>
         Membaca perbandingan kode dari branch{' '}
         <code className='text-sky-500 font-semibold'>
           {branch}
