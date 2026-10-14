@@ -141,8 +141,8 @@ async function runSync(days: number, full: boolean) {
   st.total = projects.length;
   st.done = 0;
   const insCommit = d.prepare(
-    `INSERT OR REPLACE INTO gl_commits(sha, project_id, authored_at, title, additions, deletions, adj_additions, adj_deletions, is_merge, is_fix, web_url)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+    `INSERT OR REPLACE INTO gl_commits(sha, project_id, authored_at, title, author_name, author_email, additions, deletions, adj_additions, adj_deletions, is_merge, is_fix, web_url)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
   );
   const insPipe = d.prepare("INSERT OR REPLACE INTO gl_pipelines(id, project_id, status, ref, created_at, web_url) VALUES (?,?,?,?,?,?)");
   const setErr = d.prepare("UPDATE gl_projects SET last_error=? WHERE id=?");
@@ -180,6 +180,12 @@ async function runSync(days: number, full: boolean) {
               adjAdd += cnt.add;
               adjDel += cnt.del;
             }
+            const diffFiles = diffs.map((df) => df.new_path).filter(Boolean);
+            if (diffFiles.length > 0) {
+              try {
+                d.prepare("INSERT OR REPLACE INTO gl_commit_diffs(sha, files_json) VALUES (?, ?)").run(c.id, JSON.stringify(diffFiles));
+              } catch {}
+            }
           } catch {
             /* keep raw stats */
           }
@@ -188,7 +194,7 @@ async function runSync(days: number, full: boolean) {
           adjAdd = 0;
           adjDel = 0;
         }
-        insCommit.run(c.id, p.id, c.authored_date, c.title, add, del, adjAdd, adjDel, isMerge ? 1 : 0, FIX_RE.test(c.title) ? 1 : 0, c.web_url);
+        insCommit.run(c.id, p.id, c.authored_date, c.title, c.author_name, c.author_email, add, del, adjAdd, adjDel, isMerge ? 1 : 0, FIX_RE.test(c.title) ? 1 : 0, c.web_url);
         commitCount++;
       }
       const pipes = await glAll<GLPipeline>(`/projects/${p.id}/pipelines?username=${encodeURIComponent(me.username)}&updated_after=${since}`, 10);

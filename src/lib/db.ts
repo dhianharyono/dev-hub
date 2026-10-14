@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS gl_commits (
   project_id     INTEGER NOT NULL,
   authored_at    TEXT NOT NULL,
   title          TEXT NOT NULL,
+  author_name    TEXT,
+  author_email   TEXT,
   additions      INTEGER NOT NULL DEFAULT 0,
   deletions      INTEGER NOT NULL DEFAULT 0,
   adj_additions  INTEGER NOT NULL DEFAULT 0,   -- after excluding generated/lock/vendor files
@@ -78,6 +80,11 @@ CREATE TABLE IF NOT EXISTS gl_pipelines (
   web_url     TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_pipelines_date ON gl_pipelines(created_at);
+
+CREATE TABLE IF NOT EXISTS gl_commit_diffs (
+  sha        TEXT PRIMARY KEY,
+  files_json TEXT NOT NULL
+);
 `;
 
 const globalForDb = globalThis as unknown as { __devhubDb?: DatabaseSync };
@@ -88,6 +95,18 @@ export function db(): DatabaseSync {
     const d = new DatabaseSync(DB_PATH);
     d.exec("PRAGMA journal_mode = WAL;");
     d.exec(SCHEMA);
+    try {
+      d.exec("CREATE TABLE IF NOT EXISTS gl_commit_diffs (sha TEXT PRIMARY KEY, files_json TEXT NOT NULL);");
+    } catch {}
+    try {
+      d.exec("ALTER TABLE gl_commits ADD COLUMN author_name TEXT;");
+    } catch {}
+    try {
+      d.exec("ALTER TABLE gl_commits ADD COLUMN author_email TEXT;");
+    } catch {}
+    try {
+      d.exec("CREATE INDEX IF NOT EXISTS idx_commits_author ON gl_commits(author_email, author_name);");
+    } catch {}
     globalForDb.__devhubDb = d;
   }
   return globalForDb.__devhubDb;

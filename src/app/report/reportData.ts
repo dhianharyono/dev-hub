@@ -53,6 +53,8 @@ export interface ReworkExample {
   modifyingCommit: string;
   lines: number;
   gap: string;
+  url?: string;
+  project?: string;
 }
 
 export interface FullReportData {

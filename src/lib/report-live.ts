@@ -328,11 +328,22 @@ export function getLiveReportData(): FullReportData {
     { ext: '.php', linesAdded: '+2.650' },
   ];
 
+  function scoreDiffFile(filePath: string): number {
+    let score = 0;
+    if (filePath.startsWith('src/')) score += 10;
+    if (!filePath.includes('__tests__') && !filePath.includes('.test.') && !filePath.includes('.spec.')) score += 5;
+    if (!filePath.startsWith('docs/') && !filePath.startsWith('scripts/')) score += 3;
+    if (/\.(tsx|jsx|ts|js|vue|php|go|py)$/.test(filePath)) score += 5;
+    if (filePath.endsWith('-lock.json') || filePath.endsWith('.lock')) score -= 20;
+    return score;
+  }
+
   // Fix / Rework examples from real gl_commits where is_fix = 1
   const fixCommitsQuery = `
-    SELECT c.sha, c.title, c.authored_at, c.adj_additions, c.adj_deletions, p.path as project
+    SELECT c.sha, c.title, c.authored_at, c.adj_additions, c.adj_deletions, c.web_url, c.project_id, p.path as project, p.web_url as project_url, d.files_json
     FROM gl_commits c
     LEFT JOIN gl_projects p ON p.id = c.project_id
+    LEFT JOIN gl_commit_diffs d ON d.sha = c.sha
     WHERE c.is_fix = 1 AND c.is_merge = 0 AND c.authored_at >= ?
     ORDER BY c.authored_at DESC
     LIMIT 7
@@ -343,14 +354,41 @@ export function getLiveReportData(): FullReportData {
     authored_at: string;
     adj_additions: number;
     adj_deletions: number;
+    web_url: string | null;
+    project_id: number;
     project: string;
+    project_url: string | null;
+    files_json: string | null;
   }[];
 
   const reworkExamples: ReworkExample[] = fixRows.map((f, idx) => {
     const parts = (f.project || '').split('/');
     const shortProj = parts[parts.length - 1] || 'devhub';
+    let files: string[] = [];
+    try {
+      if (f.files_json) {
+        files = JSON.parse(f.files_json);
+      }
+    } catch {}
+
+    const sortedFiles = [...files].sort((a, b) => scoreDiffFile(b) - scoreDiffFile(a));
+    const primaryFile = sortedFiles[0];
+    const extraCount = sortedFiles.length > 1 ? sortedFiles.length - 1 : 0;
+
+    let displayFile = '';
+    if (primaryFile) {
+      displayFile = `${shortProj}/${primaryFile}${extraCount > 0 ? ` (+${extraCount} file)` : ''}`;
+    } else {
+      const scopeMatch = f.title.match(/^fix\(([^)]+)\):/i);
+      displayFile = scopeMatch ? `${shortProj}/src/.../${scopeMatch[1]}` : `${shortProj}/src/...`;
+    }
+
+    const commitUrl = f.web_url || (f.project_url ? `${f.project_url}/-/commit/${f.sha}` : '');
+
     return {
-      file: `${shortProj}/src/.../${f.title.slice(0, 32)}`,
+      file: displayFile,
+      url: commitUrl,
+      project: f.project || shortProj,
       initialCommit: `${f.sha.slice(0, 8)}: ${f.title.slice(0, 48)}`,
       modifyingCommit: `${f.sha.slice(0, 8)} (${new Date(f.authored_at).toLocaleDateString('id-ID')})`,
       lines: f.adj_additions + f.adj_deletions || 15 + idx * 4,
