@@ -1,7 +1,5 @@
-'use client';
-
 import React from 'react';
-import { Sparkles, Clock } from 'lucide-react';
+import { CalendarCheck, Clock } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
 import type { WorkloadDaySummary } from './types';
 
@@ -26,7 +24,7 @@ export function HealerEmptyState({
         </div>
         <div className='max-w-[440px]'>
           <strong className='text-sm sm:text-base font-bold text-slate-text'>
-            Otomatis Menganalisis Commit GitLab Hari Ini...
+            Menganalisis Commit GitLab Hari Ini...
           </strong>
           <p className='text-xs mt-1 text-slate-text-3'>
             Menyelaraskan commit riil dengan kekurangan {missingHours.toFixed(1)} jam WAD dan User Story Taiga aktif.
@@ -40,8 +38,8 @@ export function HealerEmptyState({
     <EmptyState
       icon={<Clock size={24} />}
       tone='blue'
-      title={`Sembuhkan Kekurangan ${missingHours.toFixed(1)} Jam Secara Otomatis`}
-      description={`AI akan menyusun draf task Taiga berbasis commit GitLab hari ini (${activeDay?.date}) yang langsung terhubung ke User Story aktif.`}
+      title={`Sembuhkan Kekurangan ${missingHours.toFixed(1)} Jam`}
+      description={`AI akan menyusun draf task Taiga berbasis aktivitas commit GitLab hari ini (${activeDay?.date || 'hari ini'}) yang langsung terhubung ke User Story aktif.`}
       action={
         <button
           type='button'
@@ -49,8 +47,8 @@ export function HealerEmptyState({
           disabled={generating}
           onClick={onGenerate}
         >
-          <Sparkles size={16} />
-          <span>Generate Task dengan AI</span>
+          <CalendarCheck size={16} />
+          <span>Mulai Analisis AI</span>
         </button>
       }
     />

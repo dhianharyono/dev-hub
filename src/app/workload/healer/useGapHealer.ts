@@ -1,9 +1,8 @@
-'use client';
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { WorkloadDaySummary, HealerSuggestion, MetaData, HealerDetectedCommit } from './types';
 import { normalizeMeta } from './types';
 import { useNotification } from '@/components/Notification';
+import { useAiTask } from '@/components/ai-task/AiTaskContext';
 
 interface UseGapHealerProps {
   isOpen: boolean;
@@ -21,6 +20,7 @@ export function useGapHealer({
   onClose,
 }: UseGapHealerProps) {
   const { notify } = useNotification();
+  const { runAiTask, getTask, minimizeTask, dismissTask } = useAiTask();
   const [meta, setMeta] = useState<MetaData | null>(null);
   const [generating, setGenerating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -28,6 +28,32 @@ export function useGapHealer({
   const [detectedCommits, setDetectedCommits] = useState<HealerDetectedCommit[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const taskId = `gap-healer-${activeDay?.date || 'default'}`;
+  const currentTask = getTask(taskId);
+  const isGenerating = generating || currentTask?.status === 'running';
+  const lastConsumedTaskIdRef = useRef<string | null>(null);
+
+  // Sync background result - only consume once per task completion so deletions are never overwritten
+  useEffect(() => {
+    if (
+      currentTask?.status === 'completed' &&
+      currentTask.result &&
+      lastConsumedTaskIdRef.current !== currentTask.id
+    ) {
+      lastConsumedTaskIdRef.current = currentTask.id;
+      const res = currentTask.result as {
+        suggestions: HealerSuggestion[];
+        commits?: HealerDetectedCommit[];
+      };
+      if (res.suggestions) setSuggestions(res.suggestions);
+      if (res.commits) setDetectedCommits(res.commits);
+    }
+  }, [currentTask]);
+
+  const handleMinimize = () => {
+    minimizeTask(taskId);
+  };
 
   // Load Taiga metadata once when modal opens
   useEffect(() => {
@@ -64,72 +90,86 @@ export function useGapHealer({
     setError(null);
     setSuccessMsg(null);
 
-    try {
-      let curMeta = meta;
-      if (!curMeta?.projectId) {
-        try {
-          const mRes = await fetch('/api/taiga/meta');
-          if (mRes.ok) {
-            const raw = await mRes.json();
-            curMeta = normalizeMeta(raw);
-            if (curMeta) setMeta(curMeta);
-          }
-        } catch {
-          // ignore
-        }
-      }
+    const taskDate = theDate;
+    const taskHours = theHours;
+    lastConsumedTaskIdRef.current = null;
 
-      const res = await fetch('/api/workload/timesheet-healer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date: theDate,
-          missingHours: theHours,
-          userStories: (curMeta?.userStories ?? []).map((u) => ({
-            id: u.id,
-            ref: u.ref,
-            subject: u.subject,
-          })),
-          projectSlug: curMeta?.projectSlug,
-        }),
+    try {
+      const result = await runAiTask<{
+        suggestions: HealerSuggestion[];
+        commits: HealerDetectedCommit[];
+      }>({
+        id: taskId,
+        type: 'gap_healer',
+        title: `Timesheet Healer (${taskDate} · ${taskHours} jam)`,
+        subtitle: `Menyelaraskan kekurangan jam kerja dengan commit GitLab & Taiga`,
+        initialStep: 'Memeriksa metadata Taiga & commit GitLab...',
+        params: {
+          date: taskDate,
+          missingHours: taskHours,
+        },
+        runner: async (updateStep, signal) => {
+          let curMeta = meta;
+          if (!curMeta?.projectId) {
+            try {
+              const mRes = await fetch('/api/taiga/meta', { signal });
+              if (mRes.ok) {
+                const raw = await mRes.json();
+                curMeta = normalizeMeta(raw);
+                if (curMeta) setMeta(curMeta);
+              }
+            } catch {
+              // ignore
+            }
+          }
+
+          updateStep('Menganalisis commit GitLab & merumuskan pengisian gap...', 50);
+
+          const res = await fetch('/api/workload/timesheet-healer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              date: taskDate,
+              missingHours: taskHours,
+              userStories: (curMeta?.userStories ?? []).map((u) => ({
+                id: u.id,
+                ref: u.ref,
+                subject: u.subject,
+              })),
+              projectSlug: curMeta?.projectSlug,
+            }),
+            signal,
+          });
+
+          updateStep('Memproses rekomendasi task Taiga...', 85);
+
+          const json = await res.json();
+          if (!res.ok || !json.ok) {
+            throw new Error(
+              json.error || 'Gagal menghasilkan saran task dengan AI',
+            );
+          }
+
+          return {
+            suggestions: json.suggestions || [],
+            commits: json.commits || [],
+          };
+        },
       });
 
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        throw new Error(
-          json.error || 'Gagal menghasilkan saran task dengan AI',
-        );
+      if (result) {
+        lastConsumedTaskIdRef.current = taskId;
+        setSuggestions(result.suggestions || []);
+        setDetectedCommits(result.commits || []);
       }
-
-      setSuggestions(json.suggestions || []);
-      setDetectedCommits(json.commits || []);
     } catch (e) {
-      setError((e as Error).message);
+      if ((e as Error).name !== 'AbortError') {
+        setError((e as Error).message);
+      }
     } finally {
       setGenerating(false);
     }
   };
-
-  // Otomatis jalankan saran task AI berbasis GitLab commit saat modal dibuka atau tanggal berubah
-  useEffect(() => {
-    if (!isOpen || !activeDay?.date) return;
-
-    let isCancelled = false;
-    const theDate = activeDay.date;
-    const theHours = missingHours;
-
-    const timer = setTimeout(() => {
-      if (!isCancelled) {
-        handleGenerate(theDate, theHours);
-      }
-    }, 0);
-
-    return () => {
-      isCancelled = true;
-      clearTimeout(timer);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, activeDay?.date, missingHours]);
 
   const handleUpdateSuggestion = (
     index: number,
@@ -148,7 +188,25 @@ export function useGapHealer({
   };
 
   const handleRemoveSuggestion = (index: number) => {
-    setSuggestions((prev) => prev.filter((_, i) => i !== index));
+    setSuggestions((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (next.length === 0) {
+        setDetectedCommits([]);
+        lastConsumedTaskIdRef.current = taskId;
+        if (taskId) dismissTask(taskId);
+      }
+      return next;
+    });
+  };
+
+  const handleClearAll = () => {
+    setSuggestions([]);
+    setDetectedCommits([]);
+    setError(null);
+    lastConsumedTaskIdRef.current = taskId;
+    if (taskId) {
+      dismissTask(taskId);
+    }
   };
 
   const handleAddManualSuggestion = () => {
@@ -263,7 +321,9 @@ export function useGapHealer({
 
   return {
     meta,
-    generating,
+    generating: isGenerating,
+    handleMinimize,
+    taskId,
     submitting,
     suggestions,
     setSuggestions,
@@ -276,6 +336,7 @@ export function useGapHealer({
     handleGenerate,
     handleUpdateSuggestion,
     handleRemoveSuggestion,
+    handleClearAll,
     handleAddManualSuggestion,
     handleSubmitToTaiga,
   };

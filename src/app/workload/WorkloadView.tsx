@@ -6,6 +6,7 @@ import { FolderGit2, Settings, RefreshCw } from 'lucide-react';
 import { useIntegrations } from '@/components/hooks';
 import { EmptyState } from '@/components/EmptyState';
 import { useNotification } from '@/components/Notification';
+import { useAiTask } from '@/components/ai-task/AiTaskContext';
 import {
   AssignmentBarChart,
   StatusProgressDonut,
@@ -54,6 +55,20 @@ export default function WorkloadView() {
   const isTaigaConnected = Boolean(integrations?.taiga?.connected);
   const taigaError = integrations?.taiga?.error;
   const { notify } = useNotification();
+  const { restoreTarget, clearRestoreTarget } = useAiTask();
+
+  // Restore gap healer modal from floating dock
+  React.useEffect(() => {
+    if (restoreTarget?.type === 'gap_healer' && data?.days) {
+      const targetDay =
+        data.days.find((d) => d.date === restoreTarget.date) ||
+        data.days.find((d) => d.isWeekday && d.hoursSpent < 7.5) ||
+        null;
+      setHealerDay(targetDay);
+      setIsHealerOpen(true);
+      clearRestoreTarget();
+    }
+  }, [restoreTarget, data?.days, setHealerDay, setIsHealerOpen, clearRestoreTarget]);
 
   React.useEffect(() => {
     if (isTaigaConnected && error) {

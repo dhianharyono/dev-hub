@@ -2,13 +2,12 @@
 
 import { useState } from 'react';
 import {
-  CheckCircle2,
-  AlertTriangle,
   Plus,
   RefreshCw,
+  Trash2,
 } from 'lucide-react';
 import { Modal } from '@/components/Modal';
-import { useNotification } from '@/components/Notification';
+import { useAiTask } from '@/components/ai-task/AiTaskContext';
 import type { WorkloadDaySummary } from './healer/types';
 import { useGapHealer } from './healer/useGapHealer';
 import { HealerDateSelector } from './healer/HealerDateSelector';
@@ -30,12 +29,17 @@ export function TimesheetGapHealerModal({
   allDays: WorkloadDaySummary[];
   onSuccess: () => void;
 }) {
-  const [selectedDateOverride, setSelectedDateOverride] = useState<string | null>(null);
+  const [selectedDateOverride, setSelectedDateOverride] = useState<
+    string | null
+  >(null);
+  const { requestConfirmLeave } = useAiTask();
 
   // Filter weekdays with hours < 7.5
   const gapDays = allDays.filter((d) => d.isWeekday && d.hoursSpent < 7.5);
-  const selectedDate = selectedDateOverride ?? initialDay?.date ?? gapDays[0]?.date ?? '';
-  const activeDay = allDays.find((d) => d.date === selectedDate) || initialDay || gapDays[0];
+  const selectedDate =
+    selectedDateOverride ?? initialDay?.date ?? gapDays[0]?.date ?? '';
+  const activeDay =
+    allDays.find((d) => d.date === selectedDate) || initialDay || gapDays[0];
   const missingHours = activeDay
     ? Math.max(0.5, Math.round((8.0 - activeDay.hoursSpent) * 10) / 10)
     : 8;
@@ -50,6 +54,8 @@ export function TimesheetGapHealerModal({
   const {
     meta,
     generating,
+    handleMinimize,
+    taskId,
     submitting,
     suggestions,
     setSuggestions,
@@ -62,6 +68,7 @@ export function TimesheetGapHealerModal({
     handleGenerate,
     handleUpdateSuggestion,
     handleRemoveSuggestion,
+    handleClearAll,
     handleAddManualSuggestion,
     handleSubmitToTaiga,
   } = useGapHealer({
@@ -72,20 +79,45 @@ export function TimesheetGapHealerModal({
     onClose: handleClose,
   });
 
+  const handleMinimizeAndClose = () => {
+    handleMinimize();
+    onClose();
+  };
+
+  const handleCloseRequest = () => {
+    if (generating && taskId) {
+      requestConfirmLeave(taskId, {
+        onStay: () => {
+          // Stay inside modal
+        },
+        onMinimize: () => {
+          handleMinimizeAndClose();
+        },
+        onAbort: () => {
+          handleClose();
+        },
+      });
+    } else {
+      handleClose();
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
-      onClose={handleClose}
+      onClose={handleCloseRequest}
+      onMinimize={handleMinimizeAndClose}
       title='Timesheet Gap Healer (AI)'
       subtitle='Penuhi target jam kerja 8.0 jam/hari otomatis dengan saran task AI berbasis commit GitLab.'
       size='lg'
       footer={
-        <HealerFooter
-          suggestions={suggestions}
-          submitting={submitting}
-          onClose={handleClose}
-          onSubmit={handleSubmitToTaiga}
-        />
+        suggestions.length > 0 ? (
+          <HealerFooter
+            suggestions={suggestions}
+            submitting={submitting}
+            onSubmit={handleSubmitToTaiga}
+          />
+        ) : null
       }
     >
       <div className='flex flex-col gap-4'>
@@ -93,9 +125,11 @@ export function TimesheetGapHealerModal({
         <HealerDateSelector
           selectedDate={selectedDate}
           onDateChange={(date) => {
+            if (generating) {
+              handleMinimize();
+            }
             setSelectedDateOverride(date);
-            setSuggestions([]);
-            setDetectedCommits([]);
+            handleClearAll();
           }}
           gapDays={gapDays}
           allDays={allDays}
@@ -116,7 +150,10 @@ export function TimesheetGapHealerModal({
         {/* List of Suggestions */}
         {suggestions.length > 0 && (
           <div className='flex flex-col gap-3'>
-            <HealerCommitBanner commits={detectedCommits} date={activeDay?.date} />
+            <HealerCommitBanner
+              commits={detectedCommits}
+              date={activeDay?.date}
+            />
 
             <div className='row-between flex-wrap gap-2'>
               <span className='xs dim font-semibold'>
@@ -131,7 +168,9 @@ export function TimesheetGapHealerModal({
                   title='Generate ulang saran task AI berbasis commit GitLab'
                 >
                   <RefreshCw size={12} className={generating ? 'spin' : ''} />
-                  <span>{generating ? 'Menganalisis...' : 'Generate Ulang AI'}</span>
+                  <span>
+                    {generating ? 'Menganalisis...' : 'Generate Ulang AI'}
+                  </span>
                 </button>
                 <button
                   type='button'
@@ -140,6 +179,15 @@ export function TimesheetGapHealerModal({
                 >
                   <Plus size={13} />
                   <span>Tambah Item</span>
+                </button>
+                <button
+                  type='button'
+                  onClick={handleClearAll}
+                  className='btn btn-ghost btn-sm text-[11px] px-2 py-1 gap-1 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10'
+                  title='Hapus draf task hasil analisis'
+                >
+                  <Trash2 size={12} />
+                  <span>Hapus Draf</span>
                 </button>
               </div>
             </div>
