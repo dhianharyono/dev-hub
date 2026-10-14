@@ -68,7 +68,8 @@ export function useSmartTask() {
     return () => {
       ignore = true;
     };
-  }, [fetchAssignedTasks, setMeta, setMetaError, setLoadingMeta, setProjectSlug, setSprintSlug]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const statusesFor = useCallback(
     (kind: Draft['kind']) =>

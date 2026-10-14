@@ -64,7 +64,7 @@ export function useDrafts(defaultParentId: number | null, defaultMode: 'auto' | 
   );
 
   const invalid = useMemo(
-    () => selectedDrafts.some((d) => !d.subject.trim() || (d.kind === 'task' && !d.userStoryId)),
+    () => selectedDrafts.some((d) => !d.subject.trim()),
     [selectedDrafts],
   );
 

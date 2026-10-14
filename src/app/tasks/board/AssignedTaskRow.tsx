@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, Clock, ExternalLink, Pencil, X } from 'lucide-react';
+import { CheckCircle2, Clock, ExternalLink, X } from 'lucide-react';
 import { Select } from '@/components/Select';
 import { formatTaskSubject } from '@/lib/task-utils';
 import type { AssignedTaskItem } from '@/app/api/taiga/assigned/route';
@@ -16,10 +16,10 @@ interface AssignedTaskRowProps {
   isEditingThis: boolean;
   editingSubject: string;
   savingEdit: boolean;
-  onStartEdit: (task: AssignedTaskItem) => void;
   onCancelEdit: () => void;
   onSaveSubject: (task: AssignedTaskItem) => void;
   onEditingSubjectChange: (val: string) => void;
+  onOpenEditModal: (task: AssignedTaskItem) => void;
   onUpdateStatus: (task: AssignedTaskItem, newStatusId: number) => void;
 }
 
@@ -33,10 +33,10 @@ export function AssignedTaskRow({
   isEditingThis,
   editingSubject,
   savingEdit,
-  onStartEdit,
   onCancelEdit,
   onSaveSubject,
   onEditingSubjectChange,
+  onOpenEditModal,
   onUpdateStatus,
 }: AssignedTaskRowProps) {
   const taskFormatted = formatTaskSubject(task.subject);
@@ -61,7 +61,7 @@ export function AssignedTaskRow({
         </a>
       </td>
 
-      {/* Subject & Inline Edit */}
+      {/* Subject & Inline / Modal Edit */}
       <td className='align-middle min-w-[240px]'>
         {isEditingThis ? (
           <div className='flex items-center gap-2'>
@@ -110,11 +110,11 @@ export function AssignedTaskRow({
 
             <button
               type='button'
-              onClick={() => onStartEdit(task)}
-              className='w-6 h-6 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition-colors'
-              title='Edit judul task'
+              onClick={() => onOpenEditModal(task)}
+              className='px-2 py-0.5 rounded-md text-slate-500 hover:text-brand hover:bg-brand/10 inline-flex items-center transition-colors text-xs font-semibold'
+              title='Edit informasi task, jam, status, dan deskripsi'
             >
-              <Pencil size={12} />
+              <span>Edit</span>
             </button>
           </div>
         )}
@@ -142,14 +142,23 @@ export function AssignedTaskRow({
 
       {/* Hours / Jam Cell */}
       <td className='align-middle text-center whitespace-nowrap'>
-        {task.hours != null ? (
-          <span className='inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200/80 font-mono'>
-            <Clock size={11} className='text-sky-600 shrink-0' />
-            <span>{task.hours}h</span>
-          </span>
-        ) : (
-          <span className='text-xs text-slate-400 font-mono'>-</span>
-        )}
+        <button
+          type='button'
+          onClick={() => onOpenEditModal(task)}
+          className='hover:opacity-85 transition-opacity cursor-pointer group'
+          title='Klik untuk ubah jam atau detail task'
+        >
+          {task.hours != null ? (
+            <span className='inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200/80 font-mono group-hover:border-sky-400'>
+              <Clock size={11} className='text-sky-600 shrink-0' />
+              <span>{task.hours}h</span>
+            </span>
+          ) : (
+            <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] text-slate-400 border border-dashed border-slate-300 group-hover:border-slate-500 font-mono'>
+              + Jam
+            </span>
+          )}
+        </button>
       </td>
 
       {/* Status Selector Cell */}

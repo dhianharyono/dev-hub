@@ -92,7 +92,7 @@ export function MrCard({ mr, isSelected, onSelect, onOpenModal }: MrCardProps) {
       <div className='flex items-center gap-2 mt-0.5 pt-3 border-t border-border'>
         <button
           type='button'
-          className='btn btn-primary xs text-xs px-3.5 py-1.5 gap-1.5 flex-1'
+          className='btn btn-primary xs text-xs px-3 py-2 gap-1.5 flex-1 justify-center font-semibold'
           onClick={() => {
             onSelect();
             onOpenModal('discussions');
@@ -104,7 +104,7 @@ export function MrCard({ mr, isSelected, onSelect, onOpenModal }: MrCardProps) {
 
         <button
           type='button'
-          className='btn btn-ghost xs text-xs px-3 py-1.5 gap-1'
+          className='btn btn-ghost xs text-xs px-3 py-2 gap-1.5 flex-1 justify-center border border-border hover:border-slate-400 font-semibold'
           onClick={() => {
             onSelect();
             onOpenModal('ai_review');
@@ -119,7 +119,7 @@ export function MrCard({ mr, isSelected, onSelect, onOpenModal }: MrCardProps) {
           href={mr.webUrl}
           target='_blank'
           rel='noreferrer'
-          className='btn btn-ghost xs text-xs px-2 py-1.5 gap-1'
+          className='btn btn-ghost xs text-xs px-2.5 py-2 gap-1 shrink-0 border border-border text-slate-400 hover:text-slate-700'
           title='Buka di GitLab'
         >
           <ExternalLink size={12} />

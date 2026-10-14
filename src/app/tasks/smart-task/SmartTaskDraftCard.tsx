@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertCircle, Clock, Trash2 } from 'lucide-react';
+import { Calendar, FolderGit2, Trash2 } from 'lucide-react';
 import { Select } from '@/components/Select';
 import { SmartTaskTimesheetLog } from './SmartTaskTimesheetLog';
 import type { Draft, Meta, Status } from './types';
@@ -9,6 +9,11 @@ interface SmartTaskDraftCardProps {
   draft: Draft;
   index: number;
   meta: Meta | null;
+  loadingMeta?: boolean;
+  projectSlug?: string;
+  sprintSlug?: string;
+  onProjectChange?: (slug: string) => void;
+  onSprintChange?: (slug: string) => void;
   parentId: number | null;
   statuses: Status[];
   onUpdate: (key: string, patch: Partial<Draft>) => void;
@@ -19,13 +24,16 @@ export function SmartTaskDraftCard({
   draft: d,
   index: i,
   meta,
+  loadingMeta = false,
+  projectSlug = '',
+  sprintSlug = '',
+  onProjectChange,
+  onSprintChange,
   parentId,
   statuses,
   onUpdate,
   onRemove,
 }: SmartTaskDraftCardProps) {
-  const missingParent = d.kind === 'task' && !d.userStoryId;
-
   return (
     <article
       className={`card relative transition-all hover:border-border-strong hover:-translate-y-0.5 hover:shadow-md ${
@@ -76,27 +84,7 @@ export function SmartTaskDraftCard({
           </div>
         </div>
 
-        <div className='flex items-center gap-2.5'>
-          <div className='flex items-center gap-1.5 bg-surface-subtle px-2.5 py-1 rounded-lg border border-border text-xs'>
-            <Clock size={13} className='text-cyan-600' />
-            <input
-              type='number'
-              step='0.25'
-              className='w-12 h-6 text-center text-xs font-semibold bg-transparent border-0 outline-none p-0'
-              value={d.estimateHours ?? ''}
-              placeholder='0'
-              onChange={(e) => {
-                const val = e.target.value ? Number(e.target.value) : null;
-                onUpdate(d.key, {
-                  estimateHours: val,
-                  totalTimeSpentMinutes:
-                    val != null ? Math.round(val * 60) : null,
-                });
-              }}
-            />
-            <span className='text-slate-400 text-xs'>jam</span>
-          </div>
-
+        <div className='flex items-center gap-2'>
           <button
             type='button'
             className='btn btn-ghost btn-sm btn-icon btn-danger w-8 h-8 rounded-lg'
@@ -108,6 +96,7 @@ export function SmartTaskDraftCard({
           </button>
         </div>
       </div>
+
 
       {/* JUDUL TASK */}
       <input
@@ -127,20 +116,72 @@ export function SmartTaskDraftCard({
         onChange={(e) => onUpdate(d.key, { description: e.target.value })}
       />
 
+      {/* TARGET PROJECT & SPRINT */}
+      {onProjectChange && onSprintChange && (
+        <div className='grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-3.5'>
+          <div className='field'>
+            <label className='text-xs font-semibold text-slate-500 flex items-center gap-1.5'>
+              <FolderGit2 size={13} className='text-brand' />
+              <span>Target Project</span>
+            </label>
+            <Select
+              size='sm'
+              value={projectSlug}
+              disabled={!meta || loadingMeta}
+              onChange={(e) => onProjectChange(e.target.value)}
+              className='!h-9 text-xs sm:text-sm font-semibold rounded-xl w-full'
+            >
+              {!meta && (
+                <option value=''>
+                  {loadingMeta ? 'Memuat project...' : '-'}
+                </option>
+              )}
+              {meta?.projects?.map((p) => (
+                <option key={p.id} value={p.slug}>
+                  {p.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          <div className='field'>
+            <label className='text-xs font-semibold text-slate-500 flex items-center gap-1.5'>
+              <Calendar size={13} className='text-cyan-600' />
+              <span>Target Sprint</span>
+            </label>
+            <Select
+              size='sm'
+              value={sprintSlug}
+              disabled={!meta || loadingMeta}
+              onChange={(e) => onSprintChange(e.target.value)}
+              className='!h-9 text-xs sm:text-sm font-semibold rounded-xl w-full'
+            >
+              {!meta && (
+                <option value=''>
+                  {loadingMeta ? 'Memuat sprint...' : '-'}
+                </option>
+              )}
+              {meta && !meta.sprint && <option value=''>(Backlog)</option>}
+              {meta?.milestones.map((m) => (
+                <option key={m.id} value={m.slug}>
+                  {m.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </div>
+      )}
+
       {/* METADATA: INDUK, STATUS */}
       <div className='grid grid-cols-1 sm:grid-cols-[2fr_1fr] gap-4 mt-3.5'>
         {d.kind === 'task' ? (
           <div className='field'>
             <label className='text-xs font-semibold text-slate-500'>
-              User Story Induk{' '}
-              {missingParent && (
-                <span className='text-rose-600'>*wajib</span>
-              )}
+              User Story Induk
             </label>
             <Select
               size='sm'
               value={d.userStoryId ?? ''}
-              error={missingParent}
               placeholder='Pilih User Story dari PM...'
               onChange={(e) =>
                 onUpdate(d.key, {
@@ -202,15 +243,6 @@ export function SmartTaskDraftCard({
             })
           }
         />
-      )}
-
-      {missingParent && (
-        <div className='flex items-center justify-between mt-2.5 pt-0'>
-          <span className='text-xs text-rose-600 flex items-center gap-1.5 font-medium'>
-            <AlertCircle size={13} />
-            Wajib pilih User Story Induk
-          </span>
-        </div>
       )}
     </article>
   );

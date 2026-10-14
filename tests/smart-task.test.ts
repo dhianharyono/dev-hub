@@ -69,4 +69,28 @@ describe('Smart Task Formatting & Prompt Hygiene', () => {
     expect(items[2].subject).toBe('[Meeting] Sync arsitektur mycarrier');
     expect(items[2].tags).toEqual([]);
   });
+
+  it('formats description for Taiga so newlines and bullet lists wrap properly', async () => {
+    const { formatTaigaDescription } = await import('../src/lib/taiga/mutations');
+    const userExample =
+      'Melakukan pendampingan dan standby saat rilis fitur Dashboard Developer ke environment production.\n- Memantau jalannya deployment ke production\n- Memastikan fitur dan layanan berjalan normal setelah rilis';
+    const formatted = formatTaigaDescription(userExample);
+
+    // List must have an empty line before it so Markdown parser renders bullet list
+    expect(formatted).toContain(
+      'environment production.\n\n- Memantau jalannya deployment ke production',
+    );
+    expect(formatted).toContain('- Memastikan fitur dan layanan berjalan normal setelah rilis');
+
+    // Escaped \\n unescaping
+    const escaped = 'Baris 1\\n- Item A\\n- Item B';
+    const formattedEscaped = formatTaigaDescription(escaped);
+    expect(formattedEscaped).toBe('Baris 1\n\n- Item A\n- Item B');
+
+    // Single newlines between non-list sentences get 2 spaces for hard line breaks in Markdown
+    const multiSentence = 'Langkah 1 selesai.\nLangkah 2 dalam progres.';
+    const formattedMulti = formatTaigaDescription(multiSentence);
+    expect(formattedMulti).toBe('Langkah 1 selesai.  \nLangkah 2 dalam progres.');
+  });
 });
+

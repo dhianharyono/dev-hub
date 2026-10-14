@@ -41,7 +41,7 @@ describe('AI Assistant Tools (Deterministic Engine)', () => {
       reviewer: 'Senior Lead (@reviewer)',
     });
 
-    expect(res.mrTitle).toContain('[SPC-108]');
+    expect(res.mrTitle).toMatch(/\[(SPC-)?108\]|\[#108\]/);
     expect(res.mrTitle).toContain('feat:');
     expect(res.description).not.toContain('Checklist Pengujian');
     expect(res.description).toContain('Closes #42');

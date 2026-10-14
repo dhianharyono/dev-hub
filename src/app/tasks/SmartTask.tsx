@@ -9,7 +9,6 @@ import AssignedTasksBoard from './AssignedTasksBoard';
 import { SmartTaskDraftsSection } from './smart-task/SmartTaskDraftsSection';
 import { SmartTaskInputArea } from './smart-task/SmartTaskInputArea';
 import { SmartTaskSkeleton } from './smart-task/SmartTaskSkeleton';
-import { SmartTaskWorkspaceBar } from './smart-task/SmartTaskWorkspaceBar';
 import { useSmartTask } from './smart-task/useSmartTask';
 
 export default function SmartTask() {
@@ -83,7 +82,7 @@ export default function SmartTask() {
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
           }`}
         >
-          <span>Daftar Task &amp; Status</span>
+          <span>Daftar tiket taiga</span>
           {isTaigaConnected && taskState.assignedTasks.length > 0 && (
             <span
               className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
@@ -109,7 +108,7 @@ export default function SmartTask() {
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
           }`}
         >
-          <span>AI Task Generator</span>
+          <span>Buat Tiket Taiga</span>
           {isTaigaConnected && taskState.drafts.length > 0 && (
             <span
               className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
@@ -124,7 +123,7 @@ export default function SmartTask() {
         </button>
       </div>
 
-      {/* ---------- TAB 1: DAFTAR TASK & STATUS ---------- */}
+      {/* ---------- TAB 1: DAFTAR TIKET TAIGA ---------- */}
       {mainTab === 'my_tasks' &&
         (!loadingIntegrations && !isTaigaConnected ? (
           <EmptyState
@@ -214,8 +213,14 @@ export default function SmartTask() {
         ) : taskState.loadingMeta && !taskState.meta ? (
           <SmartTaskSkeleton />
         ) : (
-          <>
-            <SmartTaskWorkspaceBar
+          <div className='grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,6.2fr)] gap-7 items-start'>
+            <SmartTaskInputArea
+              activeTab={taskState.activeTab}
+              setActiveTab={taskState.setActiveTab}
+              mode={taskState.mode}
+              setMode={taskState.setMode}
+              parentId={taskState.parentId}
+              setParentId={taskState.setParentId}
               meta={taskState.meta}
               loadingMeta={taskState.loadingMeta}
               projectSlug={taskState.projectSlug}
@@ -230,58 +235,58 @@ export default function SmartTask() {
                   taskState.setParentId(null),
                 )
               }
+              input={taskState.input}
+              setInput={taskState.setInput}
+              parsing={taskState.parsing}
+              parseError={taskState.parseError}
+              onParse={taskState.parse}
+              bulkPasteInput={taskState.bulkPasteInput}
+              setBulkPasteInput={taskState.setBulkPasteInput}
+              onBulkPasteAdd={taskState.handleBulkPasteAdd}
             />
 
-            <div className='grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,6.2fr)] gap-7 items-start'>
-              <SmartTaskInputArea
-                activeTab={taskState.activeTab}
-                setActiveTab={taskState.setActiveTab}
-                mode={taskState.mode}
-                setMode={taskState.setMode}
-                parentId={taskState.parentId}
-                setParentId={taskState.setParentId}
-                meta={taskState.meta}
-                input={taskState.input}
-                setInput={taskState.setInput}
-                parsing={taskState.parsing}
-                parseError={taskState.parseError}
-                onParse={taskState.parse}
-                bulkPasteInput={taskState.bulkPasteInput}
-                setBulkPasteInput={taskState.setBulkPasteInput}
-                onBulkPasteAdd={taskState.handleBulkPasteAdd}
-              />
-
-              <SmartTaskDraftsSection
-                drafts={taskState.drafts}
-                selectedDrafts={taskState.selectedDrafts}
-                allSelected={taskState.allSelected}
-                totalHours={taskState.totalHours}
-                invalid={taskState.invalid}
-                submitting={taskState.submitting}
-                submitProgress={taskState.submitProgress}
-                results={taskState.results}
-                parsing={taskState.parsing}
-                meta={taskState.meta}
-                parentId={taskState.parentId}
-                statusesFor={taskState.statusesFor}
-                onAddBlank={taskState.addBlank}
-                onSubmit={taskState.submit}
-                onToggleSelectAll={taskState.toggleSelectAll}
-                onBulkSetUserStory={taskState.bulkSetUserStory}
-                onBulkSetStatus={taskState.bulkSetStatus}
-                onBulkSetDate={taskState.bulkSetDate}
-                onBulkSetStartTime={taskState.bulkSetStartTime}
-                onBulkDeleteSelected={taskState.bulkDeleteSelected}
-                onUpdateDraft={taskState.updateDraft}
-                onRemoveDraft={taskState.removeDraft}
-                onUseExample={(text) => {
-                  taskState.setInput(text);
-                  taskState.setActiveTab('smart');
-                }}
-              />
-            </div>
-          </>
+            <SmartTaskDraftsSection
+              drafts={taskState.drafts}
+              selectedDrafts={taskState.selectedDrafts}
+              allSelected={taskState.allSelected}
+              totalHours={taskState.totalHours}
+              invalid={taskState.invalid}
+              submitting={taskState.submitting}
+              parsing={taskState.parsing}
+              meta={taskState.meta}
+              loadingMeta={taskState.loadingMeta}
+              projectSlug={taskState.projectSlug}
+              sprintSlug={taskState.sprintSlug}
+              onProjectChange={(slug) =>
+                taskState.handleProjectChange(slug, () =>
+                  taskState.setParentId(null),
+                )
+              }
+              onSprintChange={(slug) =>
+                taskState.handleSprintChange(slug, () =>
+                  taskState.setParentId(null),
+                )
+              }
+              parentId={taskState.parentId}
+              statusesFor={taskState.statusesFor}
+              onAddBlank={taskState.addBlank}
+              onSubmit={taskState.submit}
+              onToggleSelectAll={taskState.toggleSelectAll}
+              onBulkSetUserStory={taskState.bulkSetUserStory}
+              onBulkSetStatus={taskState.bulkSetStatus}
+              onBulkSetDate={taskState.bulkSetDate}
+              onBulkSetStartTime={taskState.bulkSetStartTime}
+              onBulkDeleteSelected={taskState.bulkDeleteSelected}
+              onUpdateDraft={taskState.updateDraft}
+              onRemoveDraft={taskState.removeDraft}
+              onUseExample={(text) => {
+                taskState.setInput(text);
+                taskState.setActiveTab('smart');
+              }}
+            />
+          </div>
         ))}
+
     </>
   );
 }

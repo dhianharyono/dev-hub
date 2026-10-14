@@ -4,7 +4,6 @@ import { useState } from 'react';
 import {
   X,
   MessageSquare,
-  Sparkles,
   ExternalLink,
   GitBranch,
   User,
@@ -12,7 +11,6 @@ import {
 import { Modal } from '@/components/Modal';
 import { MrCommentsList } from './MrCommentsList';
 import { AiReviewGenerator } from './AiReviewGenerator';
-import { ReviewModalToast, type ToastData } from './ReviewModalToast';
 import type { IncomingMRItem, DetailTab } from './types';
 
 interface MrReviewModalProps {
@@ -32,7 +30,6 @@ export function MrReviewModal({
 }: MrReviewModalProps) {
   const [activeTab, setActiveTab] = useState<DetailTab>(initialTab);
   const [commentRefreshTrigger, setCommentRefreshTrigger] = useState(0);
-  const [toast, setToast] = useState<ToastData | null>(null);
 
   if (!mr) return null;
 
@@ -110,7 +107,6 @@ export function MrReviewModal({
             onClick={() => setActiveTab('ai_review')}
             className={`btn btn-sm text-xs px-3 py-1 gap-1.5 ${activeTab === 'ai_review' ? 'btn-primary' : 'btn-ghost'}`}
           >
-            <Sparkles size={13} />
             <span>AI Review Generator</span>
           </button>
         </div>
@@ -156,31 +152,14 @@ export function MrReviewModal({
         ) : (
           <AiReviewGenerator
             mr={mr}
-            onCommentPosted={(msg) => {
+            onCommentPosted={() => {
               setCommentRefreshTrigger((p) => p + 1);
               onRefreshMrs();
-              setToast({
-                type: 'success',
-                message:
-                  msg || `Komentar review berhasil diposting ke MR !${mr.iid}!`,
-                action: {
-                  label: 'Lihat Komentar',
-                  onClick: () => {
-                    setActiveTab('discussions');
-                    setToast(null);
-                  },
-                },
-              });
             }}
             onOpenDiscussions={() => setActiveTab('discussions')}
           />
         )}
       </div>
-
-      {/* Floating Toast Notification inside modal */}
-      {toast && (
-        <ReviewModalToast toast={toast} onClose={() => setToast(null)} />
-      )}
     </Modal>
   );
 }

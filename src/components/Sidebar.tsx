@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -39,9 +39,15 @@ export default function Sidebar() {
   });
 
   // Automatically close mobile drawer when navigating to another route
+  const prevPathRef = useRef(path);
   useEffect(() => {
-    setMobileOpen(false);
+    if (prevPathRef.current !== path) {
+      prevPathRef.current = path;
+      const t = setTimeout(() => setMobileOpen(false), 0);
+      return () => clearTimeout(t);
+    }
   }, [path]);
+
 
   // Handle ESC key and lock body scroll when mobile drawer is open
   useEffect(() => {

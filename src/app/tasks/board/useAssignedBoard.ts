@@ -170,6 +170,79 @@ export function useAssignedBoard({
     return groups;
   }, [assignedTasks, selectedAssignedProject, assignedSearch]);
 
+  const [taskToEdit, setTaskToEdit] = useState<AssignedTaskItem | null>(null);
+
+  const handleOpenEditModal = (task: AssignedTaskItem) => {
+    setTaskToEdit(task);
+  };
+
+  const handleCloseEditModal = () => {
+    setTaskToEdit(null);
+  };
+
+  const handleSaveTaskEdit = async (
+    taskId: number,
+    payload: {
+      subject: string;
+      description: string;
+      statusId: number;
+      hours: number | null;
+      totalTimeSpentMinutes: number | null;
+      activityDate?: string;
+      startTime?: string;
+    },
+  ) => {
+    const res = await fetch('/api/taiga/assigned', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        taskId,
+        subject: payload.subject,
+        description: payload.description,
+        statusId: payload.statusId,
+        hours: payload.hours,
+        totalTimeSpentMinutes: payload.totalTimeSpentMinutes,
+        activityDate: payload.activityDate,
+        startTime: payload.startTime,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || 'Gagal menyimpan perubahan task.');
+    }
+
+    const targetTask = assignedTasks.find((t) => t.id === taskId);
+    const statusesForProj = targetTask ? (projectStatuses[targetTask.projectId] || []) : [];
+    const newStatusObj = statusesForProj.find((s) => s.id === payload.statusId);
+
+    setAssignedTasks((prev) =>
+      prev.map((t) => {
+        if (t.id !== taskId) return t;
+        return {
+          ...t,
+          subject: payload.subject,
+          description: payload.description,
+          status: payload.statusId,
+          statusExtraInfo: newStatusObj
+            ? {
+                name: newStatusObj.name,
+                color: newStatusObj.color,
+                is_closed: newStatusObj.is_closed,
+              }
+            : t.statusExtraInfo,
+          isClosed: newStatusObj ? Boolean(newStatusObj.is_closed) : t.isClosed,
+          hours: payload.hours,
+          totalTimeSpentMinutes: payload.totalTimeSpentMinutes,
+          activityDate: payload.activityDate,
+          startTime: payload.startTime,
+        };
+      }),
+    );
+
+    setUpdateSuccessTaskId(taskId);
+    setTimeout(() => setUpdateSuccessTaskId(null), 2500);
+  };
+
   return {
     assignedSearch,
     setAssignedSearch,
@@ -181,6 +254,10 @@ export function useAssignedBoard({
     editingSubject,
     setEditingSubject,
     savingEdit,
+    taskToEdit,
+    handleOpenEditModal,
+    handleCloseEditModal,
+    handleSaveTaskEdit,
     handleUpdateStatus,
     handleStartEdit,
     handleCancelEdit,
@@ -188,3 +265,4 @@ export function useAssignedBoard({
     groupedTasksByProject,
   };
 }
+

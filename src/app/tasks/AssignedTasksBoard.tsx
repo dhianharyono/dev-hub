@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
+import { EditTaskModal } from './board/EditTaskModal';
 import { AssignedProjectGroup } from './board/AssignedProjectGroup';
 import { AssignedTasksEmptyState } from './board/AssignedTasksEmptyState';
 import { AssignedTasksSkeleton } from './board/AssignedTasksSkeleton';
@@ -100,15 +101,30 @@ export default function AssignedTasksBoard({
               editingTaskId={board.editingTaskId}
               editingSubject={board.editingSubject}
               savingEdit={board.savingEdit}
-              onStartEdit={board.handleStartEdit}
               onCancelEdit={board.handleCancelEdit}
               onSaveSubject={board.handleSaveSubject}
               onEditingSubjectChange={board.setEditingSubject}
+              onOpenEditModal={board.handleOpenEditModal}
               onUpdateStatus={board.handleUpdateStatus}
             />
           ))}
         </div>
       )}
+
+      {/* Edit Task Modal */}
+      {board.taskToEdit && (
+        <EditTaskModal
+          key={board.taskToEdit.id}
+          task={board.taskToEdit}
+          isOpen={Boolean(board.taskToEdit)}
+          onClose={board.handleCloseEditModal}
+          availableStatuses={projectStatuses[board.taskToEdit.projectId] || []}
+          baseUrl={baseUrl}
+          onSave={board.handleSaveTaskEdit}
+        />
+      )}
+
     </section>
   );
 }
+

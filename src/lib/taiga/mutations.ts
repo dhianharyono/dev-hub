@@ -3,13 +3,50 @@ import { getSettings } from "../settings";
 import { taiga } from "./client";
 import type { CreateItem, TaigaCustomAttribute, UpdateTaskPayload } from "./types";
 
+export function formatTaigaDescription(rawDesc?: string | null): string {
+  if (!rawDesc) return "";
+
+  // 1. Unescape literal escaped newlines (e.g. "\\n" -> "\n", "\\r\\n" -> "\n")
+  const unescaped = rawDesc
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n");
+
+  const lines = unescaped.split("\n");
+  const result: string[] = [];
+  const isListItem = (line: string) => /^\s*([*-] |\d+\. )/.test(line);
+
+  for (let i = 0; i < lines.length; i++) {
+    const currentLine = lines[i];
+    const prevLine = i > 0 ? lines[i - 1] : null;
+
+    // If current line starts a list and previous line was regular text, insert blank line before list
+    if (isListItem(currentLine) && prevLine !== null && prevLine.trim() !== "" && !isListItem(prevLine)) {
+      result.push("");
+    }
+
+    // If both current and previous lines are non-list non-empty text, add 2 spaces to previous line for markdown line-break
+    if (i > 0 && prevLine !== null && prevLine.trim() !== "" && !isListItem(prevLine) && !isListItem(currentLine) && currentLine.trim() !== "") {
+      const lastIdx = result.length - 1;
+      if (lastIdx >= 0 && !result[lastIdx].endsWith("  ")) {
+        result[lastIdx] = result[lastIdx] + "  ";
+      }
+    }
+
+    result.push(currentLine);
+  }
+
+  return result.join("\n").trim();
+}
+
+
 export async function createItem(projectId: number, item: CreateItem) {
   const s = getSettings();
   const slug = item.projectSlug || s.taigaProjectSlug;
   const body: Record<string, unknown> = {
     project: projectId,
     subject: item.subject,
-    description: item.description ?? "",
+    description: formatTaigaDescription(item.description),
     tags: [],
   };
   if (item.statusId) body.status = item.statusId;
@@ -31,13 +68,23 @@ export async function createItem(projectId: number, item: CreateItem) {
         ).catch(() => [] as TaigaCustomAttribute[]);
         const activityDateAttr = customAttrs.find((a) => /activity\s*date/i.test(a.name));
         const startTimeAttr = customAttrs.find((a) => /start\s*time/i.test(a.name));
-        const timeSpentAttr = customAttrs.find((a) => /total\s*time\s*spent/i.test(a.name));
+        const timeSpentAttr = customAttrs.find((a) =>
+          !/start|end|date/i.test(a.name) &&
+          (/total\s*time\s*spent/i.test(a.name) || /total\s*timespent/i.test(a.name) || /time\s*spent\s*\(min\)/i.test(a.name))
+        );
+        const hoursAttr = customAttrs.find((a) =>
+          !/start|end|date/i.test(a.name) &&
+          (/time\s*spent\s*hours/i.test(a.name) || /time\s*spent\s*\(h/i.test(a.name))
+        );
 
         const values: Record<string, unknown> = {};
         if (activityDateAttr && item.activityDate) values[String(activityDateAttr.id)] = item.activityDate;
         if (startTimeAttr && item.startTime) values[String(startTimeAttr.id)] = item.startTime;
         if (timeSpentAttr && item.totalTimeSpentMinutes != null) {
           values[String(timeSpentAttr.id)] = Number(item.totalTimeSpentMinutes);
+        }
+        if (hoursAttr && item.totalTimeSpentMinutes != null) {
+          values[String(hoursAttr.id)] = Math.round((Number(item.totalTimeSpentMinutes) / 60) * 10) / 10;
         }
 
         if (Object.keys(values).length > 0) {
@@ -80,6 +127,7 @@ export async function updateTask(taskId: number, updates: UpdateTaskPayload) {
     project: number;
     version: number;
     subject: string;
+    description?: string;
     project_extra_info?: { slug: string };
   }>(`/tasks/${taskId}`);
 
@@ -89,7 +137,7 @@ export async function updateTask(taskId: number, updates: UpdateTaskPayload) {
   };
 
   if (updates.subject !== undefined) body.subject = updates.subject;
-  if (updates.description !== undefined) body.description = updates.description;
+  if (updates.description !== undefined) body.description = formatTaigaDescription(updates.description);
   if (updates.statusId !== undefined) body.status = updates.statusId;
   if (updates.assignedTo !== undefined) body.assigned_to = updates.assignedTo;
   if (updates.userStoryId !== undefined) body.user_story = updates.userStoryId;
@@ -100,21 +148,42 @@ export async function updateTask(taskId: number, updates: UpdateTaskPayload) {
     body: JSON.stringify(body),
   });
 
-  // 2. Custom attributes update if timesheet data is provided
-  if (updates.activityDate || updates.startTime || updates.totalTimeSpentMinutes != null) {
+  // 2. Custom attributes update if timesheet data or hours is provided
+  const timeSpentMins =
+    updates.totalTimeSpentMinutes != null
+      ? Number(updates.totalTimeSpentMinutes)
+      : updates.hours != null
+        ? Math.round(Number(updates.hours) * 60)
+        : null;
+
+  if (updates.activityDate || updates.startTime || timeSpentMins != null || updates.hours != null) {
     try {
       const customAttrs = await taiga<TaigaCustomAttribute[]>(
         `/task-custom-attributes?project=${current.project}`
       ).catch(() => [] as TaigaCustomAttribute[]);
       const activityDateAttr = customAttrs.find((a) => /activity\s*date/i.test(a.name));
       const startTimeAttr = customAttrs.find((a) => /start\s*time/i.test(a.name));
-      const timeSpentAttr = customAttrs.find((a) => /total\s*time\s*spent/i.test(a.name));
+      const timeSpentAttr = customAttrs.find((a) =>
+        !/start|end|date/i.test(a.name) &&
+        (/total\s*time\s*spent/i.test(a.name) || /total\s*timespent/i.test(a.name) || /time\s*spent\s*\(min\)/i.test(a.name))
+      );
+      const hoursAttr = customAttrs.find((a) =>
+        !/start|end|date/i.test(a.name) &&
+        (/time\s*spent\s*hours/i.test(a.name) || /time\s*spent\s*\(h/i.test(a.name))
+      );
 
       const values: Record<string, unknown> = {};
       if (activityDateAttr && updates.activityDate) values[String(activityDateAttr.id)] = updates.activityDate;
       if (startTimeAttr && updates.startTime) values[String(startTimeAttr.id)] = updates.startTime;
-      if (timeSpentAttr && updates.totalTimeSpentMinutes != null) {
-        values[String(timeSpentAttr.id)] = Number(updates.totalTimeSpentMinutes);
+      if (timeSpentAttr && timeSpentMins != null) {
+        values[String(timeSpentAttr.id)] = Number(timeSpentMins);
+      }
+      if (hoursAttr) {
+        if (updates.hours != null) {
+          values[String(hoursAttr.id)] = Number(updates.hours);
+        } else if (timeSpentMins != null) {
+          values[String(hoursAttr.id)] = Math.round((timeSpentMins / 60) * 10) / 10;
+        }
       }
 
       if (Object.keys(values).length > 0) {
@@ -137,3 +206,4 @@ export async function updateTask(taskId: number, updates: UpdateTaskPayload) {
   const slug = current.project_extra_info?.slug || s.taigaProjectSlug || 'project';
   return { ...t, url: `${s.taigaBaseUrl}/project/${slug}/task/${t.ref}` };
 }
+

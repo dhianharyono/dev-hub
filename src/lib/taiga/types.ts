@@ -108,5 +108,7 @@ export interface UpdateTaskPayload {
   activityDate?: string;
   startTime?: string;
   totalTimeSpentMinutes?: number | null;
+  hours?: number | null;
   isClosed?: boolean;
 }
+

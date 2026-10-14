@@ -262,12 +262,13 @@ export function Select({
           }
         }}
         className={`
-          w-full bg-surface text-slate-text border rounded-[10px] font-sans font-medium flex items-center justify-between gap-2 cursor-pointer outline-none box-border text-left leading-normal transition-all select-none
-          ${isSmall ? 'min-h-[32px] h-[32px] px-2.5 text-[12.5px] rounded-lg' : 'min-h-[38px] px-3 text-[13.5px]'}
+          w-full h-full bg-surface text-slate-text border rounded-[10px] font-sans font-medium flex items-center justify-between gap-2 cursor-pointer outline-none box-border text-left leading-normal transition-all select-none
+          ${isSmall ? 'min-h-[32px] px-2.5 text-[12.5px] rounded-lg' : 'min-h-[38px] px-3 text-[13.5px]'}
           ${error ? 'border-rose-accent focus-visible:ring-3 focus-visible:ring-rose-accent/18' : 'border-border-strong hover:not-disabled:border-slate-400 focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/15'}
           ${isOpen ? 'border-brand ring-3 ring-brand/15' : ''}
           ${disabled ? 'bg-surface-subtle text-slate-dim cursor-not-allowed opacity-70' : ''}
         `}
+
         style={style}
       >
         <span

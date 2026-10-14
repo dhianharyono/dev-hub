@@ -10,6 +10,7 @@ export interface AssignedTaskItem {
   id: number;
   ref: number;
   subject: string;
+  description?: string;
   status: number;
   statusExtraInfo: {
     name: string;
@@ -27,6 +28,9 @@ export interface AssignedTaskItem {
   milestoneSlug: string | null;
   isClosed: boolean;
   hours: number | null;
+  totalTimeSpentMinutes?: number | null;
+  activityDate?: string | null;
+  startTime?: string | null;
   createdDate: string;
   modifiedDate: string;
   url: string;
@@ -74,6 +78,111 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const activeOnly = url.searchParams.get('activeOnly') === 'true';
 
+    // Support single task detail lookup
+    const singleTaskIdStr = url.searchParams.get('taskId');
+    if (singleTaskIdStr) {
+      const taskId = Number(singleTaskIdStr);
+      const t = await taiga<RawTaigaTask & { description?: string }>(`/tasks/${taskId}`);
+      const pSlug = t.project_extra_info?.slug || s.taigaProjectSlug || 'project';
+
+      let vals: Record<string, unknown> = {};
+      try {
+        const cav = await taiga<{ attributes_values?: Record<string, unknown> }>(
+          `/tasks/custom-attributes-values/${taskId}`,
+        );
+        vals = cav?.attributes_values || {};
+      } catch {}
+
+      let minAttrId: number | undefined;
+      let hoursAttrId: number | undefined;
+      let activityDateAttrId: number | undefined;
+      let startTimeAttrId: number | undefined;
+      try {
+        const attrs = await taiga<Array<{ id: number; name: string }>>(`/task-custom-attributes?project=${t.project}`, {
+          headers: { 'x-disable-pagination': 'true' },
+        });
+        const minAttr = attrs.find((a) =>
+          !/start|end|date/i.test(a.name) &&
+          (/total\s*time\s*spent/i.test(a.name) || /total\s*timespent/i.test(a.name) || /time\s*spent\s*\(min\)/i.test(a.name))
+        );
+        const hoursAttr = attrs.find((a) =>
+          !/start|end|date/i.test(a.name) &&
+          (/time\s*spent\s*hours/i.test(a.name) || /time\s*spent\s*\(h/i.test(a.name))
+        );
+        const dateAttr = attrs.find((a) => /activity\s*date/i.test(a.name));
+        const startAttr = attrs.find((a) => /start\s*time/i.test(a.name));
+        minAttrId = minAttr?.id;
+        hoursAttrId = hoursAttr?.id;
+        activityDateAttrId = dateAttr?.id;
+        startTimeAttrId = startAttr?.id;
+      } catch {}
+
+      let foundHours: number | null = null;
+      let totalMins: number | null = null;
+      if (minAttrId && vals[String(minAttrId)] != null && vals[String(minAttrId)] !== '') {
+        const num = Number(vals[String(minAttrId)]);
+        if (!isNaN(num) && num > 0) {
+          totalMins = num;
+          foundHours = num >= 15 ? Math.round((num / 60) * 10) / 10 : num;
+        }
+      }
+      if (foundHours == null && hoursAttrId && vals[String(hoursAttrId)] != null && vals[String(hoursAttrId)] !== '') {
+        const num = Number(vals[String(hoursAttrId)]);
+        if (!isNaN(num) && num > 0) {
+          foundHours = Math.round(num * 10) / 10;
+          totalMins = Math.round(num * 60);
+        }
+      }
+      if (foundHours == null) {
+        const estMatch = t.subject.match(/(\d+(?:[.,]\d+)?)\s*(?:jam|j|h|hours?)\b/i);
+        if (estMatch) {
+          const parsed = Number(estMatch[1].replace(',', '.'));
+          if (!isNaN(parsed) && parsed > 0) {
+            foundHours = parsed;
+            totalMins = Math.round(parsed * 60);
+          }
+        }
+      }
+
+      const activityDate = activityDateAttrId && vals[String(activityDateAttrId)] ? String(vals[String(activityDateAttrId)]) : null;
+      const startTime = startTimeAttrId && vals[String(startTimeAttrId)] ? String(vals[String(startTimeAttrId)]) : null;
+
+      return NextResponse.json({
+        ok: true,
+        task: {
+          id: t.id,
+          ref: t.ref,
+          subject: t.subject,
+          description: t.description || '',
+          status: t.status,
+          statusExtraInfo: {
+            name: t.status_extra_info?.name || 'Unknown',
+            color: t.status_extra_info?.color || '#94a3b8',
+            is_closed: Boolean(t.is_closed || t.status_extra_info?.is_closed),
+          },
+          projectId: t.project,
+          projectName: t.project_extra_info?.name || `Project #${t.project}`,
+          projectSlug: pSlug,
+          userStory: t.user_story_extra_info
+            ? {
+                id: t.user_story_extra_info.id,
+                ref: t.user_story_extra_info.ref,
+                subject: t.user_story_extra_info.subject,
+              }
+            : null,
+          milestoneSlug: t.milestone_slug,
+          isClosed: Boolean(t.is_closed),
+          hours: foundHours,
+          totalTimeSpentMinutes: totalMins,
+          activityDate,
+          startTime,
+          createdDate: t.created_date,
+          modifiedDate: t.modified_date,
+          url: `${s.taigaBaseUrl}/project/${pSlug}/task/${t.ref}`,
+        },
+      });
+    }
+
     // 1. Fetch current Taiga user
     const me = await taiga<{
       id: number;
@@ -83,7 +192,7 @@ export async function GET(req: Request) {
 
     // 2. Fetch all tasks assigned to me, ordered by most recently modified
     const statusFilterQuery = activeOnly ? '&status__is_closed=false' : '';
-    const rawTasks = await taiga<RawTaigaTask[]>(
+    const rawTasks = await taiga<Array<RawTaigaTask & { description?: string }>>(
       `/tasks?assigned_to=${me.id}&order_by=-modified_date${statusFilterQuery}`,
     );
 
@@ -214,6 +323,7 @@ export async function GET(req: Request) {
         id: t.id,
         ref: t.ref,
         subject: t.subject,
+        description: t.description || '',
         status: t.status,
         statusExtraInfo: {
           name: t.status_extra_info?.name || 'Unknown',
@@ -261,19 +371,29 @@ const PatchBody = z.object({
   subject: z.string().min(1).optional(),
   description: z.string().optional(),
   isClosed: z.boolean().optional(),
+  hours: z.number().nullable().optional(),
+  totalTimeSpentMinutes: z.number().nullable().optional(),
+  activityDate: z.string().optional(),
+  startTime: z.string().optional(),
 });
 
 export async function PATCH(req: Request) {
   try {
     const b = PatchBody.parse(await req.json());
+    taskCavCache.delete(b.taskId);
     const updated = await updateTask(b.taskId, {
       statusId: b.statusId,
       subject: b.subject,
       description: b.description,
       isClosed: b.isClosed,
+      hours: b.hours,
+      totalTimeSpentMinutes: b.totalTimeSpentMinutes,
+      activityDate: b.activityDate,
+      startTime: b.startTime,
     });
     return NextResponse.json({ ok: true, task: updated });
   } catch (e) {
     return errorResponse(e);
   }
 }
+

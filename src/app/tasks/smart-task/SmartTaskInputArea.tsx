@@ -1,5 +1,12 @@
 import { useEffect } from 'react';
-import { ListPlus, Plus, Sparkles } from 'lucide-react';
+import {
+  Calendar,
+  ExternalLink,
+  FolderGit2,
+  ListPlus,
+  Plus,
+  Sparkles,
+} from 'lucide-react';
 import { Select } from '@/components/Select';
 import { useNotification } from '@/components/Notification';
 import type { Meta } from './types';
@@ -12,6 +19,11 @@ interface SmartTaskInputAreaProps {
   parentId: number | null;
   setParentId: (id: number | null) => void;
   meta: Meta | null;
+  loadingMeta?: boolean;
+  projectSlug?: string;
+  sprintSlug?: string;
+  onProjectChange?: (slug: string) => void;
+  onSprintChange?: (slug: string) => void;
   input: string;
   setInput: (value: string) => void;
   parsing: boolean;
@@ -30,6 +42,11 @@ export function SmartTaskInputArea({
   parentId,
   setParentId,
   meta,
+  loadingMeta = false,
+  projectSlug = '',
+  sprintSlug = '',
+  onProjectChange,
+  onSprintChange,
   input,
   setInput,
   parsing,
@@ -49,9 +66,10 @@ export function SmartTaskInputArea({
 
   return (
     <section
-      className='card flex flex-col gap-6'
+      className='card flex flex-col gap-5'
       aria-label='Input Catatan Kerja'
     >
+      {/* Header & Tabs */}
       <div className='flex items-center justify-between gap-4 flex-wrap'>
         <div className='card-title m-0' id='input-title'>
           Input Catatan Kerja
@@ -89,10 +107,91 @@ export function SmartTaskInputArea({
         </div>
       </div>
 
+      {/* Pilihan Project & Sprint Taiga */}
+      {onProjectChange && onSprintChange && (
+        <div className='p-3.5 bg-surface-subtle/80 rounded-2xl border border-border flex flex-col gap-2.5'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-3.5'>
+            {/* Project Select */}
+            <div className='flex flex-col gap-1.5'>
+              <label
+                htmlFor='input-project-select'
+                className='text-xs font-bold text-slate-700 flex items-center gap-1.5'
+              >
+                <FolderGit2 size={13} className='text-violet-600' />
+                <span>Project Taiga</span>
+              </label>
+              <Select
+                id='input-project-select'
+                value={projectSlug}
+                disabled={!meta || loadingMeta}
+                onChange={(e) => onProjectChange(e.target.value)}
+                className='!h-10 text-xs sm:text-sm font-semibold rounded-xl w-full'
+              >
+                {!meta && (
+                  <option value=''>
+                    {loadingMeta ? 'Memuat project...' : '-'}
+                  </option>
+                )}
+                {meta?.projects?.map((p) => (
+                  <option key={p.id} value={p.slug}>
+                    {p.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            {/* Sprint / Taskboard Select */}
+            <div className='flex flex-col gap-1.5'>
+              <label
+                htmlFor='input-sprint-select'
+                className='text-xs font-bold text-slate-700 flex items-center justify-between'
+              >
+                <span className='flex items-center gap-1.5'>
+                  <Calendar size={13} className='text-cyan-600' />
+                  <span>Sprint / Taskboard</span>
+                </span>
+                {meta?.baseUrl && meta?.project && (
+                  <a
+                    href={`${meta.baseUrl}/project/${meta.project.slug}/taskboard${meta.sprint ? `/${meta.sprint.slug}` : ''}`}
+                    target='_blank'
+                    rel='noreferrer'
+                    className='text-[11px] text-brand hover:underline inline-flex items-center gap-1 font-normal'
+                    title='Buka taskboard di Taiga'
+                  >
+                    <span>Buka Taiga</span>
+                    <ExternalLink size={10} />
+                  </a>
+                )}
+              </label>
+              <Select
+                id='input-sprint-select'
+                value={sprintSlug}
+                disabled={!meta || loadingMeta}
+                onChange={(e) => onSprintChange(e.target.value)}
+                className='!h-10 text-xs sm:text-sm font-semibold rounded-xl w-full'
+              >
+                {!meta && (
+                  <option value=''>
+                    {loadingMeta ? 'Memuat sprint...' : '-'}
+                  </option>
+                )}
+                {meta && !meta.sprint && <option value=''>(Backlog)</option>}
+                {meta?.milestones.map((m) => (
+                  <option key={m.id} value={m.slug}>
+                    {m.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'smart' ? (
         <>
           {/* TARGET JENIS ITEM & DEFAULT USER STORY */}
           <div className='grid grid-cols-1 md:grid-cols-2 gap-5'>
+
             <div className='field'>
               <span className='label-sm'>Target Jenis Item</span>
               <div

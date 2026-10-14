@@ -79,7 +79,7 @@ export function AssignedTasksToolbar({
                 : 'text-slate-600 hover:text-slate-900 border border-transparent'
             }`}
           >
-            Task Aktif Saja
+            Task Aktif
           </button>
           <button
             type='button'
@@ -96,7 +96,7 @@ export function AssignedTasksToolbar({
                 : 'text-slate-600 hover:text-slate-900 border border-transparent'
             }`}
           >
-            Semua Task (Termasuk Done)
+            Semua Task
           </button>
         </div>
 

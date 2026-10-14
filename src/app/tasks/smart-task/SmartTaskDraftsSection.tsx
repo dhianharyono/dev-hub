@@ -1,10 +1,7 @@
-'use client';
-
 import { Plus, Send, Sparkles } from 'lucide-react';
-import { SmartTaskBulkBar } from './SmartTaskBulkBar';
 import { SmartTaskDraftCard } from './SmartTaskDraftCard';
 import { SmartTaskEmptyState } from './SmartTaskEmptyState';
-import type { Draft, Meta, Result, Status } from './types';
+import type { Draft, Meta, Status } from './types';
 
 interface SmartTaskDraftsSectionProps {
   drafts: Draft[];
@@ -13,20 +10,23 @@ interface SmartTaskDraftsSectionProps {
   totalHours: number;
   invalid: boolean;
   submitting: boolean;
-  submitProgress: string | null;
-  results: Result[] | null;
   parsing: boolean;
   meta: Meta | null;
+  loadingMeta?: boolean;
+  projectSlug?: string;
+  sprintSlug?: string;
+  onProjectChange?: (slug: string) => void;
+  onSprintChange?: (slug: string) => void;
   parentId: number | null;
   statusesFor: (kind: Draft['kind']) => Status[];
   onAddBlank: (count?: number) => void;
   onSubmit: () => void;
   onToggleSelectAll: () => void;
-  onBulkSetUserStory: (usId: number | null) => void;
-  onBulkSetStatus: (stId: number | null) => void;
-  onBulkSetDate: (date: string) => void;
-  onBulkSetStartTime: (time: string) => void;
-  onBulkDeleteSelected: () => void;
+  onBulkSetUserStory?: (usId: number | null) => void;
+  onBulkSetStatus?: (stId: number | null) => void;
+  onBulkSetDate?: (date: string) => void;
+  onBulkSetStartTime?: (time: string) => void;
+  onBulkDeleteSelected?: () => void;
   onUpdateDraft: (key: string, patch: Partial<Draft>) => void;
   onRemoveDraft: (key: string) => void;
   onUseExample: (text: string) => void;
@@ -36,23 +36,20 @@ export function SmartTaskDraftsSection({
   drafts,
   selectedDrafts,
   allSelected,
-  totalHours,
   invalid,
   submitting,
-  submitProgress,
-  results,
   parsing,
   meta,
+  loadingMeta = false,
+  projectSlug = '',
+  sprintSlug = '',
+  onProjectChange,
+  onSprintChange,
   parentId,
   statusesFor,
   onAddBlank,
   onSubmit,
   onToggleSelectAll,
-  onBulkSetUserStory,
-  onBulkSetStatus,
-  onBulkSetDate,
-  onBulkSetStartTime,
-  onBulkDeleteSelected,
   onUpdateDraft,
   onRemoveDraft,
   onUseExample,
@@ -63,18 +60,21 @@ export function SmartTaskDraftsSection({
       aria-labelledby='drafts-title'
     >
       <div className='flex items-center justify-between gap-3 flex-wrap'>
-        <div className='row wrap gap-2'>
+        <div className='flex items-center gap-3'>
           <h2 id='drafts-title' className='text-lg font-extrabold tracking-tight'>
             Review Draft Task
           </h2>
-          <span className='badge badge-violet'>{drafts.length} task</span>
-          {selectedDrafts.length > 0 && (
-            <span className='badge'>{selectedDrafts.length} dipilih</span>
-          )}
-          {totalHours > 0 && (
-            <span className='badge badge-cyan'>
-              ⏱ {totalHours.toFixed(1)} jam
-            </span>
+
+          {drafts.length > 0 && (
+            <label className='inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-600 hover:text-slate-900 select-none px-2.5 py-1 rounded-lg bg-surface-subtle border border-border transition-colors'>
+              <input
+                type='checkbox'
+                checked={allSelected}
+                onChange={onToggleSelectAll}
+                className='w-4 h-4 cursor-pointer accent-violet-600 rounded'
+              />
+              <span>Pilih Semua ({drafts.length})</span>
+            </label>
           )}
         </div>
 
@@ -110,21 +110,6 @@ export function SmartTaskDraftsSection({
           </button>
         </div>
       </div>
-
-      {drafts.length > 0 && (
-        <SmartTaskBulkBar
-          allSelected={allSelected}
-          toggleSelectAll={onToggleSelectAll}
-          draftsCount={drafts.length}
-          selectedCount={selectedDrafts.length}
-          meta={meta}
-          onBulkSetUserStory={onBulkSetUserStory}
-          onBulkSetStatus={onBulkSetStatus}
-          onBulkSetDate={onBulkSetDate}
-          onBulkSetStartTime={onBulkSetStartTime}
-          onBulkDeleteSelected={onBulkDeleteSelected}
-        />
-      )}
 
       {drafts.length === 0 && !parsing && (
         <SmartTaskEmptyState onUseExample={onUseExample} />
@@ -170,6 +155,11 @@ export function SmartTaskDraftsSection({
           draft={d}
           index={i}
           meta={meta}
+          loadingMeta={loadingMeta}
+          projectSlug={projectSlug}
+          sprintSlug={sprintSlug}
+          onProjectChange={onProjectChange}
+          onSprintChange={onSprintChange}
           parentId={parentId}
           statuses={statusesFor(d.kind)}
           onUpdate={onUpdateDraft}

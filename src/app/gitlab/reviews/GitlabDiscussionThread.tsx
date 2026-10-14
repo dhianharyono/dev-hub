@@ -65,8 +65,7 @@ export function GitlabDiscussionThread({
         <div className='flex items-center gap-2.5'>
           <GitlabIdenticon
             username={rootNote.author.username}
-            avatarUrl={rootNote.author.avatarUrl}
-            size={28}
+            size={26}
           />
           <div>
             <div className='text-[13px] text-slate-text'>
@@ -115,14 +114,9 @@ export function GitlabDiscussionThread({
               return (
                 <div
                   key={note.id || noteIdx}
-                  className='flex gap-2.5'
+                  className='flex flex-col'
                 >
-                  <GitlabIdenticon
-                    username={note.author.username}
-                    avatarUrl={note.author.avatarUrl}
-                    size={28}
-                  />
-                  <div className='flex-1 min-w-0'>
+                  <div className='w-full min-w-0'>
                     {/* Note header row */}
                     <div className='flex items-center justify-between mb-1'>
                       <div className='flex items-center gap-1.5 flex-wrap'>

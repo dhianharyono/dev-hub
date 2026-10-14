@@ -1,6 +1,5 @@
 'use client';
 
-import { ExternalLink } from 'lucide-react';
 import type { AssignedTaskItem } from '@/app/api/taiga/assigned/route';
 import { AssignedTaskRow } from './AssignedTaskRow';
 import type { ProjectTaskGroup, Status } from './types';
@@ -14,10 +13,10 @@ interface AssignedProjectGroupProps {
   editingTaskId: number | null;
   editingSubject: string;
   savingEdit: boolean;
-  onStartEdit: (task: AssignedTaskItem) => void;
   onCancelEdit: () => void;
   onSaveSubject: (task: AssignedTaskItem) => void;
   onEditingSubjectChange: (val: string) => void;
+  onOpenEditModal: (task: AssignedTaskItem) => void;
   onUpdateStatus: (task: AssignedTaskItem, newStatusId: number) => void;
 }
 
@@ -30,10 +29,10 @@ export function AssignedProjectGroup({
   editingTaskId,
   editingSubject,
   savingEdit,
-  onStartEdit,
   onCancelEdit,
   onSaveSubject,
   onEditingSubjectChange,
+  onOpenEditModal,
   onUpdateStatus,
 }: AssignedProjectGroupProps) {
   return (
@@ -48,17 +47,6 @@ export function AssignedProjectGroup({
             {group.tasks.length} task
           </span>
         </div>
-
-        <a
-          href={`${baseUrl}/project/${group.projectSlug}/taskboard`}
-          target='_blank'
-          rel='noreferrer'
-          className='btn btn-ghost btn-sm text-xs px-3 py-1.5 h-8 inline-flex items-center gap-1.5'
-          title='Buka taskboard proyek di Taiga'
-        >
-          <span>Taskboard Proyek</span>
-          <ExternalLink size={12} />
-        </a>
       </div>
 
       {/* Table of Tasks */}
@@ -92,10 +80,10 @@ export function AssignedProjectGroup({
                 isEditingThis={editingTaskId === task.id}
                 editingSubject={editingSubject}
                 savingEdit={savingEdit}
-                onStartEdit={onStartEdit}
                 onCancelEdit={onCancelEdit}
                 onSaveSubject={onSaveSubject}
                 onEditingSubjectChange={onEditingSubjectChange}
+                onOpenEditModal={onOpenEditModal}
                 onUpdateStatus={onUpdateStatus}
               />
             ))}
@@ -105,3 +93,4 @@ export function AssignedProjectGroup({
     </div>
   );
 }
+
