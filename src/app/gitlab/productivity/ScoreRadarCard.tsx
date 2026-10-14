@@ -8,7 +8,7 @@ interface ScoreRadarCardProps {
 export function ScoreRadarCard({ scores }: ScoreRadarCardProps) {
   return (
     <section
-      className='card flex flex-col gap-5 overflow-hidden min-w-0'
+      className='card flex flex-col gap-1 overflow-hidden min-w-0'
       aria-labelledby='radar-title'
     >
       <div className='card-title' id='radar-title'>
@@ -31,22 +31,30 @@ export function ScoreRadarCard({ scores }: ScoreRadarCardProps) {
       <div className='grid grid-cols-2 gap-3 mt-2 mb-2'>
         <div className='flex items-center justify-between p-2.5 sm:p-3 bg-surface-subtle rounded-xl border border-border text-xs'>
           <span className='text-slate-500 font-medium'>Produktivitas</span>
-          <strong className='text-cyan-600 font-bold'>{scores.productivity}%</strong>
+          <strong className='text-cyan-600 font-bold'>
+            {scores.productivity}%
+          </strong>
         </div>
 
         <div className='flex items-center justify-between p-2.5 sm:p-3 bg-surface-subtle rounded-xl border border-border text-xs'>
           <span className='text-slate-500 font-medium'>Kualitas</span>
-          <strong className='text-amber-600 font-bold'>{scores.quality}%</strong>
+          <strong className='text-amber-600 font-bold'>
+            {scores.quality}%
+          </strong>
         </div>
 
         <div className='flex items-center justify-between p-2.5 sm:p-3 bg-surface-subtle rounded-xl border border-border text-xs'>
           <span className='text-slate-500 font-medium'>Kolaborasi</span>
-          <strong className='text-violet-600 font-bold'>{scores.collaboration}%</strong>
+          <strong className='text-violet-600 font-bold'>
+            {scores.collaboration}%
+          </strong>
         </div>
 
         <div className='flex items-center justify-between p-2.5 sm:p-3 bg-surface-subtle rounded-xl border border-border text-xs'>
           <span className='text-slate-500 font-medium'>Konsistensi</span>
-          <strong className='text-emerald-600 font-bold'>{scores.consistency}%</strong>
+          <strong className='text-emerald-600 font-bold'>
+            {scores.consistency}%
+          </strong>
         </div>
       </div>
 
