@@ -39,7 +39,8 @@ DevHub dilengkapi dengan serangkaian modul dan asisten otomatis untuk mempercepa
 - **Incoming Reviews & AI Code Reviewer**:
   - Daftar MR tim yang memerlukan review Anda.
   - Generator komentar review cerdas per blok diff lengkap dengan saran perubahan kode (*suggested change*).
-- **Productivity Dashboard**: Radar 4 pilar metrik performa (Produktivitas, Kualitas, Kolaborasi, dan Konsistensi), grafik komparasi commit vs MR, dan analitik jam kerja vs lembur.
+- **Productivity Dashboard**: Radar 4 pilar metrik performa (Produktivitas, Kualitas, Kolaborasi, dan Konsistensi), grafik komparasi commit vs MR, rekomendasi teknis performa, serta evaluasi kebugaran *Work-Life Balance* (jam kerja normal, larut malam, akhir pekan).
+  - *Catatan Layout UI*: Tinggi kartu **Insight & saran / Work-Life Balance** minimal tingginya adalah sejajar dengan kartu **Profil Performa** dan **Skor Keseluruhan** (sejajar horizontal di baris pilar produktivitas).
 
 ---
 
