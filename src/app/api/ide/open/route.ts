@@ -28,8 +28,11 @@ const Body = z.object({
     .optional(),
 });
 
-const ANTIGRAVITY_BIN =
-  '/Applications/Antigravity IDE.app/Contents/Resources/app/bin/antigravity-ide';
+const IDE_BINS = [
+  '/Applications/Antigravity IDE.app/Contents/Resources/app/bin/antigravity-ide',
+  '/Applications/Cursor.app/Contents/Resources/app/bin/cursor',
+  '/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code',
+];
 const WORKSPACE_ROOT = process.cwd();
 
 export async function POST(req: Request) {
@@ -38,6 +41,8 @@ export async function POST(req: Request) {
     const targetWorkspace = body.projectPath
       ? path.resolve(body.projectPath)
       : WORKSPACE_ROOT;
+
+    const availableBin = IDE_BINS.find((b) => fs.existsSync(b));
 
     // 1. If file & line are specified, open exact file:line
     if (body.file) {
@@ -50,14 +55,14 @@ export async function POST(req: Request) {
       const col = body.column || 1;
       const gotoTarget = `${resolvedFile}:${line}:${col}`;
 
-      if (fs.existsSync(ANTIGRAVITY_BIN)) {
+      if (availableBin) {
         try {
-          await execFileAsync(ANTIGRAVITY_BIN, ['-g', gotoTarget]);
+          await execFileAsync(availableBin, ['-g', gotoTarget]);
           return NextResponse.json({
             ok: true,
             method: 'cli-goto',
             target: gotoTarget,
-            message: `File berhasil dibuka di Antigravity IDE pada baris ${line}`,
+            message: `File berhasil dibuka di IDE pada baris ${line}`,
           });
         } catch {
           // Fallback to open command below
@@ -65,61 +70,57 @@ export async function POST(req: Request) {
       }
 
       // macOS open fallback with url scheme or app name
-      try {
-        await execFileAsync('open', ['-a', 'Antigravity IDE', resolvedFile]);
-        return NextResponse.json({
-          ok: true,
-          method: 'open-file',
-          target: resolvedFile,
-          message: 'File dibuka di Antigravity IDE',
-        });
-      } catch {
-        // Fallback to Antigravity
-        await execFileAsync('open', ['-a', 'Antigravity', resolvedFile]);
-        return NextResponse.json({
-          ok: true,
-          method: 'open-app',
-          target: resolvedFile,
-          message: 'File dibuka di Antigravity',
-        });
+      for (const appName of ['Antigravity IDE', 'Cursor', 'Visual Studio Code', 'Antigravity']) {
+        try {
+          await execFileAsync('open', ['-a', appName, resolvedFile]);
+          return NextResponse.json({
+            ok: true,
+            method: 'open-file',
+            target: resolvedFile,
+            message: `File dibuka di ${appName}`,
+          });
+        } catch {
+          // Try next app
+        }
       }
     }
 
     // 2. If no file, open the workspace / bring IDE to front
-    if (fs.existsSync(ANTIGRAVITY_BIN)) {
+    if (availableBin) {
       try {
-        await execFileAsync(ANTIGRAVITY_BIN, ['-r', targetWorkspace]);
+        await execFileAsync(availableBin, ['-r', targetWorkspace]);
         return NextResponse.json({
           ok: true,
           method: 'cli-workspace',
           target: targetWorkspace,
-          message: 'Workspace dibuka di Antigravity IDE',
+          message: 'Workspace dibuka di IDE',
         });
       } catch {
         // Fallback to open
       }
     }
 
-    try {
-      await execFileAsync('open', ['-a', 'Antigravity IDE', targetWorkspace]);
-      return NextResponse.json({
-        ok: true,
-        method: 'open-ide',
-        target: targetWorkspace,
-        message: 'Antigravity IDE berhasil dibuka',
-      });
-    } catch {
-      await execFileAsync('open', ['-a', 'Antigravity']);
-      return NextResponse.json({
-        ok: true,
-        method: 'open-app-default',
-        target: targetWorkspace,
-        message: 'Antigravity berhasil dibuka',
-      });
+    for (const appName of ['Antigravity IDE', 'Cursor', 'Visual Studio Code', 'Antigravity']) {
+      try {
+        await execFileAsync('open', ['-a', appName, targetWorkspace]);
+        return NextResponse.json({
+          ok: true,
+          method: 'open-ide',
+          target: targetWorkspace,
+          message: `${appName} berhasil dibuka`,
+        });
+      } catch {
+        // Try next app
+      }
     }
+
+    return NextResponse.json({
+      ok: true,
+      message: 'Permintaan buka IDE selesai diproses',
+    });
   } catch (error) {
     const msg =
-      error instanceof Error ? error.message : 'Gagal membuka Antigravity IDE';
+      error instanceof Error ? error.message : 'Gagal membuka IDE';
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }
 }

@@ -79,7 +79,7 @@ export function PreReviewScoreBanner({
         </div>
       </div>
 
-      {/* Action Bar: Export / Copy Review for Antigravity IDE */}
+      {/* Action Bar: Export / Copy Review for AI Coding Assistant / IDE */}
       <div className='p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 transition-all'>
         <div className='flex items-start sm:items-center gap-3 min-w-0 flex-1'>
           <div className='w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-xs shrink-0 mt-0.5 sm:mt-0'>
@@ -88,14 +88,14 @@ export function PreReviewScoreBanner({
           <div className='min-w-0 flex-1'>
             <div className='flex items-center gap-2 flex-wrap'>
               <span className='text-[14px] font-bold text-slate-900 tracking-tight'>
-                Perbaikan di Antigravity IDE
+                Perbaikan dengan AI Coding Assistant / IDE
               </span>
               <span className='text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/60'>
                 Prompt Generator
               </span>
             </div>
             <p className='text-[12px] text-slate-600 font-medium leading-relaxed mt-0.5 m-0'>
-              Salin seluruh rangkuman audit ini lalu tempelkan ke prompt Antigravity IDE untuk instruksi perbaikan otomatis.
+              Salin seluruh rangkuman audit ini lalu tempelkan ke prompt AI coding assistant (Cursor, Copilot, Antigravity, Claude, ChatGPT, dll.) untuk instruksi perbaikan otomatis.
             </p>
           </div>
         </div>
@@ -114,7 +114,7 @@ export function PreReviewScoreBanner({
             {copiedFullReview ? <Check size={14} /> : <Copy size={14} />}
             <span>
               {copiedFullReview
-                ? 'Tersalin! Siap Dipaste ke IDE'
+                ? 'Tersalin! Siap Dipaste ke AI / IDE'
                 : 'Salin Seluruh Hasil Review'}
             </span>
           </button>

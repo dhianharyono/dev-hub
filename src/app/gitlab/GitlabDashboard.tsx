@@ -13,6 +13,7 @@ import {
 import { useSync, useMetrics, useIntegrations } from '@/components/hooks';
 import { EmptyState } from '@/components/EmptyState';
 import { useNotification } from '@/components/Notification';
+import { useAiTask } from '@/components/ai-task/AiTaskContext';
 import { MrAssistantCard } from './MrAssistantCard';
 import { PreReviewCard } from './PreReviewCard';
 import { IncomingReviewsCard } from './IncomingReviewsCard';
@@ -30,15 +31,26 @@ export default function GitlabDashboard() {
     useState<GitlabActiveView>('productivity');
   const { data, loading, error, reload } = useMetrics(days);
   const { status, start } = useSync(reload);
-  const {
-    integrations,
-    loading: loadingIntegrations,
-    refresh: refreshIntegrations,
-  } = useIntegrations();
+  const { integrations, loading: loadingIntegrations, refresh: refreshIntegrations } = useIntegrations();
+  const { restoreTarget, clearRestoreTarget, minimizeAllRunning } = useAiTask();
 
   const isGitlabConnected = Boolean(integrations?.gitlab?.connected);
   const gitlabError = integrations?.gitlab?.error;
   const { notify } = useNotification();
+
+  // Switch tab view if restoreTarget is requested from dock
+  useEffect(() => {
+    if (restoreTarget?.view === 'mr_assistant' || restoreTarget?.type === 'mr_assistant') {
+      setActiveView('mr_assistant');
+      clearRestoreTarget();
+    } else if (restoreTarget?.view === 'pre_review' || restoreTarget?.type === 'pre_review') {
+      setActiveView('pre_review');
+      clearRestoreTarget();
+    } else if (restoreTarget?.mr || restoreTarget?.type === 'mr_review') {
+      setActiveView('incoming_reviews');
+      // note: don't clear immediately because IncomingReviewsCard needs to open the modal
+    }
+  }, [restoreTarget, clearRestoreTarget]);
 
   useEffect(() => {
     if (error && isGitlabConnected) {
@@ -56,7 +68,12 @@ export default function GitlabDashboard() {
     <>
       <GitlabHeaderTabs
         activeView={activeView}
-        onViewChange={setActiveView}
+        onViewChange={(newView) => {
+          if (newView !== activeView) {
+            minimizeAllRunning();
+            setActiveView(newView);
+          }
+        }}
         days={days}
         onDaysChange={setDays}
         data={data}

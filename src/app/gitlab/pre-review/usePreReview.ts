@@ -3,9 +3,11 @@ import type { GitLabProjectSummary } from '@/app/api/gitlab/projects/route';
 import type { GitLabBranchSummary } from '@/app/api/gitlab/branches/route';
 import type { PreReviewOutput, AuditStats } from './types';
 import { useNotification } from '@/components/Notification';
+import { useAiTask } from '@/components/ai-task/AiTaskContext';
 
 export function usePreReview() {
   const { notify } = useNotification();
+  const { runAiTask, getTask, minimizeTask, dismissTask, tasks, restoreTarget, clearRestoreTarget } = useAiTask();
   const [projects, setProjects] = useState<GitLabProjectSummary[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | ''>('');
@@ -23,6 +25,50 @@ export function usePreReview() {
   const [auditStats, setAuditStats] = useState<AuditStats | null>(null);
 
   const [copiedFullReview, setCopiedFullReview] = useState(false);
+
+  // Cari task pre_review yang aktif atau yang terakhir selesai
+  const preReviewTask =
+    Object.values(tasks)
+      .filter((t) => t.type === 'pre_review')
+      .sort((a, b) => b.startedAt - a.startedAt)[0] || null;
+
+  const taskId =
+    preReviewTask?.id ||
+    `pre-review-${selectedProjectId || 'default'}-${branch || 'default'}`;
+  const currentTask = preReviewTask || getTask(taskId);
+  const isGenerating = loading || currentTask?.status === 'running';
+
+  // Sync background result
+  useEffect(() => {
+    if (currentTask?.status === 'completed' && currentTask.result && !result) {
+      const resData = currentTask.result as { preReview: PreReviewOutput; auditStats?: AuditStats };
+      if (resData.preReview) {
+        setResult(resData.preReview);
+        if (resData.auditStats) setAuditStats(resData.auditStats);
+      } else {
+        setResult(resData as unknown as PreReviewOutput);
+      }
+    }
+  }, [currentTask, result]);
+
+  // Sync restore target branch & project jika dipulihkan dari dock
+  useEffect(() => {
+    if (restoreTarget?.type === 'pre_review') {
+      if (restoreTarget.branch && branch !== restoreTarget.branch) {
+        setBranch(restoreTarget.branch);
+      }
+      if (restoreTarget.projectId && selectedProjectId !== restoreTarget.projectId) {
+        setSelectedProjectId(Number(restoreTarget.projectId) || '');
+      }
+      clearRestoreTarget();
+    }
+  }, [restoreTarget, branch, selectedProjectId, clearRestoreTarget]);
+
+  const handleMinimize = () => {
+    if (taskId) {
+      minimizeTask(taskId);
+    }
+  };
 
   // Load GitLab Projects on mount
   useEffect(() => {
@@ -101,51 +147,80 @@ export function usePreReview() {
     setAuditStats(null);
 
     try {
-      // 1. Fetch compare diff from GitLab
-      const compareRes = await fetch(
-        `/api/gitlab/compare?projectId=${selectedProjectId}&from=${encodeURIComponent(targetBranch)}&to=${encodeURIComponent(branch)}`,
-      );
-      const compareData = await compareRes.json();
-      if (!compareRes.ok || !compareData.ok) {
-        throw new Error(compareData.error || 'Gagal mengambil data perbandingan branch dari GitLab');
-      }
+      const auditResult = await runAiTask<{ preReview: PreReviewOutput; auditStats: AuditStats }>({
+        id: taskId,
+        type: 'pre_review',
+        title: `Review Code: ${branch}`,
+        subtitle: `Project ID: ${selectedProjectId} → ${targetBranch}`,
+        initialStep: 'Mengambil data perbandingan branch & commit dari GitLab...',
+        notifyOnComplete: false,
+        params: {
+          projectId: selectedProjectId,
+          branch,
+          targetBranch,
+        },
+        runner: async (updateStep, signal) => {
+          // 1. Fetch compare diff from GitLab
+          const compareRes = await fetch(
+            `/api/gitlab/compare?projectId=${selectedProjectId}&from=${encodeURIComponent(targetBranch)}&to=${encodeURIComponent(branch)}`,
+            { signal },
+          );
+          const compareData = await compareRes.json();
+          if (!compareRes.ok || !compareData.ok) {
+            throw new Error(compareData.error || 'Gagal mengambil data perbandingan branch dari GitLab');
+          }
 
-      if (!compareData.diff || compareData.diff.trim().length === 0) {
-        throw new Error(
-          `Tidak ada perbedaan kode antara branch "${branch}" dan "${targetBranch}". Pastikan ada commit baru pada branch ini.`,
-        );
-      }
+          if (!compareData.diff || compareData.diff.trim().length === 0) {
+            throw new Error(
+              `Tidak ada perbedaan kode antara branch "${branch}" dan "${targetBranch}". Pastikan ada commit baru pada branch ini.`,
+            );
+          }
 
-      setAuditStats({
-        commitsCount: compareData.commitsCount,
-        filesCount: compareData.filesCount,
+          const stats: AuditStats = {
+            commitsCount: compareData.commitsCount,
+            filesCount: compareData.filesCount,
+          };
+
+          updateStep('Menganalisis checklist senior review & celah keamanan...', 65);
+
+          // 2. Run Pre-Review audit via AI
+          const res = await fetch('/api/gitlab/pre-review', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              codeOrDiff: compareData.diff,
+              language: 'Auto-detect',
+              context: context || `Review branch ${branch} ke ${targetBranch}`,
+            }),
+            signal,
+          });
+
+          const json = await res.json();
+          if (!res.ok || !json.ok) {
+            throw new Error(json.error || 'Gagal menjalankan pre-review');
+          }
+
+          updateStep('Hasil audit selesai disintesis.', 100);
+
+          return {
+            preReview: json,
+            auditStats: stats,
+          };
+        },
       });
 
-      // 2. Run Pre-Review audit via AI
-      const res = await fetch('/api/gitlab/pre-review', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          codeOrDiff: compareData.diff,
-          language: 'Auto-detect',
-          context: context || `Review branch ${branch} ke ${targetBranch}`,
-        }),
-      });
-
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        throw new Error(json.error || 'Gagal menjalankan pre-review');
-      }
-
-      setResult(json);
+      setResult(auditResult.preReview);
+      setAuditStats(auditResult.auditStats);
       notify.success(
-        `Audit kode branch ${branch} selesai (${json.score}/100)!`,
+        `Audit kode branch ${branch} selesai (${auditResult.preReview.score}/100)!`,
         'Pre-Review Selesai',
       );
     } catch (e) {
-      const msg = (e as Error).message;
-      setError(msg);
-      notify.error(msg, 'Pre-Review Gagal');
+      if ((e as Error).name !== 'AbortError') {
+        const msg = (e as Error).message;
+        setError(msg);
+        notify.error(msg, 'Pre-Review Gagal');
+      }
     } finally {
       setLoading(false);
     }
@@ -195,7 +270,7 @@ export function usePreReview() {
       md += `*Tidak ada temuan blocking atau perbaikan kritis yang terdeteksi.*\n\n`;
     }
 
-    md += `## Instruksi Perbaikan untuk Antigravity IDE:\n`;
+    md += `## Instruksi Perbaikan untuk AI Assistant / IDE:\n`;
     md += `Mohon analisis daftar temuan di atas dan lakukan perbaikan pada file-file kode terkait secara terstruktur dan aman.\n`;
 
     return md;
@@ -208,6 +283,15 @@ export function usePreReview() {
     setCopiedFullReview(true);
     notify.info('Laporan audit berhasil disalin ke clipboard', 'Tersalin');
     setTimeout(() => setCopiedFullReview(false), 2500);
+  };
+
+  const handleClearResult = () => {
+    setResult(null);
+    setAuditStats(null);
+    setError(null);
+    if (taskId) {
+      dismissTask(taskId);
+    }
   };
 
   return {
@@ -223,12 +307,15 @@ export function usePreReview() {
     setTargetBranch,
     context,
     setContext,
-    loading,
+    loading: isGenerating,
+    isGenerating,
+    handleMinimize,
     error,
     result,
     auditStats,
     copiedFullReview,
     handleReview,
     handleCopyFullReview,
+    handleClearResult,
   };
 }
