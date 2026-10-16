@@ -57,3 +57,15 @@ DevHub dilengkapi dengan serangkaian modul dan asisten otomatis untuk mempercepa
 - **Ringkasan Performa AI**: Rangkuman otomatis pencapaian dan progres teknis untuk bahan *daily standup* atau laporan mingguan ke lead/atasan.
 - **Contoh Rework & Analisis Hotspot**: Pelacakan riwayat pengerjaan ulang kode dengan tautan commit/diff GitLab lengkap dan indikator jeda waktu perbaikan.
 - **Format Siap Cetak (A4)**: Tata letak laporan disesuaikan dengan format standar *Talent Tracer*, siap dicetak atau disimpan ke PDF via browser (`@media print`).
+
+---
+
+## 6. Pengaturan Sistem & Layanan Background PM2 (`/settings`)
+
+- **Integrasi & Kredensial**: Konfigurasi koneksi SSO Taiga, GitLab Personal Access Token (PAT), dan Multi-Provider AI (Gemini, OpenAI, Claude, Custom LLM).
+- **Background Process Manager (PM2)**:
+  - Tombol 1-klik untuk mengaktifkan PM2 agar aplikasi DEV HUB berjalan secara otomatis di layar belakang (*background daemon*).
+  - Menghilangkan ketergantungan pada jendela terminal terbuka agar server terus melayani request di port 4001 (independen dari port development 4000).
+  - Telemetri live status: PID, CPU, Memory usage, Uptime, dan jumlah restart.
+  - Opsi kontrol siklus hidup: Aktifkan, Restart, Hentikan, dan inspeksi log terminal terakhir.
+

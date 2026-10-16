@@ -1,11 +1,13 @@
 'use client';
 
 import { useSettings } from './components/useSettings';
+import { usePm2 } from './components/usePm2';
 import { SettingsSkeleton } from './components/SettingsSkeleton';
 import { SettingsStatusGrid } from './components/SettingsStatusGrid';
 import { TaigaSettingsSection } from './components/TaigaSettingsSection';
 import { GitlabSettingsSection } from './components/GitlabSettingsSection';
 import { GeminiSettingsSection } from './components/GeminiSettingsSection';
+import { Pm2SettingsSection } from './components/Pm2SettingsSection';
 import { SettingsSaveBar } from './components/SettingsSaveBar';
 
 export default function SettingsView() {
@@ -24,6 +26,15 @@ export default function SettingsView() {
     runTest,
   } = useSettings();
 
+  const {
+    status: pm2Status,
+    loading: pm2Loading,
+    actionLoading: pm2ActionLoading,
+    lastOutput: pm2LastOutput,
+    fetchStatus: refreshPm2Status,
+    executeAction: executePm2Action,
+  } = usePm2();
+
   if (loading) {
     return <SettingsSkeleton />;
   }
@@ -39,14 +50,18 @@ export default function SettingsView() {
             <span className='gradient-text'>Sistem</span>
           </h1>
           <p>
-            Konfigurasi koneksi SSO Taiga, GitLab PAT, Gemini AI, dan filter
+            Konfigurasi koneksi SSO Taiga, GitLab PAT, Gemini AI, layanan background PM2, dan filter
             identitas commit.
           </p>
         </div>
       </header>
 
       {/* Status Integrasi Cards (Overview) */}
-      <SettingsStatusGrid form={form} integrations={integrations} />
+      <SettingsStatusGrid
+        form={form}
+        integrations={integrations}
+        pm2Status={pm2Status}
+      />
 
       <form
         id='settings-form'
@@ -77,6 +92,15 @@ export default function SettingsView() {
           testResult={testResult.ai || testResult.gemini}
           testing={testing.ai || testing.gemini}
           onTest={() => runTest('ai')}
+        />
+
+        <Pm2SettingsSection
+          status={pm2Status}
+          loading={pm2Loading}
+          actionLoading={pm2ActionLoading}
+          lastOutput={pm2LastOutput}
+          onRefresh={refreshPm2Status}
+          onAction={executePm2Action}
         />
 
         <SettingsSaveBar saving={saving} saveMsg={saveMsg} />
