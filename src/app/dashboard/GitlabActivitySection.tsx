@@ -59,7 +59,7 @@ export function GitlabActivitySection({
     : ((recentCommits as GitCommitItem[]) || []).slice(0, 4);
 
   return (
-    <div className='flex flex-col justify-between gap-4 p-5 sm:p-6 bg-slate-50/70 border border-border rounded-2xl flex-auto min-h-[250px]'>
+    <div className='flex flex-col gap-4 p-5 sm:p-6 bg-slate-50/70 border border-border rounded-2xl flex-auto min-h-[250px]'>
       {/* Dynamic Tab Switcher */}
       <div className='flex items-center justify-between gap-2.5'>
         <div className='flex items-center gap-2'>
@@ -298,7 +298,7 @@ export function GitlabActivitySection({
             </div>
           )}
 
-          <div className='flex items-center justify-between pt-2.5 border-t border-black/[0.04] text-[11px] text-slate-text-2'>
+          <div className='mt-auto flex items-center justify-between pt-2.5 border-t border-black/[0.04] text-[11px] text-slate-text-2'>
             <span>
               {hasTodayCommits ? (
                 <>

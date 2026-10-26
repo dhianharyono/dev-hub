@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { formatTaskSubject } from '@/lib/task-utils';
+import { normalizeGeneratedDescription } from '@/lib/task-description';
 import {
   type Draft,
   type Result,
@@ -172,7 +173,7 @@ export function useSmartTask() {
               selected: true,
               kind: it.kind,
               subject: formatTaskSubject(it.subject),
-              description: it.description,
+              description: normalizeGeneratedDescription(it.description),
               userStoryId: it.parentUserStoryId ?? parentId,
               statusId: st?.id ?? null,
               assignToMe: true,
@@ -220,7 +221,7 @@ export function useSmartTask() {
         selected: true,
         kind: mode === 'userstory' ? 'userstory' : 'task',
         subject: subject.slice(0, 90),
-        description: est ? `Estimasi: ${est} jam` : '',
+        description: '',
         userStoryId: parentId,
         statusId: null,
         assignToMe: true,
@@ -260,7 +261,7 @@ export function useSmartTask() {
           items: toSubmit.map((d) => ({
             kind: d.kind,
             subject: d.subject.trim(),
-            description: d.description,
+            description: normalizeGeneratedDescription(d.description),
             userStoryId: d.kind === 'task' ? d.userStoryId : null,
             statusId: d.statusId,
             assignedTo: d.assignToMe ? metaState.meta?.me.id : null,

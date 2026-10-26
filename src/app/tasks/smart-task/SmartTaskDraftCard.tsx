@@ -109,7 +109,7 @@ export function SmartTaskDraftCard({
 
       {/* DESKRIPSI */}
       <textarea
-        className='textarea min-h-[72px] mt-3 text-xs sm:text-sm leading-relaxed rounded-xl px-4 py-2.5 border-border'
+        className='textarea min-h-[140px] mt-3 text-xs sm:text-sm leading-relaxed rounded-xl px-4 py-2.5 border-border'
         value={d.description}
         placeholder='Deskripsi tambahan atau acceptance criteria (opsional markdown)...'
         aria-label='Deskripsi task'

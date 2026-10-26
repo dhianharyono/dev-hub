@@ -49,7 +49,7 @@ const STATUS_CONFIG: Record<ComplianceStatus, DayStatusMeta> = {
     color: '#f59e0b',
     bgClass: 'bg-amber-500',
     pillClass: 'bg-amber-50 text-amber-700 border-amber-200',
-    label: 'Kurang Jam (<8h)',
+    label: 'Kurang Jam',
     badgeClass: 'badge-amber',
   },
   empty: {
@@ -76,6 +76,7 @@ const STATUS_CONFIG: Record<ComplianceStatus, DayStatusMeta> = {
 };
 
 const DAY_HEADERS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const hourFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 1 });
 
 export function WorkloadCalendarCard({
   workload,
@@ -453,7 +454,9 @@ export function WorkloadCalendarCard({
               <span
                 className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${activeDetail.meta.pillClass}`}
               >
-                {activeDetail.meta.label}
+                {activeDetail.status === 'under'
+                  ? `Kurang ${hourFormatter.format(Math.max(0, 8 - activeDetail.hours))} jam`
+                  : activeDetail.meta.label}
               </span>
             </div>
           )}

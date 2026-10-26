@@ -31,6 +31,15 @@ function formatWeekLabel(dateStr: string) {
   }
 }
 
+function getScoreBarColor(value: number) {
+  const safeValue = Math.min(100, Math.max(0, value));
+  return safeValue >= 70
+    ? 'bg-emerald-500'
+    : safeValue >= 55
+      ? 'bg-amber-500'
+      : 'bg-red-500';
+}
+
 export function GitlabVelocityCard({
   metrics,
   connected = true,
@@ -53,10 +62,10 @@ export function GitlabVelocityCard({
   const quality = metrics?.scores?.quality ?? 0;
 
   const pillars = [
-    { label: 'Produktivitas', val: productivity, colorClass: 'bg-emerald-500' },
-    { label: 'Konsistensi', val: consistency, colorClass: 'bg-blue-500' },
-    { label: 'Kolaborasi', val: collaboration, colorClass: 'bg-amber-500' },
-    { label: 'Kualitas', val: quality, colorClass: 'bg-violet-500' },
+    { label: 'Produktivitas', val: productivity },
+    { label: 'Konsistensi', val: consistency },
+    { label: 'Kolaborasi', val: collaboration },
+    { label: 'Kualitas', val: quality },
   ];
 
   const weeklyList = (metrics?.weekly || []).slice(-6);
@@ -133,7 +142,7 @@ export function GitlabVelocityCard({
                       };
                       return (
                         <div
-                          className={`h-full rounded-full transition-all duration-500 ease-out ${p.colorClass}`}
+                          className={`h-full rounded-full transition-all duration-500 ease-out ${getScoreBarColor(p.val)}`}
                           style={velocityWidthStyle}
                         />
                       );

@@ -3,6 +3,7 @@ import type { WorkloadDaySummary, HealerSuggestion, MetaData, HealerDetectedComm
 import { normalizeMeta } from './types';
 import { useNotification } from '@/components/Notification';
 import { useAiTask } from '@/components/ai-task/AiTaskContext';
+import { normalizeGeneratedDescription } from '@/lib/task-description';
 
 interface UseGapHealerProps {
   isOpen: boolean;
@@ -159,7 +160,10 @@ export function useGapHealer({
 
       if (result) {
         lastConsumedTaskIdRef.current = taskId;
-        setSuggestions(result.suggestions || []);
+        setSuggestions((result.suggestions || []).map((suggestion) => ({
+          ...suggestion,
+          description: normalizeGeneratedDescription(suggestion.description),
+        })));
         setDetectedCommits(result.commits || []);
       }
     } catch (e) {
@@ -280,7 +284,7 @@ export function useGapHealer({
         items: suggestions.map((s) => ({
           kind: 'task' as const,
           subject: s.subject,
-          description: s.description,
+          description: normalizeGeneratedDescription(s.description),
           userStoryId: s.parentUserStoryId,
           statusId: inProgressStatusId,
           assignedTo: assignedToId,

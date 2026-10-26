@@ -2,6 +2,7 @@ import "server-only";
 import { runAiCompletion, extractJsonFromAiResponse } from "./ai/client";
 import { z } from "zod";
 import { getSettings } from "./settings";
+import { normalizeGeneratedDescription } from "./task-description";
 
 export const TaskDraftSchema = z.object({
   kind: z.enum(["userstory", "task"]),
@@ -79,7 +80,7 @@ Aturan Penting:
 - ATURAN TAG:
   * JANGAN tambahkan tag apa pun (user tidak menggunakan tag). Field 'tags' WAJIB selalu berupa array kosong [].
 - Tulis dalam ${lang}. Pertahankan istilah teknis (API, endpoint, MR, deploy, DAG, dsb) dan nama sistem apa adanya.
-- Description: 1 kalimat konteks + 2-4 bullet "- " berisi langkah/hasil yang diharapkan. Jika ada estimasi waktu, tulis juga "Estimasi: X jam".
+- Description: 1 kalimat konteks + 2-4 bullet "- " berisi langkah/hasil yang diharapkan. Jangan menuliskan estimasi waktu di deskripsi; durasi disimpan terpisah.
 - ${modeRule}
 - parentUserStoryId hanya boleh berisi id dari daftar user story di bawah.
 - statusName hanya boleh berisi salah satu dari daftar status, atau null.`;
@@ -109,6 +110,7 @@ ${input}
       source: "gemini",
       items: parsed.items.map((it) => ({
         ...it,
+        description: normalizeGeneratedDescription(it.description),
         subject: formatTaskSubject(it.subject, todayFormatted),
         tags: [],
         parentUserStoryId: it.parentUserStoryId && validIds.has(it.parentUserStoryId) ? it.parentUserStoryId : it.kind === "task" ? (ctx.defaultParentId ?? null) : null,
@@ -140,7 +142,7 @@ export function fallbackParse(input: string, ctx: Pick<ParseContext, "mode" | "d
       return {
         kind,
         subject: formatTaskSubject(subject.slice(0, 90), todayFormatted),
-        description: est ? `Estimasi: ${est[1].replace(",", ".")} jam` : "",
+        description: "",
         parentUserStoryId: kind === "task" ? (ctx.defaultParentId ?? null) : null,
         statusName: null,
         estimateHours: est ? Number(est[1].replace(",", ".")) : null,

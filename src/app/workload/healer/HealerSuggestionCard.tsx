@@ -124,8 +124,8 @@ export function HealerSuggestionCard({
           Deskripsi Aktivitas
         </label>
         <textarea
-          className='input w-full min-h-[110px] text-[12.5px] leading-relaxed p-2 sm:px-3 resize-y font-sans'
-          rows={5}
+          className='input w-full min-h-[180px] text-[12.5px] leading-relaxed p-2 sm:px-3 resize-y font-sans'
+          rows={8}
           value={sug.description}
           onChange={(e) => onUpdate(idx, 'description', e.target.value)}
           placeholder='- Rincian aktivitas pekerjaan atau task...'

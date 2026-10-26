@@ -6,6 +6,17 @@ import type { WorkloadData } from '@/lib/workload';
 import { EmptyState } from '@/components/EmptyState';
 import { WadSkeletonCard } from './DashboardSkeleton';
 
+function getRatioToneClass(value: number, target: number) {
+  if (target <= 0) return 'text-slate-text';
+
+  const ratio = (value / target) * 100;
+  return ratio >= 70
+    ? 'text-emerald-600'
+    : ratio >= 55
+      ? 'text-amber-600'
+      : 'text-rose-600';
+}
+
 interface WadAnalyticsCardProps {
   workload: WorkloadData | null;
   connected?: boolean;
@@ -59,7 +70,7 @@ export function WadAnalyticsCard({
   const textColors = {
     Fit: 'text-emerald-600',
     Underload: 'text-amber-600',
-    Overload: 'text-purple-600',
+    Overload: 'text-rose-600',
     Empty: 'text-rose-600',
   }[statusType];
 
@@ -137,7 +148,9 @@ export function WadAnalyticsCard({
                   Jam Kerja Aktif
                 </span>
                 <div className='flex items-baseline gap-1'>
-                  <span className='text-[16px] font-extrabold tracking-tight font-mono text-brand leading-none'>
+                  <span
+                    className={`text-[16px] font-extrabold tracking-tight font-mono leading-none ${getRatioToneClass(workload?.kpis?.timeSpent || 0, workload?.kpis?.expectedHours || 0)}`}
+                  >
                     {workload?.kpis?.timeSpent || 0}h
                   </span>
                   <span className='text-[10.5px] font-normal text-slate-dim'>
@@ -151,7 +164,9 @@ export function WadAnalyticsCard({
                   Tugas Selesai
                 </span>
                 <div className='flex items-baseline gap-1'>
-                  <span className='text-[16px] font-extrabold tracking-tight font-mono text-emerald-600 leading-none'>
+                  <span
+                    className={`text-[16px] font-extrabold tracking-tight font-mono leading-none ${getRatioToneClass(workload?.statusBreakdown?.done || 0, workload?.kpis?.activitiesCount || 0)}`}
+                  >
                     {workload?.statusBreakdown?.done || 0}
                   </span>
                   <span className='text-[10.5px] font-normal text-slate-dim'>
@@ -165,7 +180,9 @@ export function WadAnalyticsCard({
                   Hari Kerja
                 </span>
                 <div className='flex items-baseline gap-1'>
-                  <span className='text-[16px] font-extrabold tracking-tight font-mono text-violet-600 leading-none'>
+                  <span
+                    className={`text-[16px] font-extrabold tracking-tight font-mono leading-none ${getRatioToneClass(workload?.kpis?.workdaysPassed || 0, workload?.kpis?.totalMonthWorkdays || 0)}`}
+                  >
                     {workload?.kpis?.workdaysPassed || 0}
                   </span>
                   <span className='text-[10.5px] font-normal text-slate-dim'>
@@ -179,15 +196,7 @@ export function WadAnalyticsCard({
                   Status Portal
                 </span>
                 <span
-                  className={`text-[15px] font-extrabold tracking-tight font-mono leading-none truncate ${
-                    statusType === 'Fit'
-                      ? 'text-emerald-600'
-                      : statusType === 'Overload'
-                        ? 'text-purple-600'
-                        : statusType === 'Empty'
-                          ? 'text-rose-600'
-                          : 'text-amber-600'
-                  }`}
+                  className={`text-[15px] font-extrabold tracking-tight font-mono leading-none truncate ${textColors}`}
                 >
                   {statusType === 'Fit'
                     ? 'Fit'

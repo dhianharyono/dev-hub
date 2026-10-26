@@ -1,6 +1,7 @@
 import 'server-only';
 import { runAiCompletion, extractJsonFromAiResponse } from './client';
 import { getSettings } from '../settings';
+import { normalizeGeneratedDescription } from '../task-description';
 import {
   HealerResponseSchema,
   healerJsonSchema,
@@ -39,6 +40,7 @@ Aturan Wajib WAD:
 - Waktu mulai (startTime) harus di antara rentang 08:00 sampai 17:00, format HH:mm (misal: "09:00" atau "13:30").
 - Tulis dalam ${lang}. Awali subject dengan kata kerja aktif spesifik (mis. "Mengimplementasikan", "Memperbaiki", "Refactoring", "Menyusun skenario pengujian").
 - Kaitkan dengan User Story yang paling cocok dari daftar jika ada.
+- Jangan menuliskan estimasi waktu di deskripsi; durasi sudah dicatat pada field durationHours.
 - Jangan gunakan tanda hubung em dash di teks apa pun.`;
 
   const prompt = `Tanggal log: ${ctx.date}
@@ -73,6 +75,7 @@ Hasilkan draf task pengisi jam WAD dalam format JSON sesuai schema.`;
       source: 'gemini',
       suggestions: parsed.suggestions.map((sug) => ({
         ...sug,
+        description: normalizeGeneratedDescription(sug.description),
         activityDate: ctx.date,
         totalTimeSpentMinutes: Math.round(sug.durationHours * 60),
         parentUserStoryId:
