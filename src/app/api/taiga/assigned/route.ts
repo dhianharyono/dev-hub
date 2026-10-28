@@ -252,10 +252,11 @@ export async function GET(req: Request) {
       }),
     );
 
-    // 5. Fetch hours/time-spent for tasks
+    // 5. Fetch hours/time-spent for tasks (prioritize active and recent tasks for fast loading)
     const taskHoursMap = new Map<number, number>();
+    const tasksToHydrate = rawTasks.filter((t, idx) => !t.is_closed || idx < 40);
     await Promise.all(
-      rawTasks.map(async (t) => {
+      tasksToHydrate.map(async (t) => {
         const def = projectTimeDefs[t.project];
         let foundHours: number | null = null;
 

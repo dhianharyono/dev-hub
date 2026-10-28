@@ -35,6 +35,8 @@ export function TaigaSettingsSection({
 }: TaigaSettingsSectionProps) {
   const [copiedConsoleScript, setCopiedConsoleScript] = useState(false);
   const [showToken, setShowToken] = useState(false);
+  const [syncingChrome, setSyncingChrome] = useState(false);
+  const [chromeSyncMsg, setChromeSyncMsg] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const origin =
     typeof window !== 'undefined'
@@ -42,12 +44,35 @@ export function TaigaSettingsSection({
       : 'http://localhost:4000';
 
   // 1-Click Console script that automatically grabs token, POSTs to DevHub, or redirects with query params
-  const autoConnectScript = `(function(){try{var t=localStorage.getItem('token')||localStorage.token,r=localStorage.getItem('refresh')||localStorage.refresh;if(!t&&localStorage.userInfo){try{var u=JSON.parse(localStorage.userInfo);t=u.auth_token||u.token;r=r||u.refresh;}catch(e){}}if(!t){alert('❌ Token Taiga tidak ditemukan! Pastikan Anda sudah login di Taiga.');return;}t=String(t).replace(/^["']+|["']+$/g,'').trim();if(r)r=String(r).replace(/^["']+|["']+$/g,'').trim();var originUrl=window.location.origin;fetch('${origin}/api/settings/taiga-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:t,refresh:r,baseUrl:originUrl})}).then(function(res){return res.json();}).then(function(d){if(d.ok){alert('✅ Taiga Berhasil Terhubung ke DevHub!');window.location.href='${origin}/settings';}else{window.location.href='${origin}/settings?taiga_token='+encodeURIComponent(t)+(r?'&taiga_refresh='+encodeURIComponent(r):'')+'&taiga_url='+encodeURIComponent(originUrl);}}).catch(function(){window.location.href='${origin}/settings?taiga_token='+encodeURIComponent(t)+(r?'&taiga_refresh='+encodeURIComponent(r):'')+'&taiga_url='+encodeURIComponent(originUrl);});}catch(err){alert('Error: '+err.message);}})();`;
+  const autoConnectScript = `(function(){try{var docTitle=document.title||'';if(docTitle.indexOf('Just a moment')!==-1||docTitle.indexOf('Tunggu sebentar')!==-1){alert('⚠️ Halaman Taiga sedang dalam verifikasi Cloudflare (\"Tunggu sebentar...\"). Mohon selesaikan verifikasi di layar browser terlebih dahulu.');return;}var t=localStorage.getItem('token')||localStorage.token,r=localStorage.getItem('refresh')||localStorage.refresh;if(!t&&localStorage.userInfo){try{var u=JSON.parse(localStorage.userInfo);t=u.auth_token||u.token;r=r||u.refresh;}catch(e){}}if(!t){alert('❌ Token Taiga tidak ditemukan! Pastikan Anda sudah login di Taiga.');return;}t=String(t).replace(/^["']+|["']+$/g,'').trim();if(r)r=String(r).replace(/^["']+|["']+$/g,'').trim();var originUrl=window.location.origin;fetch('${origin}/api/settings/taiga-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:t,refresh:r,baseUrl:originUrl})}).then(function(res){return res.json();}).then(function(d){if(d.ok){alert('✅ Taiga Berhasil Terhubung ke DevHub!');window.location.href='${origin}/settings';}else{window.location.href='${origin}/settings?taiga_token='+encodeURIComponent(t)+(r?'&taiga_refresh='+encodeURIComponent(r):'')+'&taiga_url='+encodeURIComponent(originUrl);}}).catch(function(){window.location.href='${origin}/settings?taiga_token='+encodeURIComponent(t)+(r?'&taiga_refresh='+encodeURIComponent(r):'')+'&taiga_url='+encodeURIComponent(originUrl);});}catch(err){alert('Error: '+err.message);}})();`;
 
   const handleCopyConsoleScript = () => {
     navigator.clipboard.writeText(autoConnectScript);
     setCopiedConsoleScript(true);
     setTimeout(() => setCopiedConsoleScript(false), 3000);
+  };
+
+  const handleSyncFromChrome = async () => {
+    setSyncingChrome(true);
+    setChromeSyncMsg(null);
+    try {
+      const res = await fetch('/api/settings/taiga-session');
+      const data = await res.json();
+      if (data.ok) {
+        setChromeSyncMsg({ ok: true, msg: data.message });
+        if (data.settings?.taigaToken) {
+          onChange('taigaToken', data.settings.taigaToken);
+          if (data.settings.taigaRefresh) onChange('taigaRefresh', data.settings.taigaRefresh);
+        }
+        if (onTest) setTimeout(onTest, 600);
+      } else {
+        setChromeSyncMsg({ ok: false, msg: data.error || 'Gagal mengambil sesi dari Chrome' });
+      }
+    } catch (err) {
+      setChromeSyncMsg({ ok: false, msg: (err as Error).message });
+    } finally {
+      setSyncingChrome(false);
+    }
   };
 
   return (
@@ -128,9 +153,20 @@ export function TaigaSettingsSection({
           <div className='flex items-center flex-wrap gap-2'>
             <button
               type='button'
+              className='btn btn-sm btn-primary inline-flex items-center gap-1.5'
+              onClick={handleSyncFromChrome}
+              disabled={syncingChrome}
+              title='Ambil sesi dan token Taiga langsung dari tab Google Chrome yang aktif tanpa perlu salin script'
+            >
+              {syncingChrome ? <span className='spinner' /> : <Sparkles size={13} />}
+              <span>{syncingChrome ? 'Membaca Chrome...' : '⚡ Tarik Sesi dari Chrome'}</span>
+            </button>
+
+            <button
+              type='button'
               className={`btn btn-sm ${copiedConsoleScript ? 'btn-primary' : ''}`}
               onClick={handleCopyConsoleScript}
-              title='Salin script otomatis yang langsung menghubungkan Taiga ke DevHub'
+              title='Salin script otomatis yang langsung menghubungkan Taiga ke DevHub via Console'
             >
               {copiedConsoleScript ? (
                 <Check size={13} />
@@ -140,7 +176,7 @@ export function TaigaSettingsSection({
               <span>
                 {copiedConsoleScript
                   ? 'Script Berhasil Disalin!'
-                  : 'Script Auto-Connect'}
+                  : 'Salin Script Console'}
               </span>
             </button>
 
@@ -155,6 +191,23 @@ export function TaigaSettingsSection({
             </a>
           </div>
         </div>
+
+        {chromeSyncMsg && (
+          <div
+            className={`flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl text-xs border animate-in fade-in ${
+              chromeSyncMsg.ok
+                ? 'bg-emerald-50/70 border-emerald-200/80 text-emerald-800'
+                : 'bg-rose-50/70 border-rose-200/80 text-rose-800'
+            }`}
+          >
+            {chromeSyncMsg.ok ? (
+              <CheckCircle2 size={14} className='text-emerald-600 shrink-0 mt-0.5' />
+            ) : (
+              <AlertCircle size={14} className='text-rose-600 shrink-0 mt-0.5' />
+            )}
+            <span className='font-medium leading-relaxed'>{chromeSyncMsg.msg}</span>
+          </div>
+        )}
 
         <div className='grid grid-cols-1 sm:grid-cols-3 gap-3'>
           <div className='bg-surface border border-border rounded-xl p-3.5 flex flex-col gap-1.5 shadow-xs'>

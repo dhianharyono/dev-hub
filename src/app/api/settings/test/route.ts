@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
-import { getSettings, isMasked } from '@/lib/settings';
+import { getSettings, isMasked, saveSettings } from '@/lib/settings';
 import { invalidateIntegrationCache } from '@/lib/integrations';
 import { errorResponse } from '@/lib/http';
+import { isCloudflareChallenge, executeTaigaViaChrome } from '@/lib/taiga/bridge';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,33 +61,85 @@ async function handleTest(payload: TestPayload) {
         'Token Taiga belum diisi. Masukkan token atau paste script session.',
       );
 
-    const res = await fetch(`${baseUrl}/api/v1/users/me`, {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        'x-disable-pagination': 'True',
-      },
-      cache: 'no-store',
-    });
+    let me: { full_name_display?: string; username?: string } | null = null;
+    let usedBridge = false;
 
-    if (!res.ok) {
-      let msg = `${res.status} ${res.statusText}`;
-      try {
-        const j = await res.json();
-        msg =
-          j._error_message || (j.detail ? String(j.detail) : JSON.stringify(j));
-      } catch {}
-      throw new Error(`Taiga: ${msg}`);
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/users/me`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          'x-disable-pagination': 'True',
+        },
+        cache: 'no-store',
+      });
+
+      let bodyPreview = '';
+      if (res.status === 403 || res.status === 503) {
+        try {
+          bodyPreview = (await res.clone().text()).slice(0, 500);
+        } catch {}
+      }
+
+      if (isCloudflareChallenge(res.status, res.headers, bodyPreview)) {
+        if (process.platform === 'darwin') {
+          const bridge = await executeTaigaViaChrome<{
+            full_name_display?: string;
+            username?: string;
+          }>({
+            baseUrl,
+            path: '/users/me',
+            token,
+          });
+          me = bridge.data;
+          usedBridge = true;
+          if (bridge.tokenFromBrowser && bridge.tokenFromBrowser !== token) {
+            saveSettings({
+              taigaToken: bridge.tokenFromBrowser,
+              ...(bridge.refreshFromBrowser ? { taigaRefresh: bridge.refreshFromBrowser } : {}),
+            });
+          }
+        }
+      } else if (!res.ok) {
+        let msg = `${res.status} ${res.statusText}`;
+        try {
+          const j = await res.json();
+          msg =
+            j._error_message || (j.detail ? String(j.detail) : JSON.stringify(j));
+        } catch {}
+        throw new Error(`Taiga: ${msg}`);
+      } else {
+        me = (await res.json()) as {
+          full_name_display?: string;
+          username?: string;
+        };
+      }
+    } catch (err) {
+      if (process.platform === 'darwin' && !me) {
+        const bridge = await executeTaigaViaChrome<{
+          full_name_display?: string;
+          username?: string;
+        }>({
+          baseUrl,
+          path: '/users/me',
+          token,
+        });
+        me = bridge.data;
+        usedBridge = true;
+      } else {
+        throw err;
+      }
     }
 
-    const me = (await res.json()) as {
-      full_name_display?: string;
-      username?: string;
-    };
+    if (!me) {
+      throw new Error('Gagal mendapatkan profil pengguna dari Taiga.');
+    }
+
     const name = me.full_name_display || me.username || 'Pengguna';
+    const bridgeNotice = usedBridge ? ' (Cloudflare Bridge)' : '';
     return {
       ok: true,
-      message: `Terhubung sebagai ${name} (@${me.username ?? '-'})`,
+      message: `Terhubung sebagai ${name} (@${me.username ?? '-'})${bridgeNotice}`,
     };
   }
 

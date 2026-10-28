@@ -1,6 +1,11 @@
 import 'server-only';
 import { getSettings } from './settings';
 import { refreshToken } from './taiga/client';
+import {
+  isCloudflareChallenge,
+  executeTaigaViaChrome,
+  isDirectFetchBlocked,
+} from './taiga/bridge';
 
 export interface IntegrationServiceStatus {
   connected: boolean;
@@ -85,46 +90,89 @@ export async function checkIntegrationsStatus(
   if (taigaConfigured) {
     try {
       const baseUrl = s.taigaBaseUrl.trim().replace(/\/+$/, '');
-      const ctrl = new AbortController();
-      const timeout = setTimeout(() => ctrl.abort(), 4000);
-      let res = await fetch(`${baseUrl}/api/v1/users/me`, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${s.taigaToken}`,
-          'x-disable-pagination': 'True',
-        },
-        signal: ctrl.signal,
-        cache: 'no-store',
-      });
 
-      if (res.status === 401 && s.taigaRefresh) {
+      if (isDirectFetchBlocked()) {
+        const bridge = await executeTaigaViaChrome<{ username?: string }>({
+          baseUrl,
+          path: '/users/me',
+          token: s.taigaToken,
+        });
+        taigaConnected = true;
+        if (bridge.data?.username) taigaUsername = bridge.data.username;
+      } else {
+        const ctrl = new AbortController();
+        const timeout = setTimeout(() => ctrl.abort(), 3000);
+        let res: Response | null = null;
+        let bodyPreview = '';
+
         try {
-          const newToken = await refreshToken();
           res = await fetch(`${baseUrl}/api/v1/users/me`, {
             headers: {
               'Content-Type': 'application/json',
-              Authorization: `Bearer ${newToken}`,
+              Authorization: `Bearer ${s.taigaToken}`,
               'x-disable-pagination': 'True',
             },
             signal: ctrl.signal,
             cache: 'no-store',
           });
-        } catch {
-          // Token refresh failed
+          if (res.status === 403 || res.status === 503) {
+            try {
+              bodyPreview = (await res.clone().text()).slice(0, 500);
+            } catch {}
+          }
+        } catch (err) {
+          if (process.platform !== 'darwin') {
+            throw err;
+          }
         }
-      }
-      clearTimeout(timeout);
 
-      if (res.ok) {
-        const me = (await res.json()) as { username?: string };
-        taigaConnected = true;
-        if (me.username) taigaUsername = me.username;
-      } else {
-        taigaConnected = false;
-        taigaError =
-          res.status === 401
-            ? 'Sesi Taiga kedaluwarsa atau tidak valid'
-            : `HTTP ${res.status}`;
+        if (res && res.status === 401 && s.taigaRefresh) {
+          try {
+            const newToken = await refreshToken();
+            res = await fetch(`${baseUrl}/api/v1/users/me`, {
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${newToken}`,
+                'x-disable-pagination': 'True',
+              },
+              signal: ctrl.signal,
+              cache: 'no-store',
+            });
+          } catch {
+            // Token refresh failed
+          }
+        }
+        clearTimeout(timeout);
+
+        if (res && isCloudflareChallenge(res.status, res.headers, bodyPreview)) {
+          if (process.platform === 'darwin') {
+            const bridge = await executeTaigaViaChrome<{ username?: string }>({
+              baseUrl,
+              path: '/users/me',
+              token: s.taigaToken,
+            });
+            taigaConnected = true;
+            if (bridge.data?.username) taigaUsername = bridge.data.username;
+          }
+        } else if (res && res.ok) {
+          const me = (await res.json()) as { username?: string };
+          taigaConnected = true;
+          if (me.username) taigaUsername = me.username;
+        } else if (res) {
+          taigaConnected = false;
+          taigaError =
+            res.status === 401
+              ? 'Sesi Taiga kedaluwarsa atau tidak valid'
+              : `HTTP ${res.status}`;
+        } else if (process.platform === 'darwin') {
+          const bridge = await executeTaigaViaChrome<{ username?: string }>({
+            baseUrl,
+            path: '/users/me',
+            token: s.taigaToken,
+          });
+          taigaConnected = true;
+          if (bridge.data?.username) taigaUsername = bridge.data.username;
+        }
       }
     } catch (err) {
       taigaConnected = false;
