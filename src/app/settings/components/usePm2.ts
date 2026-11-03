@@ -14,6 +14,7 @@ export interface Pm2Status {
   port?: number;
   message?: string;
   error?: string;
+  startupEnabled?: boolean;
 }
 
 export function usePm2() {
@@ -74,7 +75,7 @@ export function usePm2() {
     };
   }, []);
 
-  const executeAction = async (action: 'start' | 'restart' | 'stop') => {
+  const executeAction = async (action: 'start' | 'restart' | 'stop' | 'startup') => {
     setActionLoading(action);
     setLastOutput(null);
 
@@ -98,6 +99,7 @@ export function usePm2() {
           start: 'PM2 berhasil diaktifkan di layar belakang!',
           restart: 'Layanan PM2 berhasil dimulai ulang!',
           stop: 'Layanan PM2 berhasil dihentikan.',
+          startup: 'Auto-start saat komputer dinyalakan berhasil dikonfigurasi!',
         };
 
         notify.success(actionSuccessNames[action] || data.message, 'PM2 Process Manager');

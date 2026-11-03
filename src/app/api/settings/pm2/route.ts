@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { exec } from 'child_process';
 import util from 'util';
 import path from 'path';
+import fs from 'fs';
+import os from 'os';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +14,44 @@ function getExecEnv() {
     ...process.env,
     PATH: `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH || ''}`,
   };
+}
+
+function checkPm2StartupEnabled(): boolean {
+  try {
+    const home = os.homedir();
+    // macOS LaunchAgents
+    const userAgentDir = path.join(home, 'Library/LaunchAgents');
+    if (fs.existsSync(userAgentDir)) {
+      const files = fs.readdirSync(userAgentDir);
+      if (files.some((f) => f.startsWith('pm2.') && f.endsWith('.plist'))) {
+        return true;
+      }
+    }
+    // macOS LaunchDaemons
+    const sysDaemonDir = '/Library/LaunchDaemons';
+    if (fs.existsSync(sysDaemonDir)) {
+      const files = fs.readdirSync(sysDaemonDir);
+      if (files.some((f) => f.startsWith('pm2.') && f.endsWith('.plist'))) {
+        return true;
+      }
+    }
+    // Linux systemd
+    const systemdDir = '/etc/systemd/system';
+    if (fs.existsSync(systemdDir)) {
+      const files = fs.readdirSync(systemdDir);
+      if (files.some((f) => f.startsWith('pm2-') && f.endsWith('.service'))) {
+        return true;
+      }
+    }
+    const userSystemdDir = path.join(home, '.config/systemd/user');
+    if (fs.existsSync(userSystemdDir)) {
+      const files = fs.readdirSync(userSystemdDir);
+      if (files.some((f) => f.startsWith('pm2-') && f.endsWith('.service'))) {
+        return true;
+      }
+    }
+  } catch {}
+  return false;
 }
 
 async function getPm2Bin(): Promise<string> {
@@ -55,6 +95,8 @@ async function queryPm2Status(pm2Bin: string) {
       (app) => app.name === 'devhub' || app.name === 'dev-hub',
     );
 
+    const startupEnabled = checkPm2StartupEnabled();
+
     if (!devhub) {
       return {
         installed: true,
@@ -62,6 +104,7 @@ async function queryPm2Status(pm2Bin: string) {
         running: false,
         status: 'not_started',
         message: 'Aplikasi belum didaftarkan di PM2',
+        startupEnabled,
       };
     }
 
@@ -79,6 +122,7 @@ async function queryPm2Status(pm2Bin: string) {
       memory: devhub.monit?.memory ?? 0,
       cpu: devhub.monit?.cpu ?? 0,
       port: devhub.pm2_env?.env?.PORT || 4001,
+      startupEnabled,
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
@@ -120,10 +164,10 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const action = body.action as string;
 
-    const allowedActions = ['start', 'restart', 'stop', 'delete'];
+    const allowedActions = ['start', 'restart', 'stop', 'delete', 'startup'];
     if (!allowedActions.includes(action)) {
       return NextResponse.json(
-        { success: false, error: 'Aksi PM2 tidak valid. Pilih start, restart, atau stop.' },
+        { success: false, error: 'Aksi PM2 tidak valid. Pilih start, restart, stop, atau startup.' },
         { status: 400 },
       );
     }
@@ -147,12 +191,37 @@ export async function POST(req: Request) {
       command = `${pm2Bin} stop devhub`;
     } else if (action === 'delete') {
       command = `${pm2Bin} delete devhub`;
+    } else if (action === 'startup') {
+      const current = await queryPm2Status(pm2Bin);
+      if (!current.exists) {
+        try {
+          await execPromise(`${pm2Bin} start "${ecosystemPath}"`, {
+            cwd: projectRoot,
+            env: getExecEnv(),
+          });
+        } catch {}
+      }
+      command = `${pm2Bin} save && ${pm2Bin} startup`;
     }
 
-    const { stdout, stderr } = await execPromise(command, {
-      cwd: projectRoot,
-      env: getExecEnv(),
-    });
+    let stdout = '';
+    let stderr = '';
+    try {
+      const res = await execPromise(command, {
+        cwd: projectRoot,
+        env: getExecEnv(),
+      });
+      stdout = res.stdout || '';
+      stderr = res.stderr || '';
+    } catch (cmdErr: unknown) {
+      const execErr = cmdErr as { stdout?: string; stderr?: string; message?: string };
+      stdout = execErr.stdout || '';
+      stderr = execErr.stderr || execErr.message || '';
+      // If startup prompts for sudo instructions, it exits with non-zero but prints instructions
+      if (action !== 'startup' && !stdout) {
+        throw cmdErr;
+      }
+    }
 
     // Ambil status terbaru setelah jeda singkat
     await new Promise((resolve) => setTimeout(resolve, 800));

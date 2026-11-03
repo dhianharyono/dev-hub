@@ -13,7 +13,7 @@ import {
   Terminal,
   Activity,
   Cpu,
-  Layers,
+  Power,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
@@ -25,7 +25,7 @@ interface Pm2SettingsSectionProps {
   actionLoading: string | null;
   lastOutput: string | null;
   onRefresh: () => void;
-  onAction: (action: 'start' | 'restart' | 'stop') => void;
+  onAction: (action: 'start' | 'restart' | 'stop' | 'startup') => void;
 }
 
 export function Pm2SettingsSection({
@@ -120,60 +120,6 @@ export function Pm2SettingsSection({
         </div>
       </div>
 
-      {/* Kotak Informasi Utama (Penjelasan Fitur - Warna Netral) */}
-      <div className='rounded-xl border border-border bg-surface-subtle/70 p-4.5 text-slate-text flex flex-col sm:flex-row gap-3.5 items-start'>
-        <div className='w-9 h-9 rounded-lg bg-surface border border-border text-slate-700 flex items-center justify-center shrink-0 shadow-2xs'>
-          <Layers size={18} />
-        </div>
-        <div className='flex-1 text-[13px] leading-relaxed'>
-          <h4 className='font-bold text-[14px] text-slate-text mb-1 flex items-center gap-2'>
-            <span>Tentang Menjalankan Aplikasi di Layar Belakang</span>
-          </h4>
-          <p className='text-slate-text-2'>
-            Tombol di bawah ini digunakan untuk{' '}
-            <strong className='text-slate-text font-semibold'>
-              mengaktifkan PM2
-            </strong>{' '}
-            agar aplikasi DEV HUB berjalan secara otomatis di{' '}
-            <strong className='text-slate-text font-semibold'>
-              layar belakang (background process)
-            </strong>
-            .
-          </p>
-          <ul className='mt-2.5 space-y-1 text-[12px] text-slate-text-2 list-disc list-inside'>
-            <li>
-              <strong className='text-slate-text font-semibold'>
-                Bebas Terminal:
-              </strong>{' '}
-              Anda tidak perlu membiarkan jendela terminal aktif; server terus
-              bekerja melayani permintaan di background.
-            </li>
-            <li>
-              <strong className='text-slate-text font-semibold'>
-                Pemulihan Otomatis:
-              </strong>{' '}
-              PM2 akan secara mandiri me-restart server jika terjadi kegagalan
-              atau crash.
-            </li>
-            <li>
-              <strong className='text-slate-text font-semibold'>
-                Port Independen (4001):
-              </strong>{' '}
-              PM2 dijalankan di port{' '}
-              <code className='px-1.5 py-0.5 rounded bg-surface border border-border text-slate-800 font-mono text-[11px]'>
-                4001
-              </code>{' '}
-              sehingga Anda bisa langsung mengaktifkannya dengan tombol di bawah
-              tanpa bentrok dengan terminal development (port{' '}
-              <code className='px-1.5 py-0.5 rounded bg-surface border border-border text-slate-800 font-mono text-[11px]'>
-                4000
-              </code>
-              ).
-            </li>
-          </ul>
-        </div>
-      </div>
-
       {/* Metric Cards jika PM2 Sedang Aktif */}
       {isOnline && (
         <div className='grid grid-cols-2 sm:grid-cols-4 gap-3 bg-surface-subtle p-3.5 rounded-xl border border-border'>
@@ -265,8 +211,47 @@ export function Pm2SettingsSection({
       )}
 
       {/* Kontrol Tombol Aksi */}
-      <div className='pt-2 border-t border-border place-items-end'>
-        <div className='flex gap-2.5 flex-wrap'>
+      <div className='pt-2 border-t border-border flex items-center justify-between flex-wrap gap-3'>
+        {/* Tombol Jalankan Otomatis Saat Komputer Dinyalakan (Auto-start on boot) */}
+        <button
+          type='button'
+          className={`btn btn-sm flex items-center gap-1.5 font-semibold ${
+            status?.startupEnabled
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+              : 'border border-border bg-surface hover:bg-surface-hover text-slate-text'
+          }`}
+          onClick={() => {
+            setShowLogs(true);
+            onAction('startup');
+          }}
+          disabled={actionLoading !== null || notInstalled}
+          title='Simpan proses DEV HUB dan konfigurasikan sistem operasi agar otomatis berjalan saat komputer dinyalakan (boot/login)'
+        >
+          {actionLoading === 'startup' ? (
+            <>
+              <span className='spinner' />
+              <span>Menyiapkan Auto-Start...</span>
+            </>
+          ) : (
+            <>
+              <Power
+                size={14}
+                className={
+                  status?.startupEnabled
+                    ? 'text-emerald-600'
+                    : 'text-slate-500'
+                }
+              />
+              <span>
+                {status?.startupEnabled
+                  ? 'Auto-Start Saat Boot (Aktif)'
+                  : 'Jalankan Saat Komputer Dinyalakan'}
+              </span>
+            </>
+          )}
+        </button>
+
+        <div className='flex gap-2.5 flex-wrap items-center'>
           {/* Tombol Stop jika sedang online */}
           {isOnline && (
             <button
