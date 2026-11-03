@@ -305,19 +305,19 @@ export function TaigaDeliveryCard({
 
           {/* Alokasi & Fokus Proyek */}
           <div className='flex flex-col justify-between gap-4 p-5 sm:p-6 bg-slate-50/70 border border-border rounded-2xl flex-auto box-border'>
-            <div className='flex items-center justify-between gap-2 shrink-0'>
-              <div className='flex items-center gap-2'>
-                <h3 className='text-[13px] font-bold text-slate-text m-0'>
-                  Alokasi & Fokus Proyek
-                </h3>
+            <div className='flex flex-col gap-3.5 flex-1'>
+              <div className='flex items-center justify-between gap-2 shrink-0'>
+                <div className='flex items-center gap-2'>
+                  <h3 className='text-[13px] font-bold text-slate-text m-0'>
+                    Alokasi & Fokus Proyek
+                  </h3>
+                </div>
+                <span className='badge badge-cyan xs'>
+                  {projectAllocations.length || projectCount || 1} Proyek Aktif
+                </span>
               </div>
-              <span className='badge badge-cyan xs'>
-                {projectAllocations.length || projectCount || 1} Proyek Aktif
-              </span>
-            </div>
 
-            {projectAllocations.length > 0 ? (
-              <>
+              {projectAllocations.length > 0 ? (
                 <div className='flex flex-col gap-2.5 shrink-0'>
                   {projectAllocations.slice(0, 3).map((p) => (
                     <div
@@ -371,35 +371,37 @@ export function TaigaDeliveryCard({
                     </div>
                   ))}
                 </div>
+              ) : (
+                <div className='py-6 px-3 text-center text-xs text-slate-text-3 my-auto'>
+                  <CheckCircle2
+                    size={24}
+                    className='text-emerald-600 mb-1.5 inline-block'
+                  />
+                  <div className='font-semibold text-xs text-(--text)'>
+                    Belum Ada Alokasi Proyek
+                  </div>
+                  <p className='text-[11px] text-(--text-3) mt-1 mb-0'>
+                    Log waktu dan status tugas Taiga akan otomatis terpetakan di
+                    sini.
+                  </p>
+                </div>
+              )}
+            </div>
 
-                <div className='flex items-center justify-between pt-2.5 border-t border-black/[0.04] text-[11px] text-slate-text-2'>
-                  <span>
-                    Total <strong>{projectAllocations.length} proyek</strong>{' '}
-                    terpetakan
-                  </span>
-                  <Link
-                    href='/workload'
-                    className='inline-flex items-center gap-1 font-bold text-brand hover:underline'
-                    title='Lihat detail beban kerja di Workload Monitor'
-                  >
-                    <span>Detail Workload</span>
-                    <ChevronRight size={12} />
-                  </Link>
-                </div>
-              </>
-            ) : (
-              <div className='py-6 px-3 text-center text-xs text-slate-text-3'>
-                <CheckCircle2
-                  size={24}
-                  className='text-emerald-600 mb-1.5 inline-block'
-                />
-                <div className='font-semibold text-xs text-(--text)'>
-                  Belum Ada Alokasi Proyek
-                </div>
-                <p className='text-[11px] text-(--text-3) mt-1 mb-0'>
-                  Log waktu dan status tugas Taiga akan otomatis terpetakan di
-                  sini.
-                </p>
+            {projectAllocations.length > 0 && (
+              <div className='flex items-center justify-between pt-2.5 border-t border-black/[0.04] text-[11px] text-slate-text-2 mt-auto shrink-0'>
+                <span>
+                  Total <strong>{projectAllocations.length} proyek</strong>{' '}
+                  terpetakan
+                </span>
+                <Link
+                  href='/workload'
+                  className='inline-flex items-center gap-1 font-bold text-brand hover:underline'
+                  title='Lihat detail beban kerja di Workload Monitor'
+                >
+                  <span>Detail Workload</span>
+                  <ChevronRight size={12} />
+                </Link>
               </div>
             )}
           </div>

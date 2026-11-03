@@ -147,16 +147,16 @@ export default function Sidebar() {
       <header className='sticky top-0 z-30 w-full bg-surface/95 backdrop-blur-md border-b border-border px-4 py-2.5 flex items-center justify-between lg:hidden print:hidden'>
         <Link href='/' className='flex items-center gap-2.5 no-underline'>
           <div
-            className='w-8 h-8 rounded-xl bg-gradient-to-br from-brand to-[#1e62d0] text-white grid place-items-center shadow-[0_2px_8px_rgba(25,119,243,0.24)] shrink-0'
+            className='w-7.5 h-7.5 rounded-lg bg-gradient-to-br from-brand to-[#1e62d0] text-white grid place-items-center shadow-[0_2px_8px_rgba(25,119,243,0.2)] shrink-0'
             aria-hidden='true'
           >
-            <FolderGit2 size={18} strokeWidth={2.4} />
+            <FolderGit2 size={16} strokeWidth={2.4} />
           </div>
           <div className='flex flex-col justify-center'>
-            <span className='text-[16px] font-extrabold tracking-tight text-slate-text leading-tight'>
+            <span className='text-[14px] font-extrabold tracking-tight text-slate-text leading-tight'>
               DEV HUB
             </span>
-            <span className='text-[10.5px] font-medium text-slate-muted leading-tight'>
+            <span className='text-[10px] font-medium text-slate-muted leading-tight'>
               Asisten Produktivitas
             </span>
           </div>
@@ -199,16 +199,16 @@ export default function Sidebar() {
         <div className='flex items-center justify-between pb-2 border-b border-border/60'>
           <div className='flex items-center gap-2.5 min-w-0'>
             <div
-              className='w-9 h-9 rounded-xl bg-gradient-to-br from-brand to-[#1e62d0] text-white grid place-items-center shadow-[0_4px_14px_rgba(25,119,243,0.24)] shrink-0'
+              className='w-8 h-8 rounded-lg bg-gradient-to-br from-brand to-[#1e62d0] text-white grid place-items-center shadow-[0_2px_8px_rgba(25,119,243,0.2)] shrink-0'
               aria-hidden='true'
             >
-              <FolderGit2 size={20} strokeWidth={2.4} />
+              <FolderGit2 size={17} strokeWidth={2.4} />
             </div>
             <div className='flex flex-col justify-center min-w-0'>
-              <span className='text-[17px] font-extrabold tracking-tight text-slate-text leading-tight'>
+              <span className='text-[15px] font-extrabold tracking-tight text-slate-text leading-tight'>
                 DEV HUB
               </span>
-              <span className='text-[11px] font-medium text-slate-muted leading-tight whitespace-nowrap'>
+              <span className='text-[10.5px] font-medium text-slate-muted leading-tight whitespace-nowrap'>
                 Asisten Produktivitas
               </span>
             </div>
@@ -216,11 +216,11 @@ export default function Sidebar() {
           <button
             type='button'
             onClick={() => setMobileOpen(false)}
-            className='w-8 h-8 rounded-lg border border-border bg-surface text-slate-muted grid place-items-center cursor-pointer hover:bg-surface-hover hover:text-slate-text hover:border-border-strong transition-all focus-visible:outline-2 focus-visible:outline-brand shrink-0'
+            className='w-7 h-7 rounded-lg border border-border bg-surface text-slate-muted grid place-items-center cursor-pointer hover:bg-surface-hover hover:text-slate-text hover:border-border-strong transition-all focus-visible:outline-2 focus-visible:outline-brand shrink-0'
             aria-label='Tutup menu navigasi'
             id='btn-close-mobile-menu'
           >
-            <X size={18} strokeWidth={2.2} />
+            <X size={15} strokeWidth={2.2} />
           </button>
         </div>
 
@@ -330,19 +330,19 @@ export default function Sidebar() {
             collapsed ? 'hidden' : 'flex'
           }`}
         >
-          <div className='flex items-center justify-between gap-3 pb-0.5'>
-            <div className='flex items-center gap-3 min-w-0'>
+          <div className='flex items-center justify-between gap-2.5 pb-0.5'>
+            <div className='flex items-center gap-2.5 min-w-0'>
               <div
-                className='w-10 h-10 rounded-xl bg-gradient-to-br from-brand to-[#1e62d0] text-white grid place-items-center shadow-[0_4px_14px_rgba(25,119,243,0.24)] shrink-0'
+                className='w-8 h-8 rounded-lg bg-gradient-to-br from-brand to-[#1e62d0] text-white grid place-items-center shadow-[0_2px_8px_rgba(25,119,243,0.2)] shrink-0'
                 aria-hidden='true'
               >
-                <FolderGit2 size={22} strokeWidth={2.4} />
+                <FolderGit2 size={17} strokeWidth={2.4} />
               </div>
               <div className='flex flex-col justify-center gap-0.5 min-w-0'>
-                <h2 className='text-[19px] font-extrabold tracking-tight text-slate-text leading-tight m-0'>
+                <h2 className='text-[15px] font-extrabold tracking-tight text-slate-text leading-tight m-0'>
                   DEV HUB
                 </h2>
-                <span className='text-[11.5px] font-medium text-slate-muted leading-tight whitespace-nowrap'>
+                <span className='text-[10.5px] font-medium text-slate-muted leading-tight whitespace-nowrap'>
                   Asisten Produktivitas
                 </span>
               </div>
@@ -350,12 +350,12 @@ export default function Sidebar() {
             <button
               type='button'
               onClick={() => setCollapsed(true)}
-              className='w-8 h-8 rounded-lg border border-border bg-surface text-slate-muted grid place-items-center cursor-pointer shrink-0 transition-all hover:bg-surface-hover hover:text-slate-text hover:border-border-strong focus-visible:outline-2 focus-visible:outline-brand'
+              className='w-7 h-7 rounded-lg border border-border bg-surface text-slate-muted grid place-items-center cursor-pointer shrink-0 transition-all hover:bg-surface-hover hover:text-slate-text hover:border-border-strong focus-visible:outline-2 focus-visible:outline-brand'
               title='Perkecil sidebar'
               aria-label='Perkecil sidebar'
               id='btn-collapse-sidebar'
             >
-              <ChevronLeft size={16} strokeWidth={2.2} />
+              <ChevronLeft size={14} strokeWidth={2.2} />
             </button>
           </div>
 

@@ -30,6 +30,9 @@ export interface MrResult {
   description: string;
   releaseNotes: string;
   source: 'gemini' | 'fallback';
+  projectId?: number | '';
+  branch?: string;
+  targetBranch?: string;
 }
 
 export interface CreatedMr {

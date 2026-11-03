@@ -90,11 +90,18 @@ export function PreReviewForm({
                 {loadingProjects ? 'Memuat daftar project...' : 'Tidak ada project ditemukan'}
               </option>
             ) : (
-              projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.pathWithNamespace} (default: {p.defaultBranch})
-                </option>
-              ))
+              <>
+                {selectedProjectId && !projects.some((p) => p.id === selectedProjectId) && (
+                  <option key={selectedProjectId} value={selectedProjectId}>
+                    Project #{selectedProjectId} (dipilih)
+                  </option>
+                )}
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.pathWithNamespace} (default: {p.defaultBranch})
+                  </option>
+                ))}
+              </>
             )}
           </Select>
         </div>
@@ -117,6 +124,11 @@ export function PreReviewForm({
                 onChange={(e) => onBranchChange(e.target.value)}
                 className='w-full h-[38px] text-[13px]'
               >
+                {branch && !branches.some((b) => b.name === branch) && (
+                  <option key={branch} value={branch}>
+                    {branch} (dipilih)
+                  </option>
+                )}
                 {branches.map((b) => (
                   <option key={b.name} value={b.name}>
                     {b.name} {b.default ? '(default)' : ''}
@@ -146,6 +158,11 @@ export function PreReviewForm({
                 onChange={(e) => onTargetBranchChange(e.target.value)}
                 className='w-full h-[38px] text-[13px]'
               >
+                {targetBranch && !branches.some((b) => b.name === targetBranch) && (
+                  <option key={targetBranch} value={targetBranch}>
+                    {targetBranch} (dipilih)
+                  </option>
+                )}
                 {branches.map((b) => (
                   <option key={b.name} value={b.name}>
                     {b.name} {b.default ? '(default)' : ''}

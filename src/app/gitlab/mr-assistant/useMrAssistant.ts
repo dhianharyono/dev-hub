@@ -40,16 +40,32 @@ export function useMrAssistant() {
   const currentTask = assistantTask || getTask(taskId);
   const isGenerating = loading || currentTask?.status === 'running';
 
-  // Sync background result
+  // Sync background result & parameters
   useEffect(() => {
+    if (currentTask?.params) {
+      const p = currentTask.params as {
+        projectId?: number | string;
+        branch?: string;
+        targetBranch?: string;
+      };
+      if (p.projectId && gitlabMeta.selectedProjectId !== Number(p.projectId)) {
+        gitlabMeta.setSelectedProjectId(Number(p.projectId));
+      }
+      if (p.branch && gitlabMeta.branch !== p.branch) {
+        gitlabMeta.handleBranchChange(p.branch);
+      }
+      if (p.targetBranch && gitlabMeta.targetBranch !== p.targetBranch) {
+        gitlabMeta.setTargetBranch(p.targetBranch);
+      }
+    }
     if (currentTask?.status === 'completed' && currentTask.result && !result) {
       setResult(currentTask.result as MrResult);
     }
-  }, [currentTask, result]);
+  }, [currentTask, result, gitlabMeta]);
 
   // Sync restore target branch & project jika dipulihkan dari dock
   useEffect(() => {
-    if (restoreTarget?.type === 'mr_assistant') {
+    if (restoreTarget?.type === 'mr_assistant' || restoreTarget?.view === 'mr_assistant') {
       if (restoreTarget.branch && gitlabMeta.branch !== restoreTarget.branch) {
         gitlabMeta.handleBranchChange(restoreTarget.branch);
       }
@@ -164,6 +180,9 @@ export function useMrAssistant() {
             description: json.description,
             releaseNotes: json.releaseNotes,
             source: json.source,
+            projectId: gitlabMeta.selectedProjectId,
+            branch: gitlabMeta.branch,
+            targetBranch: gitlabMeta.targetBranch,
           };
         },
       });
@@ -181,7 +200,11 @@ export function useMrAssistant() {
   };
 
   const handleCreateMr = async () => {
-    if (!gitlabMeta.selectedProjectId || !result) return;
+    const effectiveProjectId = result?.projectId || gitlabMeta.selectedProjectId;
+    const effectiveSourceBranch = result?.branch || gitlabMeta.branch;
+    const effectiveTargetBranch = result?.targetBranch || gitlabMeta.targetBranch;
+
+    if (!effectiveProjectId || !effectiveSourceBranch || !result) return;
     setCreatingMr(true);
     setCreateMrError(null);
     try {
@@ -189,9 +212,9 @@ export function useMrAssistant() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          projectId: gitlabMeta.selectedProjectId,
-          sourceBranch: gitlabMeta.branch,
-          targetBranch: gitlabMeta.targetBranch,
+          projectId: effectiveProjectId,
+          sourceBranch: effectiveSourceBranch,
+          targetBranch: effectiveTargetBranch,
           title: result.mrTitle,
           description: result.description,
           removeSourceBranch: true,

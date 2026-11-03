@@ -10,14 +10,60 @@ export function usePreReview() {
   const { runAiTask, getTask, minimizeTask, dismissTask, tasks, restoreTarget, clearRestoreTarget } = useAiTask();
   const [projects, setProjects] = useState<GitLabProjectSummary[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState<number | ''>('');
+  const [selectedProjectId, setSelectedProjectIdState] = useState<number | ''>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('devhub_prereview_project');
+      if (saved && !isNaN(Number(saved))) return Number(saved);
+    }
+    return '';
+  });
 
   const [branches, setBranches] = useState<GitLabBranchSummary[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
 
-  const [branch, setBranch] = useState('feature/dev');
-  const [targetBranch, setTargetBranch] = useState('main');
+  const [branch, setBranchState] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('devhub_prereview_branch');
+      if (saved) return saved;
+    }
+    return 'feature/dev';
+  });
+  const [targetBranch, setTargetBranchState] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('devhub_prereview_target_branch');
+      if (saved) return saved;
+    }
+    return 'main';
+  });
   const [context, setContext] = useState('');
+
+  const setSelectedProjectId = (newId: number | '') => {
+    setSelectedProjectIdState(newId);
+    if (typeof window !== 'undefined') {
+      if (newId) sessionStorage.setItem('devhub_prereview_project', String(newId));
+      else sessionStorage.removeItem('devhub_prereview_project');
+    }
+  };
+
+  const setBranch = (newBranch: string | ((prev: string) => string)) => {
+    setBranchState((prev) => {
+      const resolved = typeof newBranch === 'function' ? newBranch(prev) : newBranch;
+      if (typeof window !== 'undefined' && resolved) {
+        sessionStorage.setItem('devhub_prereview_branch', resolved);
+      }
+      return resolved;
+    });
+  };
+
+  const setTargetBranch = (newTarget: string | ((prev: string) => string)) => {
+    setTargetBranchState((prev) => {
+      const resolved = typeof newTarget === 'function' ? newTarget(prev) : newTarget;
+      if (typeof window !== 'undefined' && resolved) {
+        sessionStorage.setItem('devhub_prereview_target_branch', resolved);
+      }
+      return resolved;
+    });
+  };
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,8 +84,24 @@ export function usePreReview() {
   const currentTask = preReviewTask || getTask(taskId);
   const isGenerating = loading || currentTask?.status === 'running';
 
-  // Sync background result
+  // Sync background result & parameters
   useEffect(() => {
+    if (currentTask?.params) {
+      const p = currentTask.params as {
+        projectId?: number | string;
+        branch?: string;
+        targetBranch?: string;
+      };
+      if (p.projectId && selectedProjectId !== Number(p.projectId)) {
+        setSelectedProjectId(Number(p.projectId));
+      }
+      if (p.branch && branch !== p.branch) {
+        setBranch(p.branch);
+      }
+      if (p.targetBranch && targetBranch !== p.targetBranch) {
+        setTargetBranch(p.targetBranch);
+      }
+    }
     if (currentTask?.status === 'completed' && currentTask.result && !result) {
       const resData = currentTask.result as { preReview: PreReviewOutput; auditStats?: AuditStats };
       if (resData.preReview) {
@@ -49,11 +111,11 @@ export function usePreReview() {
         setResult(resData as unknown as PreReviewOutput);
       }
     }
-  }, [currentTask, result]);
+  }, [currentTask, result, selectedProjectId, branch, targetBranch]);
 
   // Sync restore target branch & project jika dipulihkan dari dock
   useEffect(() => {
-    if (restoreTarget?.type === 'pre_review') {
+    if (restoreTarget?.type === 'pre_review' || restoreTarget?.view === 'pre_review') {
       if (restoreTarget.branch && branch !== restoreTarget.branch) {
         setBranch(restoreTarget.branch);
       }
@@ -82,9 +144,20 @@ export function usePreReview() {
           if (Array.isArray(data?.projects)) {
             setProjects(data.projects);
             if (data.projects.length > 0) {
-              const first = data.projects[0];
-              setSelectedProjectId(first.id);
-              setTargetBranch(first.defaultBranch || 'main');
+              setSelectedProjectIdState((prevId) => {
+                if (prevId && data.projects.some((p: GitLabProjectSummary) => p.id === prevId)) {
+                  return prevId;
+                }
+                const first = data.projects[0];
+                setTargetBranchState((prevTarget) => {
+                  if (prevTarget && prevTarget !== 'main') return prevTarget;
+                  return first.defaultBranch || 'main';
+                });
+                if (typeof window !== 'undefined') {
+                  sessionStorage.setItem('devhub_prereview_project', String(first.id));
+                }
+                return first.id;
+              });
             }
           }
         }
@@ -114,10 +187,13 @@ export function usePreReview() {
           const data = await res.json();
           if (Array.isArray(data?.branches)) {
             setBranches(data.branches);
-            const nonDefault = data.branches.find((b: GitLabBranchSummary) => !b.default);
-            if (nonDefault) {
-              setBranch(nonDefault.name);
-            }
+            setBranch((prevBranch) => {
+              if (prevBranch && data.branches.some((b: GitLabBranchSummary) => b.name === prevBranch)) {
+                return prevBranch;
+              }
+              const nonDefault = data.branches.find((b: GitLabBranchSummary) => !b.default);
+              return nonDefault?.name || data.branches[0]?.name || prevBranch;
+            });
           }
         }
       } catch {

@@ -27,12 +27,24 @@ import { ProductivityDashboard } from './productivity/ProductivityDashboard';
 
 export default function GitlabDashboard() {
   const [days, setDays] = useState(90);
-  const [activeView, setActiveView] =
-    useState<GitlabActiveView>('productivity');
+  const [activeView, setActiveView] = useState<GitlabActiveView>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab') as GitlabActiveView;
+      if (tab && ['productivity', 'mr_assistant', 'pre_review', 'incoming_reviews'].includes(tab)) {
+        return tab;
+      }
+      const saved = sessionStorage.getItem('devhub_gitlab_active_view') as GitlabActiveView;
+      if (saved && ['productivity', 'mr_assistant', 'pre_review', 'incoming_reviews'].includes(saved)) {
+        return saved;
+      }
+    }
+    return 'productivity';
+  });
   const { data, loading, error, reload } = useMetrics(days);
   const { status, start } = useSync(reload);
   const { integrations, loading: loadingIntegrations, refresh: refreshIntegrations } = useIntegrations();
-  const { restoreTarget, clearRestoreTarget, minimizeAllRunning } = useAiTask();
+  const { restoreTarget, minimizeAllRunning } = useAiTask();
 
   const isGitlabConnected = Boolean(integrations?.gitlab?.connected);
   const gitlabError = integrations?.gitlab?.error;
@@ -42,15 +54,31 @@ export default function GitlabDashboard() {
   useEffect(() => {
     if (restoreTarget?.view === 'mr_assistant' || restoreTarget?.type === 'mr_assistant') {
       setActiveView('mr_assistant');
-      clearRestoreTarget();
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('devhub_gitlab_active_view', 'mr_assistant');
+      }
     } else if (restoreTarget?.view === 'pre_review' || restoreTarget?.type === 'pre_review') {
       setActiveView('pre_review');
-      clearRestoreTarget();
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('devhub_gitlab_active_view', 'pre_review');
+      }
     } else if (restoreTarget?.mr || restoreTarget?.type === 'mr_review') {
       setActiveView('incoming_reviews');
-      // note: don't clear immediately because IncomingReviewsCard needs to open the modal
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('devhub_gitlab_active_view', 'incoming_reviews');
+      }
     }
-  }, [restoreTarget, clearRestoreTarget]);
+  }, [restoreTarget]);
+
+  const handleViewChange = (newView: GitlabActiveView) => {
+    if (newView !== activeView) {
+      minimizeAllRunning();
+      setActiveView(newView);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('devhub_gitlab_active_view', newView);
+      }
+    }
+  };
 
   useEffect(() => {
     if (error && isGitlabConnected) {
@@ -68,12 +96,7 @@ export default function GitlabDashboard() {
     <>
       <GitlabHeaderTabs
         activeView={activeView}
-        onViewChange={(newView) => {
-          if (newView !== activeView) {
-            minimizeAllRunning();
-            setActiveView(newView);
-          }
-        }}
+        onViewChange={handleViewChange}
         days={days}
         onDaysChange={setDays}
         data={data}
