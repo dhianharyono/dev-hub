@@ -1,6 +1,6 @@
 import 'server-only';
 import { getSettings, saveSettings } from '../settings';
-import { TaigaError } from './types';
+import { TaigaError, cleanTaigaErrorMessage } from './types';
 import {
   isCloudflareChallenge,
   executeTaigaViaChrome,
@@ -169,8 +169,14 @@ export async function taiga<T>(
       const j = await res.json();
       msg =
         j._error_message || (j.detail ? String(j.detail) : JSON.stringify(j));
-    } catch {}
-    throw new TaigaError(`Taiga: ${msg}`, res.status);
+    } catch {
+      try {
+        const raw = await res.text();
+        if (raw) msg = cleanTaigaErrorMessage(raw, res.status);
+      } catch {}
+    }
+    const cleanMsg = cleanTaigaErrorMessage(msg, res.status);
+    throw new TaigaError(cleanMsg.startsWith('Taiga') ? cleanMsg : `Taiga: ${cleanMsg}`, res.status);
   }
 
   clearCloudflareBlocked();

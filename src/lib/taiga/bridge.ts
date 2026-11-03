@@ -1,7 +1,9 @@
 import "server-only";
 import { execFile } from "node:child_process";
-import { TaigaError } from "./types";
+import { TaigaError, cleanTaigaErrorMessage } from "./types";
 import { saveSettings } from "../settings";
+
+export { cleanTaigaErrorMessage };
 
 export interface ChromeBridgeOptions {
   baseUrl: string;
@@ -220,11 +222,13 @@ export async function executeTaigaViaChrome<T>(options: ChromeBridgeOptions): Pr
   try {
     parsed = JSON.parse(rawOutput) as BridgeResponse;
   } catch {
-    throw new TaigaError(`Respon bridge tidak valid dari Google Chrome: ${rawOutput.slice(0, 200)}`, 502);
+    const cleanOutput = cleanTaigaErrorMessage(rawOutput);
+    throw new TaigaError(`Respon bridge tidak valid dari Google Chrome: ${cleanOutput.slice(0, 200)}`, 502);
   }
 
   if (parsed.error) {
-    throw new TaigaError(`Error pada tab Taiga Chrome: ${parsed.error}`, parsed.status || 500);
+    const cleanErr = cleanTaigaErrorMessage(parsed.error, parsed.status);
+    throw new TaigaError(cleanErr.startsWith('Taiga') ? cleanErr : `Taiga: ${cleanErr}`, parsed.status || 500);
   }
 
   const status = parsed.status;
@@ -246,9 +250,10 @@ export async function executeTaigaViaChrome<T>(options: ChromeBridgeOptions): Pr
       const j = JSON.parse(text);
       msg = j._error_message || (j.detail ? String(j.detail) : JSON.stringify(j));
     } catch {
-      if (text) msg = text.slice(0, 200);
+      if (text) msg = cleanTaigaErrorMessage(text, status);
     }
-    throw new TaigaError(`Taiga: ${msg}`, status);
+    const cleanMsg = cleanTaigaErrorMessage(msg, status);
+    throw new TaigaError(cleanMsg.startsWith('Taiga') ? cleanMsg : `Taiga: ${cleanMsg}`, status);
   }
 
   let data = undefined as T;

@@ -10,6 +10,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { Select } from '@/components/Select';
+import { Tooltip } from '@/components/Tooltip';
 import {
   AI_FEATURE_MODEL_KEYS,
   DEFAULT_MODEL_BY_PROVIDER,
@@ -144,9 +145,37 @@ export function GeminiSettingsSection({
 
         {/* Model Selector / Input */}
         <div className='field'>
-          <label>Model LLM Global</label>
+          <div className='flex items-center gap-1.5'>
+            <label htmlFor='ai-model-global' className='cursor-pointer !mb-0'>
+              Model LLM Global
+            </label>
+            <Tooltip
+              title='Peran Model LLM Global'
+              ariaLabel='Informasi Model LLM Global'
+              content={
+                <div className='flex flex-col gap-1.5 text-xs text-slate-600 leading-relaxed'>
+                  <p>
+                    <strong className='text-slate-800 font-semibold'>
+                      Model Acuan Utama &amp; Fallback:
+                    </strong>{' '}
+                    Berfungsi sebagai model default. Semua menu yang pengaturan
+                    modelnya dikosongkan (&quot;Ikuti model global&quot;) akan
+                    otomatis menggunakan model ini.
+                  </p>
+                  <p>
+                    Model ini juga digunakan untuk{' '}
+                    <strong className='text-slate-800 font-semibold'>
+                      Uji Koneksi AI
+                    </strong>{' '}
+                    utama dan fungsi ringkasan mingguan (Weekly Summary).
+                  </p>
+                </div>
+              }
+            />
+          </div>
           {provider === 'custom' ? (
             <input
+              id='ai-model-global'
               className='input'
               value={form.aiModel || DEFAULT_MODEL_BY_PROVIDER.custom}
               placeholder='deepseek-chat, llama3.2, mistral, dll'
@@ -154,6 +183,7 @@ export function GeminiSettingsSection({
             />
           ) : (
             <Select
+              id='ai-model-global'
               value={
                 form.aiModel ||
                 (provider === 'gemini' ? form.geminiModel : '') ||
@@ -168,7 +198,7 @@ export function GeminiSettingsSection({
           )}
 
           <span className='hint'>
-            Dipakai semua menu, kecuali yang diatur di Model per Menu.
+            Model acuan default dan fallback otomatis jika model per menu dikosongkan.
           </span>
         </div>
 

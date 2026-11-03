@@ -35,5 +35,19 @@ describe('AI model resolution per menu', () => {
   it('does not remap gemini-like names on non-Gemini providers', () => {
     expect(resolveAiModel({ aiProvider: 'custom', aiModel: 'gemini-2.0-proxy' })).toBe('gemini-2.0-proxy');
   });
+
+  it('saves and loads per-menu models in settings', async () => {
+    const { saveSettings, getSettings, getPublicSettings } = await import('../src/lib/settings');
+    saveSettings({
+      aiModelSmartTask: 'haiku-4.5',
+      aiModelProductivity: 'dpe/limited/claude-sonnet-5.5',
+    });
+    const s = getSettings();
+    expect(s.aiModelSmartTask).toBe('haiku-4.5');
+    expect(s.aiModelProductivity).toBe('dpe/limited/claude-sonnet-5.5');
+    const pub = getPublicSettings();
+    expect(pub.aiModelSmartTask).toBe('haiku-4.5');
+    expect(pub.aiModelProductivity).toBe('dpe/limited/claude-sonnet-5.5');
+  });
 });
 

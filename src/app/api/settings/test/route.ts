@@ -3,7 +3,11 @@ import { GoogleGenAI } from '@google/genai';
 import { getSettings, isMasked, saveSettings } from '@/lib/settings';
 import { invalidateIntegrationCache } from '@/lib/integrations';
 import { errorResponse } from '@/lib/http';
-import { isCloudflareChallenge, executeTaigaViaChrome } from '@/lib/taiga/bridge';
+import {
+  isCloudflareChallenge,
+  executeTaigaViaChrome,
+  cleanTaigaErrorMessage,
+} from '@/lib/taiga/bridge';
 
 export const dynamic = 'force-dynamic';
 
@@ -106,8 +110,14 @@ async function handleTest(payload: TestPayload) {
           const j = await res.json();
           msg =
             j._error_message || (j.detail ? String(j.detail) : JSON.stringify(j));
-        } catch {}
-        throw new Error(`Taiga: ${msg}`);
+        } catch {
+          try {
+            const raw = await res.text();
+            if (raw) msg = cleanTaigaErrorMessage(raw, res.status);
+          } catch {}
+        }
+        const cleanMsg = cleanTaigaErrorMessage(msg, res.status);
+        throw new Error(cleanMsg.startsWith('Taiga') ? cleanMsg : `Taiga: ${cleanMsg}`);
       } else {
         me = (await res.json()) as {
           full_name_display?: string;
@@ -116,18 +126,30 @@ async function handleTest(payload: TestPayload) {
       }
     } catch (err) {
       if (process.platform === 'darwin' && !me) {
-        const bridge = await executeTaigaViaChrome<{
-          full_name_display?: string;
-          username?: string;
-        }>({
-          baseUrl,
-          path: '/users/me',
-          token,
-        });
-        me = bridge.data;
-        usedBridge = true;
+        try {
+          const bridge = await executeTaigaViaChrome<{
+            full_name_display?: string;
+            username?: string;
+          }>({
+            baseUrl,
+            path: '/users/me',
+            token,
+          });
+          me = bridge.data;
+          usedBridge = true;
+          if (bridge.tokenFromBrowser && bridge.tokenFromBrowser !== token) {
+            saveSettings({
+              taigaToken: bridge.tokenFromBrowser,
+              ...(bridge.refreshFromBrowser ? { taigaRefresh: bridge.refreshFromBrowser } : {}),
+            });
+          }
+        } catch (bridgeErr) {
+          const cleanBridgeMsg = cleanTaigaErrorMessage((bridgeErr as Error).message);
+          throw new Error(cleanBridgeMsg.startsWith('Taiga') ? cleanBridgeMsg : `Taiga: ${cleanBridgeMsg}`);
+        }
       } else {
-        throw err;
+        const cleanErr = cleanTaigaErrorMessage((err as Error).message);
+        throw new Error(cleanErr.startsWith('Taiga') ? cleanErr : `Taiga: ${cleanErr}`);
       }
     }
 
@@ -283,29 +305,46 @@ async function handleTest(payload: TestPayload) {
       };
       if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 
-      const res = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
+      try {
+        const bodyPayload: Record<string, unknown> = {
           model,
           messages: [{ role: 'user', content: 'Balas hanya kata: OK' }],
           temperature: 0.1,
-        }),
-      });
+          max_tokens: 100,
+        };
 
-      const data = await res.json();
-      if (!res.ok) {
-        const errMsg =
-          data.error?.message ||
-          (typeof data.error === 'string' ? data.error : null) ||
-          `HTTP ${res.status}`;
-        throw new Error(`${provider.toUpperCase()}: ${errMsg}`);
+        const res = await fetch(`${baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers,
+          signal: AbortSignal.timeout(20000),
+          body: JSON.stringify(bodyPayload),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          const errMsg =
+            data.error?.message ||
+            (typeof data.error === 'string' ? data.error : null) ||
+            `HTTP ${res.status}`;
+          throw new Error(`${provider.toUpperCase()}: ${errMsg}`);
+        }
+        const reply = data.choices?.[0]?.message?.content?.trim() || 'OK';
+        return {
+          ok: true,
+          message: `${provider.toUpperCase()} (${model}) aktif (respon: ${reply})`,
+        };
+      } catch (err) {
+        if ((err as Error).message.startsWith(`${provider.toUpperCase()}:`)) {
+          throw err;
+        }
+        const causeMsg = (err as { cause?: Error })?.cause?.message;
+        const msg = (err as Error).name === 'TimeoutError' || (err as Error).name === 'AbortError'
+          ? 'Koneksi timeout (20 detik). Server proxy tidak merespons.'
+          : causeMsg
+            ? `${(err as Error).message} (${causeMsg})`
+            : (err as Error).message;
+        throw new Error(`${provider.toUpperCase()}: ${msg}`);
       }
-      const reply = data.choices?.[0]?.message?.content?.trim() || 'OK';
-      return {
-        ok: true,
-        message: `${provider.toUpperCase()} (${model}) aktif (respon: ${reply})`,
-      };
     }
 
     if (provider === 'anthropic') {

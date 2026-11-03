@@ -89,8 +89,17 @@ export async function runAiCompletion(
         : 'https://api.openai.com/v1';
     const baseUrl = rawBaseUrl.trim().replace(/\/+$/, '');
 
+    const isClaudeModel =
+      model.toLowerCase().includes('claude') ||
+      model.toLowerCase().includes('haiku') ||
+      model.toLowerCase().includes('sonnet') ||
+      model.toLowerCase().includes('opus');
+
     const messages: Array<{ role: string; content: string }> = [];
-    if (options.systemInstruction) {
+    // Anthropic API strictly prohibits { role: 'system' } inside messages array.
+    // When routing via an OpenAI proxy to Claude, passing { role: 'system' } in messages causes:
+    // "messages.0: use the top-level 'system' parameter for the initial system prompt"
+    if (options.systemInstruction && !isClaudeModel) {
       messages.push({ role: 'system', content: options.systemInstruction });
     }
     messages.push({ role: 'user', content: options.prompt });
@@ -99,7 +108,12 @@ export async function runAiCompletion(
       model,
       messages,
       temperature: options.temperature ?? 0.3,
+      max_tokens: 4096,
     };
+
+    if (options.systemInstruction) {
+      payload.system = options.systemInstruction;
+    }
 
     if (options.responseFormat === 'json') {
       payload.response_format = { type: 'json_object' };
@@ -112,23 +126,34 @@ export async function runAiCompletion(
       headers.Authorization = `Bearer ${apiKey}`;
     }
 
-    const res = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(payload),
-    });
+    try {
+      const res = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers,
+        signal: AbortSignal.timeout(60000),
+        body: JSON.stringify(payload),
+      });
 
-    const data = await res.json();
-    if (!res.ok) {
-      const errMsg =
-        data.error?.message ||
-        (typeof data.error === 'string' ? data.error : null) ||
-        `HTTP ${res.status} dari ${provider}`;
-      throw new Error(errMsg);
+      const data = await res.json();
+      if (!res.ok) {
+        const errMsg =
+          data.error?.message ||
+          (typeof data.error === 'string' ? data.error : null) ||
+          `HTTP ${res.status} dari ${provider}`;
+        throw new Error(errMsg);
+      }
+
+      const text = data.choices?.[0]?.message?.content || '';
+      return text;
+    } catch (err) {
+      const causeMsg = (err as { cause?: Error })?.cause?.message;
+      const msg = (err as Error).name === 'TimeoutError'
+        ? `Request ke ${provider} timeout setelah 60 detik`
+        : causeMsg
+          ? `${(err as Error).message} (${causeMsg})`
+          : (err as Error).message;
+      throw new Error(msg);
     }
-
-    const text = data.choices?.[0]?.message?.content || '';
-    return text;
   }
 
   // 3. Anthropic Claude

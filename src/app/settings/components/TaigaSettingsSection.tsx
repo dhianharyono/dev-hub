@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Sparkles,
 } from 'lucide-react';
+import { cleanTaigaErrorMessage } from '@/lib/taiga/types';
 import type { PublicSettings, TestResult, TestingState } from '../types';
 
 interface TaigaSettingsSectionProps {
@@ -124,7 +125,7 @@ export function TaigaSettingsSection({
               )}
               <div className='flex flex-col gap-1 min-w-0 text-left'>
                 <span className='font-medium leading-relaxed break-words'>
-                  {testResult.message}
+                  {cleanTaigaErrorMessage(testResult.message)}
                 </span>
               </div>
             </div>

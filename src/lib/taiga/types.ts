@@ -112,3 +112,40 @@ export interface UpdateTaskPayload {
   isClosed?: boolean;
 }
 
+/**
+ * Cleans and converts raw Taiga error responses (especially HTML from Cloudflare challenges or 5xx pages)
+ * into friendly, actionable human-readable messages.
+ */
+export function cleanTaigaErrorMessage(raw: string, status?: number): string {
+  if (!raw) {
+    return status ? `Taiga mengembalikan HTTP ${status}` : 'Terjadi kendala koneksi ke Taiga.';
+  }
+
+  const trimmed = raw.trim();
+  const content = trimmed.replace(/^Taiga:\s*/i, '').trim();
+
+  // Cloudflare Challenge / Bot Protection detection (e.g. "Just a moment...", Turnstile, Managed Challenge)
+  const isCloudflare =
+    content.includes('Just a moment...') ||
+    content.includes('Tunggu sebentar...') ||
+    content.includes('challenges.cloudflare.com') ||
+    content.includes('cf-mitigated') ||
+    (content.toLowerCase().includes('cloudflare') && (content.includes('<html') || content.includes('<!DOCTYPE'))) ||
+    (content.includes('<!DOCTYPE html') &&
+      (content.includes('Just a moment') || status === 403 || status === 503 || !status));
+
+  if (isCloudflare) {
+    return 'Koneksi ke Taiga terhalang verifikasi keamanan Cloudflare ("Just a moment..."). Silakan buka URL Taiga di browser Google Chrome, selesaikan verifikasi sampai halaman terbuka normal, lalu coba lagi.';
+  }
+
+  // General HTML error page (e.g. 502/504 Bad Gateway from Nginx / Reverse Proxy)
+  if (content.includes('<!DOCTYPE') || (content.includes('<html') && content.includes('</html'))) {
+    const titleMatch = content.match(/<title>([^<]+)<\/title>/i);
+    const title = titleMatch ? titleMatch[1].trim() : `${status || 'Server'} Error`;
+    return `Server Taiga mengembalikan halaman HTML (${title}). Pastikan Base URL Taiga benar dan server aktif.`;
+  }
+
+  return trimmed;
+}
+
+

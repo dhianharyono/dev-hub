@@ -5,6 +5,7 @@ import {
   isCloudflareChallenge,
   executeTaigaViaChrome,
   isDirectFetchBlocked,
+  cleanTaigaErrorMessage,
 } from './taiga/bridge';
 
 export interface IntegrationServiceStatus {
@@ -179,7 +180,7 @@ export async function checkIntegrationsStatus(
       taigaError =
         (err as Error).name === 'AbortError'
           ? 'Koneksi Taiga timeout'
-          : (err as Error).message;
+          : cleanTaigaErrorMessage((err as Error).message);
     }
   } else {
     taigaError = !s.taigaToken?.trim()
