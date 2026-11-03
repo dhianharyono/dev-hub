@@ -100,9 +100,8 @@ export function SettingsStatusGrid({
 
   return (
     <div
-      className={`grid grid-cols-1 sm:grid-cols-2 ${
-        isMonitoring ? 'xl:grid-cols-3' : 'xl:grid-cols-4'
-      } gap-3 sm:gap-3.5 mb-6`}
+      className={`grid grid-cols-1 sm:grid-cols-2 ${isMonitoring ? 'xl:grid-cols-3' : 'xl:grid-cols-4'
+        } gap-3 sm:gap-3.5`}
     >
       {/* Taiga Status */}
       <div className='card h-20 flex items-center justify-between gap-3 p-3 sm:py-3 sm:px-5 hover:border-emerald-300 transition-all'>
@@ -213,9 +212,8 @@ export function SettingsStatusGrid({
           className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap shrink-0 border ${pm2BadgeClass}`}
         >
           <span
-            className={`w-1.5 h-1.5 rounded-full ${
-              pm2Online ? 'bg-emerald-500 animate-pulse' : 'bg-current'
-            } shrink-0`}
+            className={`w-1.5 h-1.5 rounded-full ${pm2Online ? 'bg-emerald-500 animate-pulse' : 'bg-current'
+              } shrink-0`}
           />
           {pm2BadgeText}
         </span>

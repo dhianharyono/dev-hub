@@ -8,6 +8,7 @@ import {
   executeTaigaViaChrome,
   cleanTaigaErrorMessage,
 } from '@/lib/taiga/bridge';
+import { BROWSER_USER_AGENT } from '@/lib/taiga/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,9 +72,12 @@ async function handleTest(payload: TestPayload) {
     try {
       const res = await fetch(`${baseUrl}/api/v1/users/me`, {
         headers: {
+          'User-Agent': BROWSER_USER_AGENT,
+          'Accept': 'application/json, text/plain, */*',
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
           'x-disable-pagination': 'True',
+          'Accept-Language': 'en-US,en;q=0.9,id;q=0.8',
         },
         cache: 'no-store',
       });

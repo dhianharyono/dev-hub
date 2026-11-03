@@ -29,7 +29,11 @@ export function AiMenuModelsPanel({ form, onChange }: AiMenuModelsPanelProps) {
   const isMonitoring = form.appMode === 'monitoring';
 
   const visibleFeatures = AI_FEATURES.filter(
-    (item) => !isMonitoring || item.feature !== 'productivity',
+    (item) =>
+      !isMonitoring ||
+      (item.feature !== 'productivity' &&
+        item.feature !== 'workload' &&
+        item.feature !== 'report'),
   );
 
   const [testingMenu, setTestingMenu] = useState<Record<string, boolean>>({});

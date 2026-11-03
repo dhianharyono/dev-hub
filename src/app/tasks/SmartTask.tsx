@@ -30,7 +30,7 @@ export default function SmartTask() {
       <header className='flex items-start justify-between gap-4 flex-wrap mb-7'>
         <div className='flex-1 max-w-3xl'>
           <div className='text-xs font-bold uppercase tracking-wider text-brand mb-1.5'>
-            Taiga · AI Developer Assistant
+            Taiga · AI Task Assistant
           </div>
           <h1 className='text-3xl font-extrabold tracking-tight text-slate-text'>
             Smart <span className='text-brand'>Task Studio</span>
@@ -215,7 +215,7 @@ export default function SmartTask() {
               </div>
             }
           />
-        ) : taskState.loadingMeta && !taskState.meta ? (
+        ) : loadingIntegrations || (taskState.loadingMeta && !taskState.meta) ? (
           <SmartTaskSkeleton />
         ) : (
           <div className='grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,6.2fr)] gap-7 items-start'>
@@ -292,7 +292,6 @@ export default function SmartTask() {
             />
           </div>
         ))}
-
     </>
   );
 }

@@ -7,6 +7,7 @@ import { useIntegrations } from '@/components/hooks';
 import { EmptyState } from '@/components/EmptyState';
 import { useNotification } from '@/components/Notification';
 import { useAiTask } from '@/components/ai-task/AiTaskContext';
+import { useAppMode } from '@/components/AppModeContext';
 import {
   AssignmentBarChart,
   StatusProgressDonut,
@@ -52,6 +53,7 @@ export default function WorkloadView() {
     refresh: refreshIntegrations,
   } = useIntegrations();
 
+  const { isMonitoring } = useAppMode();
   const isTaigaConnected = Boolean(integrations?.taiga?.connected);
   const taigaError = integrations?.taiga?.error;
   const { notify } = useNotification();
@@ -59,7 +61,7 @@ export default function WorkloadView() {
 
   // Restore gap healer modal from floating dock
   React.useEffect(() => {
-    if (restoreTarget?.type === 'gap_healer' && data?.days) {
+    if (!isMonitoring && restoreTarget?.type === 'gap_healer' && data?.days) {
       const targetDay =
         data.days.find((d) => d.date === restoreTarget.date) ||
         data.days.find((d) => d.isWeekday && d.hoursSpent < 7.5) ||
@@ -68,7 +70,7 @@ export default function WorkloadView() {
       setIsHealerOpen(true);
       clearRestoreTarget();
     }
-  }, [restoreTarget, data?.days, setHealerDay, setIsHealerOpen, clearRestoreTarget]);
+  }, [isMonitoring, restoreTarget, data?.days, setHealerDay, setIsHealerOpen, clearRestoreTarget]);
 
   React.useEffect(() => {
     if (isTaigaConnected && error) {
@@ -195,7 +197,7 @@ export default function WorkloadView() {
         </>
       )}
 
-      {data && (
+      {!isMonitoring && data && (
         <TimesheetGapHealerModal
           isOpen={isHealerOpen}
           onClose={() => setIsHealerOpen(false)}

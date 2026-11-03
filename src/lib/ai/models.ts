@@ -59,7 +59,7 @@ export interface AiModelOption {
 /** Selectable models per provider. `custom` uses free text input instead. */
 export const MODEL_OPTIONS: Record<Exclude<AiProvider, 'custom'>, AiModelOption[]> = {
   gemini: [
-    { value: 'gemini-3.8-flash', label: 'gemini-3.8-flash (Rekomendasi Google - Generasi Terbaru)' },
+    { value: 'gemini-3.8-flash', label: 'gemini-3.8-flash (Generasi Terbaru)' },
     { value: 'gemini-3.7-flash', label: 'gemini-3.7-flash (Stabil & Canggih)' },
     { value: 'gemini-3.6-flash', label: 'gemini-3.6-flash (Cepat & Responsif)' },
     { value: 'gemini-3.5-flash', label: 'gemini-3.5-flash (Stabil & Handal)' },

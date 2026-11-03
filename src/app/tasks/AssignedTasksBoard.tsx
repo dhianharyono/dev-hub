@@ -92,8 +92,9 @@ export default function AssignedTasksBoard({
         <div className='flex flex-col gap-[22px]'>
           {board.groupedTasksByProject.map((group) => (
             <AssignedProjectGroup
-              key={group.projectId}
+              key={`${group.projectId}-${assignedActiveOnly ? 'active' : 'all'}`}
               group={group}
+              isAllTasks={!assignedActiveOnly}
               baseUrl={baseUrl}
               availableStatuses={projectStatuses[group.projectId] || []}
               updatingTaskId={board.updatingTaskId}
@@ -127,4 +128,3 @@ export default function AssignedTasksBoard({
     </section>
   );
 }
-

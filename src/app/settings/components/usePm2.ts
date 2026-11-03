@@ -95,16 +95,33 @@ export function usePm2() {
           await fetchStatus();
         }
 
-        const actionSuccessNames: Record<string, string> = {
-          start: 'PM2 berhasil diaktifkan di layar belakang!',
-          restart: 'Layanan PM2 berhasil dimulai ulang!',
-          stop: 'Layanan PM2 berhasil dihentikan.',
-          startup: 'Auto-start saat komputer dinyalakan berhasil dikonfigurasi!',
-        };
+        const currentStatus = data.status?.status;
+        if (action === 'start' || action === 'restart') {
+          if (currentStatus === 'online') {
+            notify.success('PM2 berhasil diaktifkan di layar belakang!', 'PM2 Process Manager');
+          } else if (currentStatus === 'stopped') {
+            notify.warning(
+              'Perintah PM2 terkirim, namun layanan saat ini berstatus Berhenti (stopped). Klik "Log Terminal" untuk melihat detail.',
+              'PM2: Layanan Berhenti',
+            );
+          } else if (currentStatus === 'errored' || currentStatus === 'error') {
+            notify.error(
+              'Server PM2 mengalami error saat dijalankan. Periksa Log Terminal.',
+              'PM2: Layanan Error',
+            );
+          } else {
+            notify.info(`Status PM2: ${currentStatus || 'tidak aktif'}`, 'PM2 Process Manager');
+          }
+        } else if (action === 'stop') {
+          notify.success('Layanan PM2 berhasil dihentikan.', 'PM2 Process Manager');
+        } else if (action === 'startup') {
+          notify.success('Auto-start saat komputer dinyalakan berhasil dikonfigurasi!', 'PM2 Process Manager');
+        } else {
+          notify.success(data.message || 'Aksi PM2 berhasil.', 'PM2 Process Manager');
+        }
 
-        notify.success(actionSuccessNames[action] || data.message, 'PM2 Process Manager');
-        if (data.stdout) {
-          setLastOutput(data.stdout);
+        if (data.stdout || data.stderr) {
+          setLastOutput([data.stdout, data.stderr].filter(Boolean).join('\n'));
         }
       } else {
         const errMsg = data.error || 'Gagal menjalankan aksi PM2.';

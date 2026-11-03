@@ -1,6 +1,6 @@
 import 'server-only';
 import { getSettings, saveSettings } from '../settings';
-import { TaigaError, cleanTaigaErrorMessage } from './types';
+import { TaigaError, cleanTaigaErrorMessage, BROWSER_USER_AGENT } from './types';
 import {
   isCloudflareChallenge,
   executeTaigaViaChrome,
@@ -34,7 +34,11 @@ export async function refreshToken(): Promise<string> {
   try {
     const res = await fetch(`${s.taigaBaseUrl}/api/v1/auth/refresh`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'User-Agent': BROWSER_USER_AGENT,
+        'Accept': 'application/json, text/plain, */*',
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ refresh: s.taigaRefresh }),
     });
 
@@ -111,10 +115,12 @@ export async function taiga<T>(
     res = await fetch(`${s.taigaBaseUrl}/api/v1${path}`, {
       ...init,
       headers: {
+        'User-Agent': BROWSER_USER_AGENT,
+        'Accept': 'application/json, text/plain, */*',
         'Content-Type': 'application/json',
         Authorization: `Bearer ${s.taigaToken}`,
         'x-disable-pagination': 'True',
-        'Accept-Language': 'en',
+        'Accept-Language': 'en-US,en;q=0.9,id;q=0.8',
         ...customHeaders,
       },
       cache: 'no-store',
@@ -124,7 +130,7 @@ export async function taiga<T>(
       try {
         const cloned = res.clone();
         bodyPreview = (await cloned.text()).slice(0, 500);
-      } catch {}
+      } catch { }
     }
   } catch (err) {
     // If direct fetch fails (network blocked or connection refused), fallback to Chrome on macOS
@@ -173,7 +179,7 @@ export async function taiga<T>(
       try {
         const raw = await res.text();
         if (raw) msg = cleanTaigaErrorMessage(raw, res.status);
-      } catch {}
+      } catch { }
     }
     const cleanMsg = cleanTaigaErrorMessage(msg, res.status);
     throw new TaigaError(cleanMsg.startsWith('Taiga') ? cleanMsg : `Taiga: ${cleanMsg}`, res.status);

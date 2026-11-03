@@ -10,10 +10,15 @@ Taiga menggunakan autentikasi SSO (Single Sign-On):
 
 1. Buka dan login ke web Taiga di Google Chrome Anda.
 2. Pastikan tab Taiga aktif dan tidak terhalang verifikasi Cloudflare ("Tunggu sebentar...").
-3. Di menu Pengaturan DevHub, klik tombol **"✨ Tarik Sesi dari Chrome"** untuk menghubungkan sesi secara otomatis.
-4. *(Alternatif Manual)* Anda juga dapat menyalin token atau JSON session langsung ke kolom **JSON Session / Token**, lalu klik **Simpan Pengaturan**.
-5. Klik **"Uji Koneksi Taiga"** untuk memastikan koneksi berhasil.
-6. *(Opsional)* **Project Slug & Default Sprint Slug**: Biarkan kosong untuk deteksi otomatis project & sprint pertama Anda di Taiga.
+3. **Pengguna Windows (Sangat Mudah)**:
+   - Klik tombol **"📋 Salin Script DevTools (Windows)"** di DevHub.
+   - Buka tab Taiga di Chrome, tekan **F12** (tab Console), tekan **Ctrl+V** dan **Enter**.
+   - *(Atau gunakan tombol **"⭐ Salin Bookmarklet"** untuk disimpan di bookmark bar browser).*
+4. **Pengguna macOS**:
+   - Klik tombol **"✨ Tarik Sesi (macOS)"** untuk menarik sesi dari Chrome secara otomatis via AppleScript.
+5. *(Alternatif Manual)* Anda juga dapat menyalin token atau JSON session langsung ke kolom **JSON Session / Token**, lalu klik **Simpan Pengaturan**.
+6. Klik **"Uji Koneksi Taiga"** untuk memastikan koneksi berhasil.
+7. *(Opsional)* **Project Slug & Default Sprint Slug**: Masukkan project slug Taiga Anda untuk memuat sprint dan backlog yang spesifik.
 
 ---
 

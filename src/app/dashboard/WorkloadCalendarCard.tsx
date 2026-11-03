@@ -56,7 +56,7 @@ const STATUS_CONFIG: Record<ComplianceStatus, DayStatusMeta> = {
     color: '#ef4444',
     bgClass: 'bg-red-500',
     pillClass: 'bg-rose-50 text-rose-700 border-rose-200',
-    label: 'Belum Ada Log (0h)',
+    label: 'Belum Ada Task (0h)',
     badgeClass: 'badge-rose',
   },
   holiday: {
@@ -408,15 +408,14 @@ export function WorkloadCalendarCard({
                   }
                 >
                   <span
-                    className={`text-[12.5px] leading-none mb-1.5 ${
-                      isSelected
+                    className={`text-[12.5px] leading-none mb-1.5 ${isSelected
                         ? 'text-brand font-extrabold'
                         : cell.isToday
                           ? 'text-brand font-bold'
                           : !cell.isCurrentMonth
                             ? 'text-slate-400 font-normal'
                             : 'text-slate-text font-semibold'
-                    }`}
+                      }`}
                   >
                     {cell.dayNumber}
                   </span>

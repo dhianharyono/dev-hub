@@ -49,7 +49,10 @@ export function AppSettingsModeDropdown({
   };
 
   return (
-    <div ref={dropdownRef} className='relative z-50 flex flex-col items-end gap-1.5'>
+    <div
+      ref={dropdownRef}
+      className='relative z-50 flex flex-col items-end gap-1.5'
+    >
       <div className='flex items-center gap-1.5'>
         <span className='text-[11px] font-bold text-slate-muted uppercase tracking-wider'>
           Mode Tampilan Sistem
@@ -166,9 +169,10 @@ export function AppSettingsModeDropdown({
                   <Check size={13} className='text-brand shrink-0' />
                 )}
               </div>
-              <p className='text-[10px] text-slate-500 font-normal mt-0.5 mb-0 leading-normal'>
-                Akses lengkap: Productivity Monitor (GitLab), Smart Task, &amp; Workload.
-              </p>
+              <div className='text-[10px] text-slate-500 font-normal mt-0.5 mb-0 leading-normal'>
+                Akses lengkap: Productivity Monitor (GitLab), Smart Task, &amp;
+                Workload.
+              </div>
             </div>
           </button>
 
@@ -201,18 +205,14 @@ export function AppSettingsModeDropdown({
                   <Check size={13} className='text-purple-600 shrink-0' />
                 )}
               </div>
-              <p className='text-[10px] text-slate-500 font-normal mt-0.5 mb-0 leading-normal'>
-                Fokus tim: Memantau Smart Task &amp; Workload tanpa Productivity Monitor.
-              </p>
+              <div className='text-[10px] text-slate-500 font-normal mt-0.5 mb-0 leading-normal'>
+                Fokus tim: Memantau Smart Task &amp; Workload tanpa Productivity
+                Monitor.
+              </div>
             </div>
           </button>
-
-          <div className='pt-1.5 border-t border-border/60 px-2 pb-0.5 text-[9.5px] text-slate-400 leading-normal'>
-            Mode langsung menyesuaikan navigasi sidebar, layanan terhubung, dan dashboard.
-          </div>
         </div>
       )}
     </div>
   );
 }
-

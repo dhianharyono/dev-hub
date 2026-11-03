@@ -2,6 +2,7 @@
 
 import { Sparkles } from 'lucide-react';
 import type { WorkloadDaySummary } from '@/lib/workload';
+import { useAppMode } from '@/components/AppModeContext';
 import { DailyComplianceGrid } from '../WorkloadCharts';
 
 const getTodayDateString = () => {
@@ -21,6 +22,8 @@ export function WorkloadComplianceSection({
   days,
   onOpenHealer,
 }: WorkloadComplianceSectionProps) {
+  const { isMonitoring } = useAppMode();
+
   const handleOpenHealer = () => {
     const todayStr = getTodayDateString();
     const todayDay = days.find((d) => d.date === todayStr);
@@ -37,15 +40,17 @@ export function WorkloadComplianceSection({
           <span>Kepatuhan Jam Kerja Harian (Wajib 8 Jam / Hari Weekday)</span>
         </div>
         <div className='flex items-center gap-3 flex-wrap'>
-          <button
-            type='button'
-            onClick={handleOpenHealer}
-            className='btn btn-primary btn-sm px-3.5 py-2 text-xs rounded-xl inline-flex items-center gap-2 font-semibold'
-            id='btn-open-gap-healer'
-          >
-            <Sparkles size={14} />
-            <span>Timesheet Gap Healer (AI)</span>
-          </button>
+          {!isMonitoring && (
+            <button
+              type='button'
+              onClick={handleOpenHealer}
+              className='btn btn-primary btn-sm px-3.5 py-2 text-xs rounded-xl inline-flex items-center gap-2 font-semibold'
+              id='btn-open-gap-healer'
+            >
+              <Sparkles size={14} />
+              <span>Timesheet Gap Healer (AI)</span>
+            </button>
+          )}
           <span className='row xs dim'>
             <span className='badge badge-green xs'>7.5 - 8.5 Jam: Fit</span>
             <span className='badge badge-cyan xs'>&gt; 8.5 Jam: Lembur</span>
@@ -55,7 +60,7 @@ export function WorkloadComplianceSection({
       </div>
       <DailyComplianceGrid
         days={days}
-        onSelectDay={(day) => onOpenHealer(day)}
+        onSelectDay={isMonitoring ? undefined : (day) => onOpenHealer(day)}
       />
     </section>
   );

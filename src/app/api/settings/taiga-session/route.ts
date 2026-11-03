@@ -19,7 +19,10 @@ export async function OPTIONS() {
 export async function GET() {
   if (process.platform !== 'darwin') {
     return NextResponse.json(
-      { error: 'Fitur deteksi Chrome otomatis hanya tersedia di macOS.' },
+      {
+        error:
+          'Otomatisasi tab Chrome via AppleScript hanya didukung di macOS. Di Windows, silakan gunakan tombol "📋 Salin Script Console (Windows)" atau Bookmarklet untuk menghubungkan sesi secara instan.',
+      },
       { status: 400 },
     );
   }

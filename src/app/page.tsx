@@ -114,8 +114,8 @@ export default function Home() {
     : 0;
   const totalTasks = taigaConnected
     ? todoCount + inProgressCount + doneCount ||
-      workload?.kpis?.activitiesCount ||
-      0
+    workload?.kpis?.activitiesCount ||
+    0
     : 0;
   const donePct =
     totalTasks > 0 ? Math.round((doneCount / totalTasks) * 100) : 0;
@@ -126,30 +126,30 @@ export default function Home() {
   const projectDistribution =
     taigaConnected && workload?.tasks
       ? Array.from(
-          workload.tasks
-            .reduce((map, t) => {
-              const key = t.projectName || t.project || 'Taiga';
-              const cur = map.get(key) || { name: key, count: 0, hours: 0 };
-              cur.count += 1;
-              cur.hours += t.timeSpentHours || 0;
-              map.set(key, cur);
-              return map;
-            }, new Map<string, { name: string; count: number; hours: number }>())
-            .values(),
-        )
+        workload.tasks
+          .reduce((map, t) => {
+            const key = t.projectName || t.project || 'Taiga';
+            const cur = map.get(key) || { name: key, count: 0, hours: 0 };
+            cur.count += 1;
+            cur.hours += t.timeSpentHours || 0;
+            map.set(key, cur);
+            return map;
+          }, new Map<string, { name: string; count: number; hours: number }>())
+          .values(),
+      )
       : [];
 
   const activeTasks =
     taigaConnected && workload?.tasks
       ? workload.tasks.filter((t) => {
-          if (t.isClosed) return false;
-          const s = (t.status || '').toLowerCase();
-          return (
-            !s.includes('done') &&
-            !s.includes('closed') &&
-            !s.includes('selesai')
-          );
-        })
+        if (t.isClosed) return false;
+        const s = (t.status || '').toLowerCase();
+        return (
+          !s.includes('done') &&
+          !s.includes('closed') &&
+          !s.includes('selesai')
+        );
+      })
       : [];
 
   const avgHoursPerTask =
@@ -170,7 +170,7 @@ export default function Home() {
           </div>
           <p className='text-slate-muted mt-1 text-sm'>
             {isMonitoring
-              ? 'Monitoring komprehensif kepatuhan jam kerja WAD dan efisiensi delivery tugas Taiga tim.'
+              ? 'Monitoring komprehensif kepatuhan jam kerja WAD dan efisiensi delivery tugas Taiga.'
               : 'Monitoring komprehensif kepatuhan jam kerja WAD, velocity rilis GitLab, dan efisiensi delivery tugas Taiga.'}
           </p>
         </div>

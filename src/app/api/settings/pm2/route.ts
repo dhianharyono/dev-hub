@@ -10,15 +10,35 @@ export const dynamic = 'force-dynamic';
 const execPromise = util.promisify(exec);
 
 function getExecEnv() {
+  const isWin = process.platform === 'win32';
+  const appData = process.env.APPDATA || '';
+  const winNpmPath = appData ? path.join(appData, 'npm') : '';
+  const extraPaths = isWin
+    ? [winNpmPath, 'C:\\Program Files\\nodejs']
+    : ['/opt/homebrew/bin', '/usr/local/bin'];
+
   return {
     ...process.env,
-    PATH: `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH || ''}`,
+    PATH: `${extraPaths.filter(Boolean).join(path.delimiter)}${path.delimiter}${process.env.PATH || ''}`,
   };
 }
 
 function checkPm2StartupEnabled(): boolean {
   try {
     const home = os.homedir();
+    // Windows Startup folder
+    if (process.platform === 'win32') {
+      const winStartupDir = path.join(
+        process.env.APPDATA || '',
+        'Microsoft/Windows/Start Menu/Programs/Startup',
+      );
+      if (fs.existsSync(winStartupDir)) {
+        const files = fs.readdirSync(winStartupDir);
+        if (files.some((f) => f.toLowerCase().includes('pm2') || f.toLowerCase().includes('devhub'))) {
+          return true;
+        }
+      }
+    }
     // macOS LaunchAgents
     const userAgentDir = path.join(home, 'Library/LaunchAgents');
     if (fs.existsSync(userAgentDir)) {
@@ -55,12 +75,19 @@ function checkPm2StartupEnabled(): boolean {
 }
 
 async function getPm2Bin(): Promise<string> {
+  const isWin = process.platform === 'win32';
   try {
-    const { stdout } = await execPromise('which pm2', { env: getExecEnv() });
-    return stdout.trim() || 'pm2';
-  } catch {
-    return 'pm2';
-  }
+    const checkCmd = isWin ? 'where.exe pm2' : 'which pm2';
+    const { stdout } = await execPromise(checkCmd, { env: getExecEnv() });
+    const lines = stdout.trim().split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (isWin) {
+      const cmdFile = lines.find((l) => l.toLowerCase().endsWith('.cmd'));
+      if (cmdFile) return `"${cmdFile}"`;
+    }
+    const firstLine = lines[0];
+    if (firstLine) return isWin ? `"${firstLine}"` : firstLine;
+  } catch {}
+  return isWin ? 'pm2.cmd' : 'pm2';
 }
 
 interface Pm2AppInfo {
@@ -178,15 +205,13 @@ export async function POST(req: Request) {
 
     let command = '';
 
-    if (action === 'start') {
+    if (action === 'start' || action === 'restart') {
       const current = await queryPm2Status(pm2Bin);
       if (current.exists) {
-        command = `${pm2Bin} restart devhub`;
+        command = `${pm2Bin} delete devhub && ${pm2Bin} start "${ecosystemPath}"`;
       } else {
         command = `${pm2Bin} start "${ecosystemPath}"`;
       }
-    } else if (action === 'restart') {
-      command = `${pm2Bin} restart devhub`;
     } else if (action === 'stop') {
       command = `${pm2Bin} stop devhub`;
     } else if (action === 'delete') {
@@ -201,7 +226,11 @@ export async function POST(req: Request) {
           });
         } catch {}
       }
-      command = `${pm2Bin} save && ${pm2Bin} startup`;
+      if (process.platform === 'win32') {
+        command = `${pm2Bin} save`;
+      } else {
+        command = `${pm2Bin} save && ${pm2Bin} startup`;
+      }
     }
 
     let stdout = '';
@@ -224,7 +253,7 @@ export async function POST(req: Request) {
     }
 
     // Ambil status terbaru setelah jeda singkat
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await new Promise((resolve) => setTimeout(resolve, 1200));
     const freshStatus = await queryPm2Status(pm2Bin);
 
     return NextResponse.json({

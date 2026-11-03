@@ -181,7 +181,7 @@ export function WadAnalyticsCard({
                 </span>
                 <div className='flex items-baseline gap-1'>
                   <span
-                    className={`text-[16px] font-extrabold tracking-tight font-mono leading-none ${getRatioToneClass(workload?.kpis?.workdaysPassed || 0, workload?.kpis?.totalMonthWorkdays || 0)}`}
+                    className={`text-[16px] font-extrabold tracking-tight font-mono leading-none`}
                   >
                     {workload?.kpis?.workdaysPassed || 0}
                   </span>

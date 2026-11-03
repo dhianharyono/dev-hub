@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronDown,
   Eye,
   EyeOff,
   RefreshCw,
@@ -17,6 +18,8 @@ interface GitlabSettingsSectionProps {
   testResult?: TestResult['gitlab'];
   testing?: TestingState['gitlab'];
   onTest: () => void;
+  minimized?: boolean;
+  onToggleMinimize?: () => void;
 }
 
 export function GitlabSettingsSection({
@@ -25,19 +28,36 @@ export function GitlabSettingsSection({
   testResult,
   testing,
   onTest,
+  minimized,
+  onToggleMinimize,
 }: GitlabSettingsSectionProps) {
+  const [localMinimized, setLocalMinimized] = useState(true);
+  const isMinimized = minimized !== undefined ? minimized : localMinimized;
+  const handleToggleMinimize = onToggleMinimize || (() => setLocalMinimized((prev) => !prev));
+
   const [showToken, setShowToken] = useState(false);
   return (
-    <section className='card flex flex-col gap-6 p-6'>
-      <div className='flex items-center justify-between flex-wrap gap-4 pb-4 border-b border-border'>
-        <div className='flex items-start gap-2.5 flex-1 min-w-0'>
-          <span className='w-[26px] h-[26px] rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-xs font-extrabold text-slate-muted shrink-0 mt-0.5'>
+    <section className={`card flex flex-col ${isMinimized ? 'p-5 sm:p-6' : 'p-6 gap-5'}`}>
+      <div className='flex items-center justify-between flex-wrap gap-4'>
+        <div
+          className='flex items-start gap-2.5 flex-1 min-w-0 cursor-pointer select-none group'
+          onClick={handleToggleMinimize}
+          title={isMinimized ? 'Klik untuk memperluas' : 'Klik untuk meminimalkan'}
+        >
+          <span className='w-[26px] h-[26px] rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-xs font-extrabold text-slate-muted group-hover:border-brand/40 group-hover:text-brand shrink-0 mt-0.5 transition-colors'>
             2
           </span>
           <div className='flex-1 min-w-0'>
-            <span className='text-[15px] font-bold text-slate-text tracking-tight'>
-              GitLab Playcourt Monitoring
-            </span>
+            <div className='flex items-center gap-2 flex-wrap'>
+              <span className='text-[15px] font-bold text-slate-text tracking-tight group-hover:text-brand transition-colors'>
+                GitLab Playcourt Monitoring
+              </span>
+              {isMinimized && (
+                <span className='inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200'>
+                  Diminimalkan
+                </span>
+              )}
+            </div>
             <div className='xs dim mt-0.5'>
               Pelacakan commit, merge request, baris kode, dan kalkulasi
               produktivitas
@@ -46,15 +66,33 @@ export function GitlabSettingsSection({
         </div>
 
         <div className='shrink-0 flex flex-col items-start sm:items-end gap-2 max-w-full sm:max-w-md'>
-          <button
-            type='button'
-            className='btn btn-sm'
-            onClick={onTest}
-            disabled={testing}
-          >
-            {testing ? <span className='spinner' /> : <RefreshCw size={13} />}
-            <span>Uji Koneksi GitLab</span>
-          </button>
+          <div className='flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end'>
+            <button
+              type='button'
+              className='btn btn-sm'
+              onClick={onTest}
+              disabled={testing}
+            >
+              {testing ? <span className='spinner' /> : <RefreshCw size={13} />}
+              <span>Uji Koneksi GitLab</span>
+            </button>
+
+            <button
+              type='button'
+              className='btn btn-sm btn-ghost p-1.5 text-slate-500 hover:text-slate-800 hover:bg-surface-subtle border border-transparent hover:border-border rounded-lg transition-all'
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggleMinimize();
+              }}
+              title={isMinimized ? 'Perluas kartu' : 'Minimalkan kartu'}
+              aria-label={isMinimized ? 'Perluas kartu' : 'Minimalkan kartu'}
+            >
+              <ChevronDown
+                size={15}
+                className={`transition-transform duration-200 ${isMinimized ? '' : 'rotate-180'}`}
+              />
+            </button>
+          </div>
 
           {!testing && testResult && (
             <div
@@ -85,126 +123,128 @@ export function GitlabSettingsSection({
         </div>
       </div>
 
-      {form.appMode === 'monitoring' && (
-        <div className='flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl bg-purple-50/80 border border-purple-200 text-purple-900 text-xs'>
-          <AlertCircle size={15} className='text-purple-600 shrink-0 mt-0.5' />
-          <div>
-            <span className='font-bold'>Mode Monitoring Aktif:</span> Modul Productivity Monitor dan indikator GitLab dinonaktifkan dari sidemenu serta dashboard. Kredensial di bawah ini tetap tersimpan aman jika Anda beralih ke Mode Developer.
+      <div className={isMinimized ? 'hidden' : 'flex flex-col gap-6 pt-5 border-t border-border'}>
+        {form.appMode === 'monitoring' && (
+          <div className='flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl bg-purple-50/80 border border-purple-200 text-purple-900 text-xs'>
+            <AlertCircle size={15} className='text-purple-600 shrink-0 mt-0.5' />
+            <div>
+              <span className='font-bold'>Mode Monitoring Aktif:</span> Modul Productivity Monitor dan indikator GitLab dinonaktifkan dari sidemenu serta dashboard. Kredensial di bawah ini tetap tersimpan aman jika Anda beralih ke Mode Developer.
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-        <div className='field'>
-          <label>GitLab Base URL</label>
-          <input
-            className='input'
-            value={form.gitlabBaseUrl || ''}
-            placeholder='https://gitlab.com/'
-            onChange={(e) => onChange('gitlabBaseUrl', e.target.value)}
-          />
-        </div>
-        <div className='field'>
-          <label>Username GitLab</label>
-          <input
-            className='input'
-            value={form.gitlabUsername || ''}
-            placeholder='username-anda'
-            onChange={(e) => onChange('gitlabUsername', e.target.value)}
-          />
-        </div>
-        <div className='field'>
-          <div className='flex items-center gap-1.5'>
-            <label htmlFor='gitlab-pat' className='cursor-pointer'>
-              Personal Access Token (PAT)
-            </label>
-            <Tooltip
-              title='Kebutuhan Scope Token'
-              ariaLabel='Informasi Scope Token GitLab'
-              content={
-                <div className='flex flex-col gap-2'>
-                  <div className='flex items-start gap-2'>
-                    <code className='bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded text-[11px] font-mono shrink-0'>
-                      api
-                    </code>
-                    <span>
-                      Posting review kode, komentar, dan membuat MR otomatis
-                    </span>
-                  </div>
-                  <div className='flex items-start gap-2'>
-                    <code className='bg-sky-50 text-sky-700 border border-sky-200 px-1.5 py-0.5 rounded text-[11px] font-mono shrink-0'>
-                      read_api
-                    </code>
-                    <span>
-                      Membaca riwayat commit, metadata proyek, dan kalkulasi
-                      produktivitas
-                    </span>
-                  </div>
-                </div>
-              }
-            />
-          </div>
-
-          <div className='relative flex items-center'>
+        <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+          <div className='field'>
+            <label>GitLab Base URL</label>
             <input
-              id='gitlab-pat'
-              type={showToken ? 'text' : 'password'}
-              className='input pr-10'
-              value={form.gitlabToken || ''}
-              placeholder='glpat-xxxxxxxxxxxx'
-              onChange={(e) => onChange('gitlabToken', e.target.value)}
+              className='input'
+              value={form.gitlabBaseUrl || ''}
+              placeholder='https://gitlab.com/'
+              onChange={(e) => onChange('gitlabBaseUrl', e.target.value)}
             />
-            <button
-              type='button'
-              onClick={() => setShowToken(!showToken)}
-              title={showToken ? 'Sembunyikan Token' : 'Tampilkan Token'}
-              className='absolute right-2.5 text-slate-400 hover:text-slate-600 p-1 flex items-center justify-center transition-colors'
-            >
-              {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
+          </div>
+          <div className='field'>
+            <label>Username GitLab</label>
+            <input
+              className='input'
+              value={form.gitlabUsername || ''}
+              placeholder='username-anda'
+              onChange={(e) => onChange('gitlabUsername', e.target.value)}
+            />
+          </div>
+          <div className='field'>
+            <div className='flex items-center gap-1.5'>
+              <label htmlFor='gitlab-pat' className='cursor-pointer'>
+                Personal Access Token (PAT)
+              </label>
+              <Tooltip
+                title='Kebutuhan Scope Token'
+                ariaLabel='Informasi Scope Token GitLab'
+                content={
+                  <div className='flex flex-col gap-2'>
+                    <div className='flex items-start gap-2'>
+                      <code className='bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded text-[11px] font-mono shrink-0'>
+                        api
+                      </code>
+                      <span>
+                        Posting review kode, komentar, dan membuat MR otomatis
+                      </span>
+                    </div>
+                    <div className='flex items-start gap-2'>
+                      <code className='bg-sky-50 text-sky-700 border border-sky-200 px-1.5 py-0.5 rounded text-[11px] font-mono shrink-0'>
+                        read_api
+                      </code>
+                      <span>
+                        Membaca riwayat commit, metadata proyek, dan kalkulasi
+                        produktivitas
+                      </span>
+                    </div>
+                  </div>
+                }
+              />
+            </div>
+
+            <div className='relative flex items-center'>
+              <input
+                id='gitlab-pat'
+                type={showToken ? 'text' : 'password'}
+                className='input pr-10'
+                value={form.gitlabToken || ''}
+                placeholder='glpat-xxxxxxxxxxxx'
+                onChange={(e) => onChange('gitlabToken', e.target.value)}
+              />
+              <button
+                type='button'
+                onClick={() => setShowToken(!showToken)}
+                title={showToken ? 'Sembunyikan Token' : 'Tampilkan Token'}
+                className='absolute right-2.5 text-slate-400 hover:text-slate-600 p-1 flex items-center justify-center transition-colors'
+              >
+                {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+          <div className='field'>
+            <label>Identitas Email Commit (pisahkan dengan koma)</label>
+            <input
+              className='input'
+              value={form.identityEmails || ''}
+              placeholder='dev@example.com, work@company.com'
+              onChange={(e) => onChange('identityEmails', e.target.value)}
+            />
+            <span className='hint'>
+              Hanya commit dari email ini yang akan dihitung sebagai kontribusi
+              Anda.
+            </span>
+          </div>
+          <div className='field'>
+            <label>Identitas Nama / Username Commit</label>
+            <input
+              className='input'
+              value={form.identityNames || ''}
+              placeholder='username, nama lengkap'
+              onChange={(e) => onChange('identityNames', e.target.value)}
+            />
+            <span className='hint'>
+              Nama akun git author yang digunakan pada git config local Anda.
+            </span>
+          </div>
+        </div>
+
         <div className='field'>
-          <label>Identitas Email Commit (pisahkan dengan koma)</label>
+          <label>Pola File yang Diabaikan (Exclude)</label>
           <input
-            className='input'
-            value={form.identityEmails || ''}
-            placeholder='dev@example.com, work@company.com'
-            onChange={(e) => onChange('identityEmails', e.target.value)}
+            className='input font-mono text-xs'
+            value={form.excludePatterns || ''}
+            onChange={(e) => onChange('excludePatterns', e.target.value)}
           />
           <span className='hint'>
-            Hanya commit dari email ini yang akan dihitung sebagai kontribusi
-            Anda.
+            Baris kode file lock, vendor, bundle, minified tidak akan dihitung
+            agar angka produktivitas realistis.
           </span>
         </div>
-        <div className='field'>
-          <label>Identitas Nama / Username Commit</label>
-          <input
-            className='input'
-            value={form.identityNames || ''}
-            placeholder='username, nama lengkap'
-            onChange={(e) => onChange('identityNames', e.target.value)}
-          />
-          <span className='hint'>
-            Nama akun git author yang digunakan pada git config local Anda.
-          </span>
-        </div>
-      </div>
-
-      <div className='field'>
-        <label>Pola File yang Diabaikan (Exclude)</label>
-        <input
-          className='input font-mono text-xs'
-          value={form.excludePatterns || ''}
-          onChange={(e) => onChange('excludePatterns', e.target.value)}
-        />
-        <span className='hint'>
-          Baris kode file lock, vendor, bundle, minified tidak akan dihitung
-          agar angka produktivitas realistis.
-        </span>
       </div>
     </section>
   );

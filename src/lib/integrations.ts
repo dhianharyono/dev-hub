@@ -1,6 +1,7 @@
 import 'server-only';
 import { getSettings } from './settings';
 import { refreshToken } from './taiga/client';
+import { BROWSER_USER_AGENT } from './taiga/types';
 import {
   isCloudflareChallenge,
   executeTaigaViaChrome,
@@ -102,16 +103,19 @@ export async function checkIntegrationsStatus(
         if (bridge.data?.username) taigaUsername = bridge.data.username;
       } else {
         const ctrl = new AbortController();
-        const timeout = setTimeout(() => ctrl.abort(), 3000);
+        const timeout = setTimeout(() => ctrl.abort(), 6000);
         let res: Response | null = null;
         let bodyPreview = '';
 
         try {
           res = await fetch(`${baseUrl}/api/v1/users/me`, {
             headers: {
+              'User-Agent': BROWSER_USER_AGENT,
+              'Accept': 'application/json, text/plain, */*',
               'Content-Type': 'application/json',
               Authorization: `Bearer ${s.taigaToken}`,
               'x-disable-pagination': 'True',
+              'Accept-Language': 'en-US,en;q=0.9,id;q=0.8',
             },
             signal: ctrl.signal,
             cache: 'no-store',
@@ -132,9 +136,12 @@ export async function checkIntegrationsStatus(
             const newToken = await refreshToken();
             res = await fetch(`${baseUrl}/api/v1/users/me`, {
               headers: {
+                'User-Agent': BROWSER_USER_AGENT,
+                'Accept': 'application/json, text/plain, */*',
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${newToken}`,
                 'x-disable-pagination': 'True',
+                'Accept-Language': 'en-US,en;q=0.9,id;q=0.8',
               },
               signal: ctrl.signal,
               cache: 'no-store',

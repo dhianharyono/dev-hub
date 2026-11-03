@@ -187,7 +187,9 @@ export default function Sidebar() {
               DEV HUB
             </span>
             <span className='text-[10px] font-medium text-slate-muted leading-tight'>
-              {isMonitoring ? 'Pemantauan Tim' : 'Asisten Produktivitas'}
+              {isMonitoring
+                ? 'Monitoring Produktivitas'
+                : 'Asisten Produktivitas'}
             </span>
           </div>
         </Link>
@@ -239,7 +241,9 @@ export default function Sidebar() {
                 DEV HUB
               </span>
               <span className='text-[10.5px] font-medium text-slate-muted leading-tight whitespace-nowrap'>
-                {isMonitoring ? 'Pemantauan Tim' : 'Asisten Produktivitas'}
+                {isMonitoring
+                  ? 'Monitoring Produktivitas'
+                  : 'Asisten Produktivitas'}
               </span>
             </div>
           </div>
@@ -378,7 +382,9 @@ export default function Sidebar() {
                 </h2>
                 <div className='flex items-center gap-1.5'>
                   <span className='text-[10.5px] font-medium text-slate-muted leading-tight whitespace-nowrap'>
-                    {isMonitoring ? 'Pemantauan Tim' : 'Asisten Produktivitas'}
+                    {isMonitoring
+                      ? 'Monitoring Produktivitas'
+                      : 'Asisten Produktivitas'}
                   </span>
                 </div>
               </div>

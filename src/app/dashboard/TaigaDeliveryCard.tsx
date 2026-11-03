@@ -381,7 +381,7 @@ export function TaigaDeliveryCard({
                   Tugas Aktif
                 </span>
                 <span className='text-[17px] font-extrabold truncate text-purple-600'>
-                  {activeTasks.length} In-Flight
+                  {activeTasks.length}
                 </span>
                 <span className='text-[11.5px] text-slate-muted truncate'>
                   {todoCount} Antrean
@@ -405,7 +405,7 @@ export function TaigaDeliveryCard({
                   Proyek Terpetakan
                 </span>
                 <span className='text-[17px] font-extrabold truncate text-violet-600'>
-                  {projectAllocations.length || projectCount || 1} Proyek
+                  {projectAllocations.length || projectCount || 0} Proyek
                 </span>
                 <span className='text-[11.5px] text-slate-muted truncate'>
                   Alokasi Tim
