@@ -8,19 +8,11 @@ Buka menu **Pengaturan** di antarmuka web DevHub untuk menghubungkan integrasi l
 
 Taiga menggunakan autentikasi SSO (Single Sign-On):
 
-1. Login ke web Taiga di browser Anda.
-2. Buka DevTools (`F12` atau klik kanan → *Inspect*), masuk ke tab **Console**.
-3. Di menu Pengaturan DevHub, klik tombol **"📋 Salin Script DevTools Console"** (atau jalankan script berikut di Console browser):
-   ```javascript
-   copy(
-     JSON.stringify({
-       token: localStorage.token,
-       refresh: localStorage.refresh,
-     }),
-   );
-   ```
-4. Paste hasil salinan ke input **Taiga SSO Session / Bearer Token** di DevHub, lalu klik **Simpan Pengaturan**.
-5. Klik **"Uji Koneksi"** untuk memastikan token valid.
+1. Buka dan login ke web Taiga di Google Chrome Anda.
+2. Pastikan tab Taiga aktif dan tidak terhalang verifikasi Cloudflare ("Tunggu sebentar...").
+3. Di menu Pengaturan DevHub, klik tombol **"✨ Tarik Sesi dari Chrome"** untuk menghubungkan sesi secara otomatis.
+4. *(Alternatif Manual)* Anda juga dapat menyalin token atau JSON session langsung ke kolom **JSON Session / Token**, lalu klik **Simpan Pengaturan**.
+5. Klik **"Uji Koneksi Taiga"** untuk memastikan koneksi berhasil.
 6. *(Opsional)* **Project Slug & Default Sprint Slug**: Biarkan kosong untuk deteksi otomatis project & sprint pertama Anda di Taiga.
 
 ---
