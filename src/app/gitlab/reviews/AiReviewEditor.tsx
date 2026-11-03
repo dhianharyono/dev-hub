@@ -51,9 +51,9 @@ export function AiReviewEditor({
   const [copied, setCopied] = useState(false);
 
   return (
-    <div className='flex flex-col gap-3 flex-1'>
+    <div className='flex flex-col gap-3'>
       {/* Draft Comment Container */}
-      <div className='border border-border rounded-lg overflow-hidden bg-surface flex flex-col flex-1'>
+      <div className='border border-border rounded-lg overflow-hidden bg-surface flex flex-col'>
         {/* Header with View Tabs */}
         <div className='row-between px-4 py-2.5 bg-surface-subtle border-b border-border items-center flex-wrap gap-2.5'>
           <div className='flex items-center gap-2'>
@@ -120,7 +120,7 @@ export function AiReviewEditor({
         {/* Content Area */}
         {activeView === 'threads' && hasFindings ? (
           /* Structured Diff Threads Preview */
-          <div className='p-4 sm:p-5 flex flex-col gap-4 flex-1 min-h-[460px] overflow-y-auto bg-surface-subtle'>
+          <div className='p-4 sm:p-5 flex flex-col gap-4 max-h-[380px] overflow-y-auto bg-surface-subtle'>
             {summaryText && (
               <div className='bg-surface border border-border rounded-lg p-3.5 sm:px-4 text-[13px] leading-relaxed text-slate-text shadow-xs'>
                 <div className='flex items-center gap-2 mb-1.5 flex-wrap'>
@@ -202,13 +202,13 @@ export function AiReviewEditor({
           <>
             {isEditing ? (
               <textarea
-                className='input min-h-[460px] font-mono text-[12.5px] leading-relaxed p-4 sm:p-[18px] border-none rounded-none w-full resize-y'
+                className='input font-mono text-[12.5px] leading-relaxed p-4 sm:p-5 border-none rounded-none w-full resize-y min-h-[100px] max-h-[360px]'
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
-                rows={18}
+                rows={Math.max(3, Math.min(12, commentText.split('\n').length + 1))}
               />
             ) : (
-              <div className='flex-1 min-h-[460px] overflow-y-auto p-5 sm:p-[22px] bg-surface leading-relaxed text-slate-text'>
+              <div className='overflow-y-auto p-4 sm:p-5 bg-surface leading-relaxed text-slate-text max-h-[360px]'>
                 <Markdown text={commentText} />
               </div>
             )}
@@ -283,7 +283,7 @@ export function AiReviewEditor({
       )}
 
       {/* Action Bar */}
-      <div className='flex items-center justify-between flex-wrap gap-3 px-4 py-3 rounded-lg bg-surface-subtle border border-border'>
+      <div className='sticky bottom-0 z-10 flex items-center justify-between flex-wrap gap-3 px-4 py-3 rounded-lg bg-surface-subtle border border-border shadow-xs'>
         <div className='text-xs text-slate-700 font-medium'>
           {hasFindings && toneMode === 'audit'
             ? `Setiap temuan akan diposting sebagai inline thread pada diff MR (${findingsList.length} komentar).`

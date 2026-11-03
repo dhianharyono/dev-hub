@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ShieldCheck, ThumbsUp, Minimize2 } from 'lucide-react';
 import type { IncomingMRItem, PreReviewOutput, ReviewToneMode } from './types';
 import { AiReviewScoreBanner } from './AiReviewScoreBanner';
@@ -78,16 +78,29 @@ export function AiReviewGenerator({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [postError, setPostError] = useState<string | null>(null);
 
+  const lastSyncedTaskKey = useRef<string | null>(null);
+
   // Sync state if background task completed or updated
   useEffect(() => {
     if (mr && currentTask?.status === 'completed' && currentTask.result) {
-      const revData = currentTask.result as PreReviewOutput;
-      setReviewResult(revData);
-      const effectiveMode = (currentTask.params?.toneMode as ReviewToneMode) || toneMode;
-      setToneMode(effectiveMode);
-      setCommentText(formatOrganicComment(mr, revData, effectiveMode));
+      const taskKey = `${currentTask.id}-${currentTask.completedAt || ''}`;
+      if (lastSyncedTaskKey.current !== taskKey) {
+        lastSyncedTaskKey.current = taskKey;
+        const revData = currentTask.result as PreReviewOutput;
+        setReviewResult(revData);
+        const effectiveMode = (currentTask.params?.toneMode as ReviewToneMode) || 'audit';
+        setToneMode(effectiveMode);
+        setCommentText(formatOrganicComment(mr, revData, effectiveMode));
+      }
     }
-  }, [currentTask, mr, toneMode]);
+  }, [currentTask, mr]);
+
+  const handleModeChange = (newMode: ReviewToneMode) => {
+    setToneMode(newMode);
+    if (reviewResult && mr) {
+      setCommentText(formatOrganicComment(mr, reviewResult, newMode));
+    }
+  };
 
   const handleGenerate = async (selectedMode: ReviewToneMode = toneMode) => {
     if (!mr) return;
@@ -98,7 +111,11 @@ export function AiReviewGenerator({
     try {
       const revData = await startMrReviewTask({ mr, toneMode: selectedMode });
       setReviewResult(revData);
+      setToneMode(selectedMode);
       setCommentText(formatOrganicComment(mr, revData, selectedMode));
+      if (currentTask) {
+        lastSyncedTaskKey.current = `${currentTask.id}-${currentTask.completedAt || ''}`;
+      }
     } catch (e) {
       if ((e as Error).name !== 'AbortError') {
         const errMsg = (e as Error).message;
@@ -174,11 +191,7 @@ export function AiReviewGenerator({
           <button
             type='button'
             aria-pressed={toneMode === 'audit'}
-            onClick={() => {
-              setToneMode('audit');
-              if (reviewResult)
-                setCommentText(formatOrganicComment(mr, reviewResult, 'audit'));
-            }}
+            onClick={() => handleModeChange('audit')}
             className='text-[12.5px] px-3.5 py-1.5 gap-1.5'
           >
             <ShieldCheck size={14} />
@@ -187,11 +200,7 @@ export function AiReviewGenerator({
           <button
             type='button'
             aria-pressed={toneMode === 'lgtm'}
-            onClick={() => {
-              setToneMode('lgtm');
-              if (reviewResult)
-                setCommentText(formatOrganicComment(mr, reviewResult, 'lgtm'));
-            }}
+            onClick={() => handleModeChange('lgtm')}
             className='text-[12.5px] px-3.5 py-1.5 gap-1.5'
           >
             <ThumbsUp size={14} />
@@ -219,7 +228,7 @@ export function AiReviewGenerator({
       {/* Main Content Area */}
       {loading || isGenerating ? (
         /* Prominent Centered Loading Card */
-        <div className='flex-1 min-h-[340px] max-h-[520px] flex flex-col items-center justify-center text-center p-8 sm:px-6 border border-dashed border-border rounded-xl bg-surface-subtle gap-4 my-2 animate-fade-up'>
+        <div className='flex-1 min-h-[360px] flex flex-col items-center justify-center text-center p-8 sm:px-6 border border-dashed border-border rounded-xl bg-surface-subtle gap-4 animate-fade-up'>
           <div className='w-14 h-14 rounded-full bg-blue-600/[0.08] text-primary flex items-center justify-center'>
             <ShieldCheck size={28} className='animate-pulse' />
           </div>
@@ -246,7 +255,7 @@ export function AiReviewGenerator({
         </div>
       ) : !reviewResult ? (
         /* Initial State */
-        <div className='flex-1 min-h-[340px] max-h-[520px] flex flex-col items-center justify-center text-center p-8 sm:px-6 border border-dashed border-border rounded-xl bg-surface-subtle gap-3.5 my-2'>
+        <div className='flex-1 min-h-[360px] flex flex-col items-center justify-center text-center p-8 sm:px-6 border border-dashed border-border rounded-xl bg-surface-subtle gap-3.5'>
           <div className='w-[52px] h-[52px] rounded-full bg-blue-600/[0.08] text-primary flex items-center justify-center'>
             <ShieldCheck size={24} />
           </div>
@@ -262,7 +271,7 @@ export function AiReviewGenerator({
         </div>
       ) : (
         /* Result State */
-        <div className='flex flex-col gap-3 flex-1'>
+        <div className='flex flex-col gap-3'>
           <AiReviewScoreBanner
             score={reviewResult.score}
             verdict={reviewResult.verdict}

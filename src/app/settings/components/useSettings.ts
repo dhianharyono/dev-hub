@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { PublicSettings, TestResult, TestingState } from '../types';
 import type { IntegrationStatus } from '@/components/hooks';
 import { useNotification } from '@/components/Notification';
+import { triggerTelemetryRefresh } from '@/components/SidebarTelemetry';
 
 export function useSettings() {
   const { notify } = useNotification();
@@ -19,6 +20,7 @@ export function useSettings() {
       const res = await fetch(`/api/integrations/status${force ? '?force=1' : ''}`);
       if (res.ok) {
         setIntegrations(await res.json());
+        triggerTelemetryRefresh();
       }
     } catch {
       // Ignore

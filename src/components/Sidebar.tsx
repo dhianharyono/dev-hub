@@ -15,7 +15,11 @@ import {
   Menu,
   X,
 } from 'lucide-react';
-import { SidebarTelemetry, type ServiceTelemetry } from './SidebarTelemetry';
+import {
+  SidebarTelemetry,
+  type ServiceTelemetry,
+  TELEMETRY_REFRESH_EVENT,
+} from './SidebarTelemetry';
 
 const PRIMARY_NAV = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -48,6 +52,12 @@ export default function Sidebar() {
     }
   }, [path]);
 
+  const handleNavClick = (href: string) => {
+    if (href === '/gitlab' && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('devhub:gitlab-reset-tab'));
+    }
+  };
+
 
   // Handle ESC key and lock body scroll when mobile drawer is open
   useEffect(() => {
@@ -72,11 +82,11 @@ export default function Sidebar() {
   useEffect(() => {
     let isMounted = true;
 
-    async function loadData() {
+    async function loadData(force = false) {
       try {
         const [integrationsRes, statsRes, workloadRes] =
           await Promise.allSettled([
-            fetch('/api/integrations/status').then((r) =>
+            fetch(`/api/integrations/status${force ? '?force=1' : ''}`).then((r) =>
               r.ok ? r.json() : null,
             ),
             fetch('/api/gitlab/stats?days=30').then((r) =>
@@ -136,8 +146,23 @@ export default function Sidebar() {
 
     loadData();
 
+    const handleRefresh = () => {
+      loadData(true);
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadData(true);
+      }
+    };
+
+    window.addEventListener(TELEMETRY_REFRESH_EVENT, handleRefresh);
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       isMounted = false;
+      window.removeEventListener(TELEMETRY_REFRESH_EVENT, handleRefresh);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
 
@@ -244,7 +269,10 @@ export default function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => setMobileOpen(false)}
+                onClick={() => {
+                  setMobileOpen(false);
+                  handleNavClick(item.href);
+                }}
                 className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-colors ${
                   active
                     ? 'text-brand bg-surface-active font-bold shadow-2xs'
@@ -308,6 +336,7 @@ export default function Sidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={() => handleNavClick(item.href)}
                   className={`w-11 h-11 rounded-xl grid place-items-center transition-all ${
                     active
                       ? 'bg-white text-brand shadow-md font-bold'
@@ -376,6 +405,7 @@ export default function Sidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={() => handleNavClick(item.href)}
                   className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-colors ${
                     active
                       ? 'text-brand bg-surface-active font-bold shadow-2xs'

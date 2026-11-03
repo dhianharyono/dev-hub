@@ -34,10 +34,6 @@ export default function GitlabDashboard() {
       if (tab && ['productivity', 'mr_assistant', 'pre_review', 'incoming_reviews'].includes(tab)) {
         return tab;
       }
-      const saved = sessionStorage.getItem('devhub_gitlab_active_view') as GitlabActiveView;
-      if (saved && ['productivity', 'mr_assistant', 'pre_review', 'incoming_reviews'].includes(saved)) {
-        return saved;
-      }
     }
     return 'productivity';
   });
@@ -50,23 +46,23 @@ export default function GitlabDashboard() {
   const gitlabError = integrations?.gitlab?.error;
   const { notify } = useNotification();
 
+  // Reset to initial tab ('productivity') when navigating to Productivity Monitor menu
+  useEffect(() => {
+    const handleReset = () => {
+      setActiveView('productivity');
+    };
+    window.addEventListener('devhub:gitlab-reset-tab', handleReset);
+    return () => window.removeEventListener('devhub:gitlab-reset-tab', handleReset);
+  }, []);
+
   // Switch tab view if restoreTarget is requested from dock
   useEffect(() => {
     if (restoreTarget?.view === 'mr_assistant' || restoreTarget?.type === 'mr_assistant') {
       setActiveView('mr_assistant');
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('devhub_gitlab_active_view', 'mr_assistant');
-      }
     } else if (restoreTarget?.view === 'pre_review' || restoreTarget?.type === 'pre_review') {
       setActiveView('pre_review');
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('devhub_gitlab_active_view', 'pre_review');
-      }
     } else if (restoreTarget?.mr || restoreTarget?.type === 'mr_review') {
       setActiveView('incoming_reviews');
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('devhub_gitlab_active_view', 'incoming_reviews');
-      }
     }
   }, [restoreTarget]);
 
@@ -74,9 +70,6 @@ export default function GitlabDashboard() {
     if (newView !== activeView) {
       minimizeAllRunning();
       setActiveView(newView);
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('devhub_gitlab_active_view', newView);
-      }
     }
   };
 

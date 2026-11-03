@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { cleanTaigaErrorMessage } from '@/lib/taiga/types';
+import { triggerTelemetryRefresh } from '@/components/SidebarTelemetry';
 import type { PublicSettings, TestResult, TestingState } from '../types';
 
 interface TaigaSettingsSectionProps {
@@ -53,6 +54,7 @@ export function TaigaSettingsSection({
           if (data.settings.taigaRefresh)
             onChange('taigaRefresh', data.settings.taigaRefresh);
         }
+        triggerTelemetryRefresh();
         if (onTest) setTimeout(onTest, 600);
       } else {
         setChromeSyncMsg({

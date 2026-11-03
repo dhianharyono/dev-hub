@@ -1,6 +1,14 @@
 import Link from 'next/link';
 import { GitBranch, CheckCircle2, Zap } from 'lucide-react';
 
+export const TELEMETRY_REFRESH_EVENT = 'devhub:telemetry-refresh';
+
+export function triggerTelemetryRefresh() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(TELEMETRY_REFRESH_EVENT));
+  }
+}
+
 export interface ServiceTelemetry {
   gitlab: {
     connected: boolean;
@@ -33,6 +41,11 @@ export function SidebarTelemetry({ telemetry }: SidebarTelemetryProps) {
       {/* GitLab */}
       <Link
         href={telemetry.gitlab.connected ? '/gitlab' : '/settings'}
+        onClick={() => {
+          if (telemetry.gitlab.connected && typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('devhub:gitlab-reset-tab'));
+          }
+        }}
         className={`flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all select-none no-underline ${
           telemetry.gitlab.connected
             ? 'hover:bg-surface-hover'
