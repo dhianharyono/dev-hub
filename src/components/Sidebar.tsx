@@ -19,6 +19,8 @@ import {
   SidebarTelemetry,
   type ServiceTelemetry,
   TELEMETRY_REFRESH_EVENT,
+  GITLAB_SYNC_EVENT,
+  type GitlabSyncEventDetail,
 } from './SidebarTelemetry';
 import { useAppMode } from './AppModeContext';
 
@@ -47,6 +49,8 @@ export default function Sidebar() {
     taiga: { connected: false, done: 0, total: 0 },
     wad: { connected: false, timeSpent: 0, expectedHours: 0 },
   });
+  const [telemetryLoading, setTelemetryLoading] = useState(false);
+  const [gitlabSyncing, setGitlabSyncing] = useState(false);
 
   // Automatically close mobile drawer when navigating to another route
   const prevPathRef = useRef(path);
@@ -88,16 +92,23 @@ export default function Sidebar() {
     let isMounted = true;
 
     async function loadData(force = false) {
+      setTelemetryLoading(true);
       try {
-        const [integrationsRes, statsRes, workloadRes] =
+        const [integrationsRes, statsRes, workloadRes, syncRes] =
           await Promise.allSettled([
-            fetch(`/api/integrations/status${force ? '?force=1' : ''}`).then(
-              (r) => (r.ok ? r.json() : null),
-            ),
-            fetch('/api/gitlab/stats?days=30').then((r) =>
+            fetch(`/api/integrations/status${force ? '?force=1' : ''}`, {
+              cache: 'no-store',
+            }).then((r) => (r.ok ? r.json() : null)),
+            fetch(
+              `/api/gitlab/stats?days=30${force ? `&_t=${Date.now()}` : ''}`,
+              { cache: 'no-store' },
+            ).then((r) => (r.ok ? r.json() : null)),
+            fetch(`/api/workload${force ? `?_t=${Date.now()}` : ''}`, {
+              cache: 'no-store',
+            }).then((r) => (r.ok ? r.json() : null)),
+            fetch('/api/gitlab/sync', { cache: 'no-store' }).then((r) =>
               r.ok ? r.json() : null,
             ),
-            fetch('/api/workload').then((r) => (r.ok ? r.json() : null)),
           ]);
 
         if (!isMounted) return;
@@ -107,6 +118,12 @@ export default function Sidebar() {
         const stats = statsRes.status === 'fulfilled' ? statsRes.value : null;
         const workload =
           workloadRes.status === 'fulfilled' ? workloadRes.value : null;
+        const syncStatus =
+          syncRes.status === 'fulfilled' ? syncRes.value : null;
+
+        if (syncStatus) {
+          setGitlabSyncing(Boolean(syncStatus.running));
+        }
 
         const gitlabConnected = Boolean(integrations?.gitlab?.connected);
         const taigaConnected = Boolean(integrations?.taiga?.connected);
@@ -146,6 +163,10 @@ export default function Sidebar() {
         });
       } catch {
         // Silently preserve initial values on error
+      } finally {
+        if (isMounted) {
+          setTelemetryLoading(false);
+        }
       }
     }
 
@@ -155,6 +176,17 @@ export default function Sidebar() {
       loadData(true);
     };
 
+    const handleSyncStatus = (e: Event) => {
+      const customEvt = e as CustomEvent<GitlabSyncEventDetail>;
+      if (customEvt.detail) {
+        const isRunning = Boolean(customEvt.detail.running);
+        setGitlabSyncing(isRunning);
+        if (!isRunning) {
+          loadData(true);
+        }
+      }
+    };
+
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
         loadData(true);
@@ -162,11 +194,13 @@ export default function Sidebar() {
     };
 
     window.addEventListener(TELEMETRY_REFRESH_EVENT, handleRefresh);
+    window.addEventListener(GITLAB_SYNC_EVENT, handleSyncStatus);
     document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       isMounted = false;
       window.removeEventListener(TELEMETRY_REFRESH_EVENT, handleRefresh);
+      window.removeEventListener(GITLAB_SYNC_EVENT, handleSyncStatus);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
@@ -259,7 +293,11 @@ export default function Sidebar() {
         </div>
 
         {/* Connected Services (Informational only) */}
-        <SidebarTelemetry telemetry={telemetry} />
+        <SidebarTelemetry
+          telemetry={telemetry}
+          loading={telemetryLoading}
+          gitlabSyncing={gitlabSyncing}
+        />
 
         {/* Navigation Links */}
         <nav
@@ -402,7 +440,11 @@ export default function Sidebar() {
           </div>
 
           {/* Connected Services (Informational only) */}
-          <SidebarTelemetry telemetry={telemetry} />
+          <SidebarTelemetry
+            telemetry={telemetry}
+            loading={telemetryLoading}
+            gitlabSyncing={gitlabSyncing}
+          />
 
           {/* Navigation Links */}
           <nav

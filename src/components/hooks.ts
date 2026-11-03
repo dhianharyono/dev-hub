@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LoadedMetrics } from "@/lib/stats";
+import {
+  triggerTelemetryRefresh,
+  triggerGitlabSyncStatus,
+} from "./SidebarTelemetry";
 
 export type MetricsData = LoadedMetrics;
 
@@ -80,11 +84,14 @@ export function useSync(onDone?: () => void) {
       wasRunning.current = false;
       if (timer.current) clearInterval(timer.current);
       timer.current = null;
+      triggerGitlabSyncStatus({ running: false, phase: s.phase });
+      triggerTelemetryRefresh();
       onDone?.();
     }
     if (s.running) {
       wasRunning.current = true;
       activeSession.current = true;
+      triggerGitlabSyncStatus({ running: true, phase: s.phase });
     }
     return s;
   }, [onDone]);
@@ -105,6 +112,7 @@ export function useSync(onDone?: () => void) {
             activeSession.current = true;
             wasRunning.current = true;
             setStatus(s);
+            triggerGitlabSyncStatus({ running: true, phase: s.phase });
             watch();
           }
           // If s.running is false, it's a finished sync from the past - do NOT display it on page load
@@ -121,6 +129,8 @@ export function useSync(onDone?: () => void) {
     async (days: number, full = false) => {
       activeSession.current = true;
       wasRunning.current = true;
+      triggerGitlabSyncStatus({ running: true, phase: "Memulai" });
+      triggerTelemetryRefresh();
       const r = await fetch(`/api/gitlab/sync?days=${days}${full ? "&full=1" : ""}`, { method: "POST" });
       setStatus(await r.json());
       watch();

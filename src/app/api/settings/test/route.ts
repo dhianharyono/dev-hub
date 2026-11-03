@@ -73,7 +73,7 @@ async function handleTest(payload: TestPayload) {
       const res = await fetch(`${baseUrl}/api/v1/users/me`, {
         headers: {
           'User-Agent': BROWSER_USER_AGENT,
-          'Accept': 'application/json, text/plain, */*',
+          Accept: 'application/json, text/plain, */*',
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
           'x-disable-pagination': 'True',
@@ -104,7 +104,9 @@ async function handleTest(payload: TestPayload) {
           if (bridge.tokenFromBrowser && bridge.tokenFromBrowser !== token) {
             saveSettings({
               taigaToken: bridge.tokenFromBrowser,
-              ...(bridge.refreshFromBrowser ? { taigaRefresh: bridge.refreshFromBrowser } : {}),
+              ...(bridge.refreshFromBrowser
+                ? { taigaRefresh: bridge.refreshFromBrowser }
+                : {}),
             });
           }
         }
@@ -113,7 +115,8 @@ async function handleTest(payload: TestPayload) {
         try {
           const j = await res.json();
           msg =
-            j._error_message || (j.detail ? String(j.detail) : JSON.stringify(j));
+            j._error_message ||
+            (j.detail ? String(j.detail) : JSON.stringify(j));
         } catch {
           try {
             const raw = await res.text();
@@ -121,7 +124,9 @@ async function handleTest(payload: TestPayload) {
           } catch {}
         }
         const cleanMsg = cleanTaigaErrorMessage(msg, res.status);
-        throw new Error(cleanMsg.startsWith('Taiga') ? cleanMsg : `Taiga: ${cleanMsg}`);
+        throw new Error(
+          cleanMsg.startsWith('Taiga') ? cleanMsg : `Taiga: ${cleanMsg}`,
+        );
       } else {
         me = (await res.json()) as {
           full_name_display?: string;
@@ -144,16 +149,26 @@ async function handleTest(payload: TestPayload) {
           if (bridge.tokenFromBrowser && bridge.tokenFromBrowser !== token) {
             saveSettings({
               taigaToken: bridge.tokenFromBrowser,
-              ...(bridge.refreshFromBrowser ? { taigaRefresh: bridge.refreshFromBrowser } : {}),
+              ...(bridge.refreshFromBrowser
+                ? { taigaRefresh: bridge.refreshFromBrowser }
+                : {}),
             });
           }
         } catch (bridgeErr) {
-          const cleanBridgeMsg = cleanTaigaErrorMessage((bridgeErr as Error).message);
-          throw new Error(cleanBridgeMsg.startsWith('Taiga') ? cleanBridgeMsg : `Taiga: ${cleanBridgeMsg}`);
+          const cleanBridgeMsg = cleanTaigaErrorMessage(
+            (bridgeErr as Error).message,
+          );
+          throw new Error(
+            cleanBridgeMsg.startsWith('Taiga')
+              ? cleanBridgeMsg
+              : `Taiga: ${cleanBridgeMsg}`,
+          );
         }
       } else {
         const cleanErr = cleanTaigaErrorMessage((err as Error).message);
-        throw new Error(cleanErr.startsWith('Taiga') ? cleanErr : `Taiga: ${cleanErr}`);
+        throw new Error(
+          cleanErr.startsWith('Taiga') ? cleanErr : `Taiga: ${cleanErr}`,
+        );
       }
     }
 
@@ -260,7 +275,7 @@ async function handleTest(payload: TestPayload) {
         : provider === 'anthropic'
           ? 'claude-3-5-sonnet-latest'
           : provider === 'custom'
-            ? 'deepseek-chat'
+            ? 'dpe/alias/glm-flash'
             : 'gemini-3.8-flash');
 
     if (
@@ -342,11 +357,13 @@ async function handleTest(payload: TestPayload) {
           throw err;
         }
         const causeMsg = (err as { cause?: Error })?.cause?.message;
-        const msg = (err as Error).name === 'TimeoutError' || (err as Error).name === 'AbortError'
-          ? 'Koneksi timeout (20 detik). Server proxy tidak merespons.'
-          : causeMsg
-            ? `${(err as Error).message} (${causeMsg})`
-            : (err as Error).message;
+        const msg =
+          (err as Error).name === 'TimeoutError' ||
+          (err as Error).name === 'AbortError'
+            ? 'Koneksi timeout (20 detik). Server proxy tidak merespons.'
+            : causeMsg
+              ? `${(err as Error).message} (${causeMsg})`
+              : (err as Error).message;
         throw new Error(`${provider.toUpperCase()}: ${msg}`);
       }
     }

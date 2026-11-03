@@ -44,7 +44,8 @@ export function GeminiSettingsSection({
 }: GeminiSettingsSectionProps) {
   const [localMinimized, setLocalMinimized] = useState(true);
   const isMinimized = minimized !== undefined ? minimized : localMinimized;
-  const handleToggleMinimize = onToggleMinimize || (() => setLocalMinimized((prev) => !prev));
+  const handleToggleMinimize =
+    onToggleMinimize || (() => setLocalMinimized((prev) => !prev));
 
   const [showApiKey, setShowApiKey] = useState(false);
   const provider = form.aiProvider || 'gemini';
@@ -70,12 +71,16 @@ export function GeminiSettingsSection({
   };
 
   return (
-    <section className={`card flex flex-col ${isMinimized ? 'p-5 sm:p-6' : 'p-6 gap-5'}`}>
+    <section
+      className={`card flex flex-col ${isMinimized ? 'p-5 sm:p-6' : 'p-6 gap-5'}`}
+    >
       <div className='flex items-center justify-between flex-wrap gap-4'>
         <div
           className='flex items-start gap-2.5 flex-1 min-w-0 cursor-pointer select-none group'
           onClick={handleToggleMinimize}
-          title={isMinimized ? 'Klik untuk memperluas' : 'Klik untuk meminimalkan'}
+          title={
+            isMinimized ? 'Klik untuk memperluas' : 'Klik untuk meminimalkan'
+          }
         >
           <span className='w-[26px] h-[26px] rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-xs font-extrabold text-slate-muted group-hover:border-brand/40 group-hover:text-brand shrink-0 mt-0.5 transition-colors'>
             3
@@ -129,10 +134,11 @@ export function GeminiSettingsSection({
 
           {!testing && testResult && (
             <div
-              className={`flex items-start gap-2.5 px-3 py-2 rounded-xl text-xs border w-full sm:w-auto animate-in fade-in ${testResult.ok
-                ? 'bg-emerald-50/70 border-emerald-200/80 text-emerald-800'
-                : 'bg-rose-50/70 border-rose-200/80 text-rose-800'
-                }`}
+              className={`flex items-start gap-2.5 px-3 py-2 rounded-xl text-xs border w-full sm:w-auto animate-in fade-in ${
+                testResult.ok
+                  ? 'bg-emerald-50/70 border-emerald-200/80 text-emerald-800'
+                  : 'bg-rose-50/70 border-rose-200/80 text-rose-800'
+              }`}
             >
               {testResult.ok ? (
                 <CheckCircle2
@@ -155,7 +161,13 @@ export function GeminiSettingsSection({
         </div>
       </div>
 
-      <div className={isMinimized ? 'hidden' : 'flex flex-col gap-6 pt-5 border-t border-border'}>
+      <div
+        className={
+          isMinimized
+            ? 'hidden'
+            : 'flex flex-col gap-6 pt-5 border-t border-border'
+        }
+      >
         <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
           {/* Provider Selector */}
           <div className='field'>
@@ -167,16 +179,18 @@ export function GeminiSettingsSection({
               value={provider}
               onChange={(e) =>
                 handleProviderChange(
-                  e.target.value as 'gemini' | 'openai' | 'anthropic' | 'custom',
+                  e.target.value as
+                    | 'gemini'
+                    | 'openai'
+                    | 'anthropic'
+                    | 'custom',
                 )
               }
             >
               <option value='gemini'>Google Gemini</option>
               <option value='openai'>OpenAI (ChatGPT / GPT-4o)</option>
               <option value='anthropic'>Anthropic (Claude 3.5)</option>
-              <option value='custom'>
-                Custom/OpenAI-Compatible
-              </option>
+              <option value='custom'>Custom/OpenAI-Compatible</option>
             </Select>
             <span className='hint'>
               Pilih provider AI yang ingin Anda gunakan di DEV HUB.
@@ -202,9 +216,9 @@ export function GeminiSettingsSection({
                       <strong className='text-slate-800 font-semibold'>
                         Model Acuan Utama &amp; Fallback:
                       </strong>{' '}
-                      Berfungsi sebagai model default. Semua menu yang pengaturan
-                      modelnya dikosongkan (&quot;Ikuti model global&quot;) akan
-                      otomatis menggunakan model ini.
+                      Berfungsi sebagai model default. Semua menu yang
+                      pengaturan modelnya dikosongkan (&quot;Ikuti model
+                      global&quot;) akan otomatis menggunakan model ini.
                     </p>
                     <p>
                       Model ini juga digunakan untuk{' '}
@@ -222,7 +236,7 @@ export function GeminiSettingsSection({
                 id='ai-model-global'
                 className='input !h-[38px] !min-h-[38px] !py-0 !px-3 !text-[13.5px] !rounded-[10px]'
                 value={form.aiModel || DEFAULT_MODEL_BY_PROVIDER.custom}
-                placeholder='deepseek-chat, llama3.2, mistral, dll'
+                placeholder='dpe/alias/glm-flash, llama3.2, mistral, dll'
                 onChange={(e) => onChange('aiModel', e.target.value)}
               />
             ) : (
@@ -235,14 +249,16 @@ export function GeminiSettingsSection({
                 }
                 onChange={(e) => {
                   onChange('aiModel', e.target.value);
-                  if (provider === 'gemini') onChange('geminiModel', e.target.value);
+                  if (provider === 'gemini')
+                    onChange('geminiModel', e.target.value);
                 }}
                 options={MODEL_OPTIONS[provider]}
               />
             )}
 
             <span className='hint'>
-              Model acuan default dan fallback otomatis jika model per menu dikosongkan.
+              Model acuan default dan fallback otomatis jika model per menu
+              dikosongkan.
             </span>
           </div>
 
@@ -365,7 +381,9 @@ export function GeminiSettingsSection({
                   (Wajib diisi untuk custom endpoint)
                 </span>
               ) : (
-                <span className='text-xs text-slate-400'>(Opsional / Proxy)</span>
+                <span className='text-xs text-slate-400'>
+                  (Opsional / Proxy)
+                </span>
               )}
             </label>
             <input

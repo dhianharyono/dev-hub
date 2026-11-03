@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   GitBranch,
@@ -12,6 +12,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useSync, useMetrics, useIntegrations } from '@/components/hooks';
+import { triggerTelemetryRefresh } from '@/components/SidebarTelemetry';
 import { useAppMode } from '@/components/AppModeContext';
 import { EmptyState } from '@/components/EmptyState';
 import { useNotification } from '@/components/Notification';
@@ -41,8 +42,17 @@ export default function GitlabDashboard() {
     return 'productivity';
   });
   const { data, loading, error, reload } = useMetrics(days);
-  const { status, start } = useSync(reload);
-  const { integrations, loading: loadingIntegrations, refresh: refreshIntegrations } = useIntegrations();
+  const {
+    integrations,
+    loading: loadingIntegrations,
+    refresh: refreshIntegrations,
+  } = useIntegrations();
+  const handleSyncDone = useCallback(() => {
+    reload();
+    refreshIntegrations(true);
+    triggerTelemetryRefresh();
+  }, [reload, refreshIntegrations]);
+  const { status, start } = useSync(handleSyncDone);
   const { restoreTarget, minimizeAllRunning } = useAiTask();
 
   const isGitlabConnected = Boolean(integrations?.gitlab?.connected);

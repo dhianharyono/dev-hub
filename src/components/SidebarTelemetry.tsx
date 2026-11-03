@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { GitBranch, CheckCircle2, Zap } from 'lucide-react';
+import { GitBranch, CheckCircle2, Zap, RefreshCw, Loader2 } from 'lucide-react';
 import { useAppMode } from './AppModeContext';
 
 export const TELEMETRY_REFRESH_EVENT = 'devhub:telemetry-refresh';
@@ -7,6 +7,19 @@ export const TELEMETRY_REFRESH_EVENT = 'devhub:telemetry-refresh';
 export function triggerTelemetryRefresh() {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(TELEMETRY_REFRESH_EVENT));
+  }
+}
+
+export const GITLAB_SYNC_EVENT = 'devhub:gitlab-sync-status';
+
+export interface GitlabSyncEventDetail {
+  running: boolean;
+  phase?: string;
+}
+
+export function triggerGitlabSyncStatus(detail: GitlabSyncEventDetail) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(GITLAB_SYNC_EVENT, { detail }));
   }
 }
 
@@ -30,15 +43,28 @@ export interface ServiceTelemetry {
 
 interface SidebarTelemetryProps {
   telemetry: ServiceTelemetry;
+  loading?: boolean;
+  gitlabSyncing?: boolean;
 }
 
-export function SidebarTelemetry({ telemetry }: SidebarTelemetryProps) {
+export function SidebarTelemetry({
+  telemetry,
+  loading = false,
+  gitlabSyncing = false,
+}: SidebarTelemetryProps) {
   const { isMonitoring } = useAppMode();
 
   return (
     <div className='flex flex-col gap-1.5'>
-      <div className='text-[11px] font-bold uppercase tracking-wider text-slate-dim mb-0.5 px-2'>
-        Layanan Terhubung
+      <div className='flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-dim mb-0.5 px-2'>
+        <span>Layanan Terhubung</span>
+        {(loading || gitlabSyncing) && (
+          <Loader2
+            size={12}
+            className='animate-spin text-slate-400'
+            aria-label='Memuat data layanan...'
+          />
+        )}
       </div>
 
       {/* GitLab - Disembunyikan pada Mode Monitoring */}
@@ -56,7 +82,9 @@ export function SidebarTelemetry({ telemetry }: SidebarTelemetryProps) {
               : 'opacity-55 grayscale hover:opacity-85'
           }`}
           title={
-            telemetry.gitlab.connected
+            gitlabSyncing
+              ? 'GitLab sedang disinkronkan...'
+              : telemetry.gitlab.connected
               ? 'GitLab terhubung - Lihat produktivitas kode'
               : 'GitLab belum terhubung - Klik untuk konfigurasi di Pengaturan'
           }
@@ -68,12 +96,33 @@ export function SidebarTelemetry({ telemetry }: SidebarTelemetryProps) {
                 : 'bg-slate-100 text-slate-400 border border-dashed border-slate-300'
             }`}
           >
-            <GitBranch size={16} />
+            {gitlabSyncing ? (
+              <RefreshCw size={15} className='animate-spin text-coral-accent' />
+            ) : (
+              <GitBranch size={16} />
+            )}
           </div>
           <div className='flex flex-col min-w-0'>
-            <span className='text-[13px] font-bold text-slate-text leading-tight'>GitLab</span>
-            <span className={`text-[11px] leading-tight mt-0.5 ${telemetry.gitlab.connected ? 'text-slate-muted' : 'text-slate-dim italic'}`}>
-              {telemetry.gitlab.connected
+            <div className='flex items-center gap-1.5'>
+              <span className='text-[13px] font-bold text-slate-text leading-tight'>
+                GitLab
+              </span>
+              {gitlabSyncing && (
+                <span className='text-[10px] font-semibold text-coral-accent animate-pulse'>
+                  Sinkron...
+                </span>
+              )}
+            </div>
+            <span
+              className={`text-[11px] leading-tight mt-0.5 ${
+                telemetry.gitlab.connected
+                  ? 'text-slate-muted'
+                  : 'text-slate-dim italic'
+              }`}
+            >
+              {gitlabSyncing
+                ? 'Memperbarui data...'
+                : telemetry.gitlab.connected
                 ? `${telemetry.gitlab.commits} Commit · ${telemetry.gitlab.mrs} MR`
                 : 'Belum Terhubung'}
             </span>

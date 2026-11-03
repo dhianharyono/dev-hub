@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useIntegrations, useMetrics, useSync } from '@/components/hooks';
+import { triggerTelemetryRefresh } from '@/components/SidebarTelemetry';
 import { useAppMode } from '@/components/AppModeContext';
 import type { WorkloadData } from '@/lib/workload';
 import { GitlabVelocityCard } from './dashboard/GitlabVelocityCard';
@@ -35,8 +36,12 @@ export default function Home() {
     error: metricsError,
     reload: reloadMetrics,
   } = useMetrics(velocityDays);
+  const handleGitlabSyncDone = useCallback(() => {
+    reloadMetrics();
+    triggerTelemetryRefresh();
+  }, [reloadMetrics]);
   const { status: gitlabSyncStatus, start: startGitlabSync } =
-    useSync(reloadMetrics);
+    useSync(handleGitlabSyncDone);
 
   const handleMonthChange = (newMonth: string) => {
     setWorkloadLoading(true);
