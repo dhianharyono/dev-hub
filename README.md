@@ -1,6 +1,6 @@
 # DevHub - Asisten Produktivitas
 
-**DevHub** adalah aplikasi web lokal full-stack (_Next.js 16 + React 19 + TypeScript + SQLite_) yang dirancang khusus untuk mempercepat alur kerja harian developer: pencatatan task Taiga otomatis berbasis AI, pemenuhan lembar kerja (timesheet) WAD, asisten pembuatan GitLab Merge Request, pre-review audit keamanan kode, hingga pembuatan laporan performa mingguan.
+**DevHub** adalah aplikasi web lokal full-stack (_Next.js 16 + React 19 + TypeScript + SQLite_) yang dirancang khusus untuk mempercepat alur kerja harian: pencatatan task Taiga otomatis berbasis AI, pemenuhan lembar kerja (timesheet) WAD, asisten pembuatan GitLab Merge Request, pre-review audit keamanan kode, hingga pembuatan laporan performa mingguan.
 
 ---
 
@@ -33,21 +33,6 @@
    npm run dev
    ```
 4. Buka browser di: **[http://localhost:4000](http://localhost:4000)**
-
----
-
-## Mode Tampilan Sistem (App Mode)
-
-DevHub menyediakan 2 mode antarmuka yang dapat diganti sewaktu-waktu di halaman **Pengaturan (`/settings`)** dengan penyimpanan otomatis instan:
-
-1. **Mode Developer**:
-   - Mode lengkap untuk software engineer.
-   - Menyediakan seluruh modul: Dashboard, Smart Task Studio (input catatan harian AI & manajemen tiket Taiga), GitLab MR Assistant & Pre-review Keamanan, Workload Monitor (Timesheet Gap Healer WAD), dan Laporan Performa Mingguan.
-2. **Mode Monitoring**:
-   - Mode ringkas yang berfokus pada pemantauan dan metrik kerja.
-   - Menyederhanakan tampilan navigasi dengan menyembunyikan modul input aktif yang tidak relevan bagi pemantau (seperti *Timesheet Gap Healer*, analisis workload mendalam, dan konfigurasi AI report/workload).
-
----
 
 ## Menjalankan dengan PM2 (Background Daemon)
 
@@ -101,28 +86,6 @@ npm run pm2:stop
 # Hapus aplikasi dari daftar PM2
 pm2 delete devhub
 ```
-
----
-
-## Fitur Utama
-
-- **Smart Task Studio (`/tasks`)**:
-  - Konversi catatan bebas/standup ke User Story & Task Taiga formal diawali kata kerja aktif dengan AI.
-  - **Daftar Tiket Taiga**: Pantau task yang ditugaskan kepada Anda per-project dengan pagination 10 task/halaman pada tab "Semua Task" serta update status instan.
-- **Workload Monitor & Timesheet Gap Healer (`/workload`)**:
-  - Pelacakan kepatuhan 8.0 jam kerja WAD harian.
-  - Timesheet Gap Healer cerdas berbasis commit GitLab akun Anda dengan auto-push atribut WAD (*Activity Date*, *Start Time*, *Total Time Spent*).
-- **GitLab Assistant (`/gitlab`)**:
-  - Generator Merge Request standar enterprise (Conventional Commits + release notes).
-  - Pre-Review Code & Security Health Check (audit credential leak, XSS, console logs, dan scoring kepatuhan).
-  - Incoming Reviews & AI Code Reviewer untuk MR rekan tim.
-- **Dashboard Performa (`/`)**:
-  - Kalender kontribusi commit, telemetri integrasi, dan distribusi jam kerja 24 jam.
-- **Pengaturan Sistem Modular (`/settings`)**:
-  - Card modul konfigurasi yang dapat di-minimize/expand secara mandiri dan tersimpan di preferensi lokal.
-  - Penarikan sesi SSO Taiga instan via DevTools Console Script atau Bookmarklet.
-
----
 
 ## Dokumentasi Lengkap
 

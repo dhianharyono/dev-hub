@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, ChevronRight, Settings, Sparkles } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Settings } from 'lucide-react';
 import type { WorkloadData, WorkloadTask } from '@/lib/workload';
 import { EmptyState } from '@/components/EmptyState';
 import { useAppMode } from '@/components/AppModeContext';
@@ -442,7 +442,7 @@ export function TaigaDeliveryCard({
                 <span className='text-[10.5px] font-bold text-slate-muted uppercase tracking-wider'>
                   Rata-Rata
                 </span>
-                <span className='text-[17px] font-extrabold truncate text-(--primary)'>
+                <span className='text-[17px] font-extrabold truncate text-brand'>
                   {avgHoursPerTask}h
                 </span>
                 <span className='text-[11.5px] text-slate-muted truncate'>
