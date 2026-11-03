@@ -26,13 +26,18 @@ export function AiMenuModelsPanel({ form, onChange }: AiMenuModelsPanelProps) {
   const provider: AiProvider = form.aiProvider || 'gemini';
   const globalModel = resolveGlobalModel(form);
   const followLabel = `Ikuti model global (${globalModel})`;
+  const isMonitoring = form.appMode === 'monitoring';
+
+  const visibleFeatures = AI_FEATURES.filter(
+    (item) => !isMonitoring || item.feature !== 'productivity',
+  );
 
   const [testingMenu, setTestingMenu] = useState<Record<string, boolean>>({});
   const [menuResults, setMenuResults] = useState<
     Record<string, MenuTestResult | null>
   >({});
 
-  const handleTestMenu = async (settingKey: AiFeatureModelKey, label: string) => {
+  const handleTestMenu = async (settingKey: AiFeatureModelKey) => {
     const rawVal = (form[settingKey] as string | undefined)?.trim();
     const isUsingGlobal = !rawVal;
     const effectiveModel = rawVal || globalModel;
@@ -95,7 +100,7 @@ export function AiMenuModelsPanel({ form, onChange }: AiMenuModelsPanelProps) {
       </div>
 
       <div className='grid grid-cols-1 md:grid-cols-2 gap-4 items-start'>
-        {AI_FEATURES.map(({ settingKey, label, usage }) => {
+        {visibleFeatures.map(({ settingKey, label, usage }) => {
           const value = (form[settingKey] as string | undefined) || '';
           const isTesting = Boolean(testingMenu[settingKey]);
           const result = menuResults[settingKey];
@@ -111,7 +116,7 @@ export function AiMenuModelsPanel({ form, onChange }: AiMenuModelsPanelProps) {
                 </label>
                 <button
                   type='button'
-                  onClick={() => handleTestMenu(settingKey, label)}
+                  onClick={() => handleTestMenu(settingKey)}
                   disabled={isTesting}
                   title={`Uji koneksi model untuk ${label}`}
                   className='px-2.5 py-1 text-[11px] font-semibold rounded-md border border-border bg-surface-subtle hover:bg-surface text-slate-text hover:text-brand transition-all inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs shrink-0'
@@ -128,7 +133,7 @@ export function AiMenuModelsPanel({ form, onChange }: AiMenuModelsPanelProps) {
               {provider === 'custom' ? (
                 <input
                   id={`model-${settingKey}`}
-                  className='input'
+                  className='input !h-[38px] !min-h-[38px] !py-0 !px-3 !text-[13.5px] !rounded-[10px]'
                   value={value}
                   placeholder={followLabel}
                   onChange={(e) => {

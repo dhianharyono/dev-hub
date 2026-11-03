@@ -33,18 +33,24 @@ export function SettingsStatusGrid({
     taigaBadgeText = 'Token Tidak Valid';
   }
 
+  const isMonitoring = form?.appMode === 'monitoring';
+
   const gitlabConnected = Boolean(integrations?.gitlab?.connected);
   const gitlabConfigured = Boolean(form?.gitlabTokenSet);
-  const gitlabBadgeClass = gitlabConnected
-    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-    : gitlabConfigured
-      ? 'bg-rose-50 text-rose-700 border-rose-200'
-      : 'bg-amber-50 text-amber-700 border-amber-200';
-  const gitlabBadgeText = gitlabConnected
-    ? 'Terhubung'
-    : gitlabConfigured
-      ? 'Token Tidak Valid'
-      : 'Belum Terhubung';
+  const gitlabBadgeClass = isMonitoring
+    ? 'bg-slate-100 text-slate-500 border-slate-200'
+    : gitlabConnected
+      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      : gitlabConfigured
+        ? 'bg-rose-50 text-rose-700 border-rose-200'
+        : 'bg-amber-50 text-amber-700 border-amber-200';
+  const gitlabBadgeText = isMonitoring
+    ? 'Dilewati (Monitoring)'
+    : gitlabConnected
+      ? 'Terhubung'
+      : gitlabConfigured
+        ? 'Token Tidak Valid'
+        : 'Belum Terhubung';
 
   const aiActive = Boolean(
     form?.aiApiKeySet || form?.geminiApiKeySet || form?.aiProvider === 'custom',
@@ -93,7 +99,11 @@ export function SettingsStatusGrid({
         : 'Nonaktif';
 
   return (
-    <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-3.5 mb-6'>
+    <div
+      className={`grid grid-cols-1 sm:grid-cols-2 ${
+        isMonitoring ? 'xl:grid-cols-3' : 'xl:grid-cols-4'
+      } gap-3 sm:gap-3.5 mb-6`}
+    >
       {/* Taiga Status */}
       <div className='card h-20 flex items-center justify-between gap-3 p-3 sm:py-3 sm:px-5 hover:border-emerald-300 transition-all'>
         <div className='flex items-center gap-3 min-w-0'>
@@ -123,34 +133,36 @@ export function SettingsStatusGrid({
         </span>
       </div>
 
-      {/* GitLab Status */}
-      <div className='card flex items-center justify-between gap-3 p-3 sm:py-3 sm:px-5 hover:border-orange-300 transition-all'>
-        <div className='flex items-center gap-3 min-w-0'>
-          <div className='w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-orange-50 text-[#FC6D26] border border-orange-200'>
-            <SiGitlab size={18} />
-          </div>
-          <div className='flex flex-col min-w-0'>
-            <span className='text-[13px] font-bold text-slate-text leading-tight truncate'>
-              GitLab
-            </span>
-            <span
-              className='text-[11px] text-slate-muted mt-0.5 leading-tight truncate'
-              title={`Akun: @${form?.gitlabUsername || 'developer'}`}
-            >
-              Akun:{' '}
-              <span className='text-slate-text font-medium'>
-                @{form?.gitlabUsername || 'developer'}
+      {/* GitLab Status (Hanya ditampilkan pada Mode Developer) */}
+      {!isMonitoring && (
+        <div className='card flex items-center justify-between gap-3 p-3 sm:py-3 sm:px-5 hover:border-orange-300 transition-all'>
+          <div className='flex items-center gap-3 min-w-0'>
+            <div className='w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-orange-50 text-[#FC6D26] border border-orange-200'>
+              <SiGitlab size={18} />
+            </div>
+            <div className='flex flex-col min-w-0'>
+              <span className='text-[13px] font-bold text-slate-text leading-tight truncate'>
+                GitLab
               </span>
-            </span>
+              <span
+                className='text-[11px] text-slate-muted mt-0.5 leading-tight truncate'
+                title={`Akun: @${form?.gitlabUsername || 'developer'}`}
+              >
+                Akun:{' '}
+                <span className='text-slate-text font-medium'>
+                  @{form?.gitlabUsername || 'developer'}
+                </span>
+              </span>
+            </div>
           </div>
+          <span
+            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap shrink-0 border ${gitlabBadgeClass}`}
+          >
+            <span className='w-1.5 h-1.5 rounded-full bg-current shrink-0' />
+            {gitlabBadgeText}
+          </span>
         </div>
-        <span
-          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap shrink-0 border ${gitlabBadgeClass}`}
-        >
-          <span className='w-1.5 h-1.5 rounded-full bg-current shrink-0' />
-          {gitlabBadgeText}
-        </span>
-      </div>
+      )}
 
       {/* AI & LLM Status */}
       <div className='card flex items-center justify-between gap-3 p-3 sm:py-3 sm:px-5 hover:border-purple-300 transition-all'>

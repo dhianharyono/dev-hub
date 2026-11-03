@@ -496,6 +496,7 @@ body::before {
     gap: 8px;
   }
   .field > label,
+  .field-label,
   .label-sm {
     font-size: 12.5px;
     font-weight: 600;
@@ -512,17 +513,23 @@ body::before {
   .textarea {
     width: 100%;
     font: inherit;
-    font-size: 14px;
+    font-size: 13.5px;
     color: var(--text);
     background: var(--surface);
     border: 1px solid var(--border-strong);
-    border-radius: var(--radius-sm);
-    padding: 10px 15px;
+    border-radius: 10px;
+    padding: 8px 12px;
     line-height: 1.5;
     box-sizing: border-box;
     transition:
       border-color 0.2s,
       box-shadow 0.2s;
+  }
+  .input {
+    height: 38px;
+    min-height: 38px;
+    padding-top: 0;
+    padding-bottom: 0;
   }
   .input:focus,
   .select:focus,
@@ -536,6 +543,7 @@ body::before {
     padding: 4px 10px;
     font-size: 12.5px;
     min-height: 32px;
+    height: 32px;
     line-height: 1.35;
   }
   .textarea {

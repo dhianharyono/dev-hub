@@ -4,6 +4,7 @@ import { useSettings } from './components/useSettings';
 import { usePm2 } from './components/usePm2';
 import { SettingsSkeleton } from './components/SettingsSkeleton';
 import { SettingsStatusGrid } from './components/SettingsStatusGrid';
+import { AppSettingsModeDropdown } from './components/AppSettingsModeDropdown';
 import { TaigaSettingsSection } from './components/TaigaSettingsSection';
 import { GitlabSettingsSection } from './components/GitlabSettingsSection';
 import { GeminiSettingsSection } from './components/GeminiSettingsSection';
@@ -35,6 +36,8 @@ export default function SettingsView() {
     executeAction: executePm2Action,
   } = usePm2();
 
+  const isMonitoring = form.appMode === 'monitoring';
+
   if (loading) {
     return <SettingsSkeleton />;
   }
@@ -42,17 +45,22 @@ export default function SettingsView() {
   return (
     <div className='flex flex-col'>
       {/* Header Page */}
-      <header className='page-header mb-1.5'>
-        <div>
+      <header className='page-header !items-start relative z-40 mb-4'>
+        <div className='max-w-2xl'>
           <div className='eyebrow'>Integrasi &amp; Kredensial</div>
           <h1 className='flex items-center gap-2.5'>
             <span>Pengaturan</span>
             <span className='gradient-text'>Sistem</span>
           </h1>
           <p>
-            Konfigurasi koneksi SSO Taiga, GitLab PAT, Gemini AI, layanan background PM2, dan filter
-            identitas commit.
+            Konfigurasi koneksi SSO Taiga, GitLab PAT, LLM Manajemen, layanan
+            background PM2
           </p>
+        </div>
+
+        {/* Dropdown Filter Mode di Kanan Atas */}
+        <div className='shrink-0 self-start mt-0 sm:mt-1'>
+          <AppSettingsModeDropdown form={form} onChange={handleChange} />
         </div>
       </header>
 
@@ -78,13 +86,15 @@ export default function SettingsView() {
           onSessionInputChange={setTaigaSessionInput}
         />
 
-        <GitlabSettingsSection
-          form={form}
-          onChange={handleChange}
-          testResult={testResult.gitlab}
-          testing={testing.gitlab}
-          onTest={() => runTest('gitlab')}
-        />
+        {!isMonitoring && (
+          <GitlabSettingsSection
+            form={form}
+            onChange={handleChange}
+            testResult={testResult.gitlab}
+            testing={testing.gitlab}
+            onTest={() => runTest('gitlab')}
+          />
+        )}
 
         <GeminiSettingsSection
           form={form}

@@ -85,6 +85,15 @@ export function GitlabSettingsSection({
         </div>
       </div>
 
+      {form.appMode === 'monitoring' && (
+        <div className='flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl bg-purple-50/80 border border-purple-200 text-purple-900 text-xs'>
+          <AlertCircle size={15} className='text-purple-600 shrink-0 mt-0.5' />
+          <div>
+            <span className='font-bold'>Mode Monitoring Aktif:</span> Modul Productivity Monitor dan indikator GitLab dinonaktifkan dari sidemenu serta dashboard. Kredensial di bawah ini tetap tersimpan aman jika Anda beralih ke Mode Developer.
+          </div>
+        </div>
+      )}
+
       <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
         <div className='field'>
           <label>GitLab Base URL</label>

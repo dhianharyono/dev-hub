@@ -1,4 +1,7 @@
+export type AppMode = 'developer' | 'monitoring';
+
 export interface PublicSettings {
+  appMode: AppMode;
   taigaBaseUrl: string;
   taigaProjectSlug: string;
   taigaSprintSlug: string;

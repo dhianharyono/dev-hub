@@ -94,6 +94,7 @@ export function db(): DatabaseSync {
     fs.mkdirSync(DATA_DIR, { recursive: true });
     const d = new DatabaseSync(DB_PATH);
     d.exec("PRAGMA journal_mode = WAL;");
+    d.exec("PRAGMA busy_timeout = 5000;");
     d.exec(SCHEMA);
     try {
       d.exec("CREATE TABLE IF NOT EXISTS gl_commit_diffs (sha TEXT PRIMARY KEY, files_json TEXT NOT NULL);");

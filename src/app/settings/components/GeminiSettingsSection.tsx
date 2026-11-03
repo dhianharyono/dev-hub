@@ -7,7 +7,9 @@ import {
   Cpu,
   Eye,
   EyeOff,
+  Languages,
   RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import { Select } from '@/components/Select';
 import { Tooltip } from '@/components/Tooltip';
@@ -119,8 +121,8 @@ export function GeminiSettingsSection({
       <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
         {/* Provider Selector */}
         <div className='field'>
-          <label className='flex items-center gap-1.5'>
-            <Cpu size={14} className='gradient-text' />
+          <label className='flex items-center gap-1.5 min-h-[20px]'>
+            <Cpu size={14} className='gradient-text shrink-0' />
             <span>Penyedia AI (LLM Provider)</span>
           </label>
           <Select
@@ -145,9 +147,13 @@ export function GeminiSettingsSection({
 
         {/* Model Selector / Input */}
         <div className='field'>
-          <div className='flex items-center gap-1.5'>
-            <label htmlFor='ai-model-global' className='cursor-pointer !mb-0'>
-              Model LLM Global
+          <div className='flex items-center gap-1.5 min-h-[20px]'>
+            <label
+              htmlFor='ai-model-global'
+              className='label-sm flex items-center gap-1.5 cursor-pointer !mb-0'
+            >
+              <Sparkles size={14} className='gradient-text shrink-0' />
+              <span>Model LLM Global</span>
             </label>
             <Tooltip
               title='Peran Model LLM Global'
@@ -176,7 +182,7 @@ export function GeminiSettingsSection({
           {provider === 'custom' ? (
             <input
               id='ai-model-global'
-              className='input'
+              className='input !h-[38px] !min-h-[38px] !py-0 !px-3 !text-[13.5px] !rounded-[10px]'
               value={form.aiModel || DEFAULT_MODEL_BY_PROVIDER.custom}
               placeholder='deepseek-chat, llama3.2, mistral, dll'
               onChange={(e) => onChange('aiModel', e.target.value)}
@@ -204,7 +210,10 @@ export function GeminiSettingsSection({
 
         {/* Bahasa Penulisan */}
         <div className='field'>
-          <label>Bahasa Penulisan AI</label>
+          <label className='flex items-center gap-1.5 min-h-[20px]'>
+            <Languages size={14} className='gradient-text shrink-0' />
+            <span>Bahasa Penulisan AI</span>
+          </label>
           <Select
             value={form.writingLanguage || 'id'}
             onChange={(e) =>

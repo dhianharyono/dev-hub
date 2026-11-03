@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
 import Sidebar from '@/components/Sidebar';
 import { NotificationProvider } from '@/components/Notification';
 import { AiTaskProvider } from '@/components/ai-task/AiTaskContext';
+import { AppModeProvider } from '@/components/AppModeContext';
 import './globals.css';
 
 const jakarta = Plus_Jakarta_Sans({
@@ -35,14 +36,16 @@ export default function RootLayout({
     <html lang='id' className={`${jakarta.variable} ${jetbrains.variable}`}>
       <body>
         <NotificationProvider>
-          <AiTaskProvider>
-            <div className='flex min-h-screen bg-canvas max-lg:flex-col'>
-              <Sidebar />
-              <main className='flex-1 min-w-0 px-9 pt-7 pb-16 max-w-[1440px] mx-auto max-lg:px-4 max-lg:py-5 max-lg:pb-12'>
-                {children}
-              </main>
-            </div>
-          </AiTaskProvider>
+          <AppModeProvider>
+            <AiTaskProvider>
+              <div className='flex min-h-screen bg-canvas max-lg:flex-col'>
+                <Sidebar />
+                <main className='flex-1 min-w-0 px-9 pt-7 pb-16 max-w-[1440px] mx-auto max-lg:px-4 max-lg:py-5 max-lg:pb-12'>
+                  {children}
+                </main>
+              </div>
+            </AiTaskProvider>
+          </AppModeProvider>
         </NotificationProvider>
       </body>
     </html>

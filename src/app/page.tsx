@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useIntegrations, useMetrics, useSync } from '@/components/hooks';
+import { useAppMode } from '@/components/AppModeContext';
 import type { WorkloadData } from '@/lib/workload';
 import { GitlabVelocityCard } from './dashboard/GitlabVelocityCard';
 import { RightActivityPanel } from './dashboard/RightActivityPanel';
@@ -10,6 +11,7 @@ import { WadAnalyticsCard } from './dashboard/WadAnalyticsCard';
 import { WorkloadCalendarCard } from './dashboard/WorkloadCalendarCard';
 
 export default function Home() {
+  const { isMonitoring } = useAppMode();
   const mainColRef = useRef<HTMLElement>(null);
   const calendarCardRef = useRef<HTMLDivElement>(null);
   const [activityPanelHeight, setActivityPanelHeight] = useState<
@@ -159,12 +161,17 @@ export default function Home() {
     <div className='flex flex-col gap-6'>
       <header className='flex items-end justify-between gap-4 flex-wrap'>
         <div>
-          <h1 className='text-xl font-extrabold tracking-tight text-slate-text'>
-            Dashboard Produktivitas
-          </h1>
+          <div className='flex items-center gap-2.5'>
+            <h1 className='text-xl font-extrabold tracking-tight text-slate-text'>
+              {isMonitoring
+                ? 'Dashboard Monitoring'
+                : 'Dashboard Produktivitas'}
+            </h1>
+          </div>
           <p className='text-slate-muted mt-1 text-sm'>
-            Monitoring komprehensif kepatuhan jam kerja WAD, velocity rilis
-            GitLab, dan efisiensi delivery tugas Taiga.
+            {isMonitoring
+              ? 'Monitoring komprehensif kepatuhan jam kerja WAD dan efisiensi delivery tugas Taiga tim.'
+              : 'Monitoring komprehensif kepatuhan jam kerja WAD, velocity rilis GitLab, dan efisiensi delivery tugas Taiga.'}
           </p>
         </div>
       </header>
@@ -180,18 +187,7 @@ export default function Home() {
             loading={effectiveWorkloadLoading}
           />
 
-          <div className='grid grid-cols-1 @[640px]:grid-cols-2 gap-4'>
-            <GitlabVelocityCard
-              metrics={metrics}
-              connected={gitlabConnected}
-              loading={effectiveMetricsLoading}
-              error={metricsError}
-              days={velocityDays}
-              onDaysChange={setVelocityDays}
-              onSync={() => startGitlabSync(velocityDays)}
-              isSyncing={Boolean(gitlabSyncStatus?.running)}
-            />
-
+          {isMonitoring ? (
             <TaigaDeliveryCard
               workload={workload}
               connected={taigaConnected}
@@ -207,7 +203,36 @@ export default function Home() {
               avgHoursPerTask={avgHoursPerTask}
               projectCount={projectDistribution.length}
             />
-          </div>
+          ) : (
+            <div className='grid grid-cols-1 @[640px]:grid-cols-2 gap-4'>
+              <GitlabVelocityCard
+                metrics={metrics}
+                connected={gitlabConnected}
+                loading={effectiveMetricsLoading}
+                error={metricsError}
+                days={velocityDays}
+                onDaysChange={setVelocityDays}
+                onSync={() => startGitlabSync(velocityDays)}
+                isSyncing={Boolean(gitlabSyncStatus?.running)}
+              />
+
+              <TaigaDeliveryCard
+                workload={workload}
+                connected={taigaConnected}
+                loading={effectiveWorkloadLoading}
+                activeTasks={activeTasks}
+                totalTasks={totalTasks}
+                doneCount={doneCount}
+                inProgressCount={inProgressCount}
+                todoCount={todoCount}
+                donePct={donePct}
+                progPct={progPct}
+                todoPct={todoPct}
+                avgHoursPerTask={avgHoursPerTask}
+                projectCount={projectDistribution.length}
+              />
+            </div>
+          )}
         </main>
 
         <div className='flex flex-col gap-6 w-full xl:w-[400px] shrink-0'>

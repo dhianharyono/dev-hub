@@ -18,6 +18,8 @@ export interface TooltipProps {
   className?: string;
   /** Accessible label for the default trigger button */
   ariaLabel?: string;
+  /** Custom z-index class for the popover. Default is 'z-[1001]' */
+  zIndexClass?: string;
 }
 
 export function Tooltip({
@@ -28,6 +30,7 @@ export function Tooltip({
   widthClass = 'w-72',
   className = '',
   ariaLabel = 'Informasi bantuan',
+  zIndexClass = 'z-[1001]',
 }: TooltipProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -110,7 +113,7 @@ export function Tooltip({
 
       {isOpen && (
         <div
-          className={`absolute z-50 pointer-events-auto ${
+          className={`absolute ${zIndexClass} pointer-events-auto ${
             position === 'top'
               ? 'bottom-full right-0 pb-2'
               : 'top-full right-0 pt-2'
@@ -118,14 +121,14 @@ export function Tooltip({
         >
           <div
             role='tooltip'
-            className={`relative ${widthClass} p-3.5 bg-white text-slate-700 text-xs rounded-xl shadow-xl shadow-slate-900/10 border border-slate-200/90`}
+            className={`relative ${widthClass} p-3.5 bg-white text-slate-700 text-xs rounded-xl shadow-xl shadow-slate-900/10 border border-slate-200/90 normal-case tracking-normal font-normal text-left`}
           >
             {title && (
-              <div className='font-semibold text-slate-900 mb-2 flex items-center gap-1.5'>
+              <div className='font-bold text-slate-900 mb-1.5 flex items-center gap-1.5 text-xs normal-case tracking-normal'>
                 {title}
               </div>
             )}
-            <div className='text-[11.5px] text-slate-600 leading-relaxed'>
+            <div className='text-[11.5px] text-slate-600 leading-relaxed normal-case tracking-normal font-normal'>
               {content}
             </div>
 

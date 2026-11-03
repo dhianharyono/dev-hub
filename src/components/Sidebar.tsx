@@ -20,6 +20,7 @@ import {
   type ServiceTelemetry,
   TELEMETRY_REFRESH_EVENT,
 } from './SidebarTelemetry';
+import { useAppMode } from './AppModeContext';
 
 const PRIMARY_NAV = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -31,10 +32,15 @@ const PRIMARY_NAV = [
 
 export default function Sidebar() {
   const path = usePathname();
+  const { isMonitoring } = useAppMode();
   // Sidebar expanded by default on desktop; when collapsed, only the blue rail appears
   const [collapsed, setCollapsed] = useState(false);
   // Mobile drawer state
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const navItems = PRIMARY_NAV.filter(
+    (item) => !isMonitoring || item.href !== '/gitlab',
+  );
 
   const [telemetry, setTelemetry] = useState<ServiceTelemetry>({
     gitlab: { connected: false, commits: 0, mrs: 0 },
@@ -57,7 +63,6 @@ export default function Sidebar() {
       window.dispatchEvent(new CustomEvent('devhub:gitlab-reset-tab'));
     }
   };
-
 
   // Handle ESC key and lock body scroll when mobile drawer is open
   useEffect(() => {
@@ -86,8 +91,8 @@ export default function Sidebar() {
       try {
         const [integrationsRes, statsRes, workloadRes] =
           await Promise.allSettled([
-            fetch(`/api/integrations/status${force ? '?force=1' : ''}`).then((r) =>
-              r.ok ? r.json() : null,
+            fetch(`/api/integrations/status${force ? '?force=1' : ''}`).then(
+              (r) => (r.ok ? r.json() : null),
             ),
             fetch('/api/gitlab/stats?days=30').then((r) =>
               r.ok ? r.json() : null,
@@ -182,7 +187,7 @@ export default function Sidebar() {
               DEV HUB
             </span>
             <span className='text-[10px] font-medium text-slate-muted leading-tight'>
-              Asisten Produktivitas
+              {isMonitoring ? 'Pemantauan Tim' : 'Asisten Produktivitas'}
             </span>
           </div>
         </Link>
@@ -234,7 +239,7 @@ export default function Sidebar() {
                 DEV HUB
               </span>
               <span className='text-[10.5px] font-medium text-slate-muted leading-tight whitespace-nowrap'>
-                Asisten Produktivitas
+                {isMonitoring ? 'Pemantauan Tim' : 'Asisten Produktivitas'}
               </span>
             </div>
           </div>
@@ -261,7 +266,7 @@ export default function Sidebar() {
             Navigasi Cepat
           </div>
 
-          {PRIMARY_NAV.map((item) => {
+          {navItems.map((item) => {
             const active =
               item.href === '/' ? path === '/' : path.startsWith(item.href);
             const Icon = item.icon;
@@ -328,7 +333,7 @@ export default function Sidebar() {
             className='flex flex-col gap-2.5 items-center w-full'
             aria-label='Menu Modul Minimized'
           >
-            {PRIMARY_NAV.map((item) => {
+            {navItems.map((item) => {
               const active =
                 item.href === '/' ? path === '/' : path.startsWith(item.href);
               const Icon = item.icon;
@@ -371,9 +376,11 @@ export default function Sidebar() {
                 <h2 className='text-[15px] font-extrabold tracking-tight text-slate-text leading-tight m-0'>
                   DEV HUB
                 </h2>
-                <span className='text-[10.5px] font-medium text-slate-muted leading-tight whitespace-nowrap'>
-                  Asisten Produktivitas
-                </span>
+                <div className='flex items-center gap-1.5'>
+                  <span className='text-[10.5px] font-medium text-slate-muted leading-tight whitespace-nowrap'>
+                    {isMonitoring ? 'Pemantauan Tim' : 'Asisten Produktivitas'}
+                  </span>
+                </div>
               </div>
             </div>
             <button
@@ -392,12 +399,15 @@ export default function Sidebar() {
           <SidebarTelemetry telemetry={telemetry} />
 
           {/* Navigation Links */}
-          <nav className='flex flex-col gap-1.5' aria-label='Navigasi Cepat Desktop'>
+          <nav
+            className='flex flex-col gap-1.5'
+            aria-label='Navigasi Cepat Desktop'
+          >
             <div className='text-[11px] font-bold uppercase tracking-wider text-slate-dim mb-0.5 px-2'>
               Navigasi Cepat
             </div>
 
-            {PRIMARY_NAV.map((item) => {
+            {navItems.map((item) => {
               const active =
                 item.href === '/' ? path === '/' : path.startsWith(item.href);
               const Icon = item.icon;

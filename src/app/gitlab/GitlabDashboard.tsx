@@ -9,8 +9,10 @@ import {
   MessageSquareCode,
   Settings,
   RefreshCw,
+  AlertCircle,
 } from 'lucide-react';
 import { useSync, useMetrics, useIntegrations } from '@/components/hooks';
+import { useAppMode } from '@/components/AppModeContext';
 import { EmptyState } from '@/components/EmptyState';
 import { useNotification } from '@/components/Notification';
 import { useAiTask } from '@/components/ai-task/AiTaskContext';
@@ -26,6 +28,7 @@ import { GitlabSkeletonGrid } from './productivity/GitlabSkeletonGrid';
 import { ProductivityDashboard } from './productivity/ProductivityDashboard';
 
 export default function GitlabDashboard() {
+  const { isMonitoring } = useAppMode();
   const [days, setDays] = useState(90);
   const [activeView, setActiveView] = useState<GitlabActiveView>(() => {
     if (typeof window !== 'undefined') {
@@ -87,6 +90,23 @@ export default function GitlabDashboard() {
 
   return (
     <>
+      {isMonitoring && (
+        <div className='flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs mb-4'>
+          <div className='flex items-center gap-2 min-w-0'>
+            <AlertCircle size={16} className='text-purple-600 shrink-0' />
+            <span className='truncate sm:whitespace-normal'>
+              <strong>Mode Monitoring Aktif:</strong> Menu Productivity Monitor disembunyikan untuk tim non-developer. Anda dapat beralih ke Mode Developer di Pengaturan.
+            </span>
+          </div>
+          <Link
+            href='/settings'
+            className='btn btn-secondary btn-xs shrink-0 no-underline whitespace-nowrap'
+          >
+            Pengaturan Mode
+          </Link>
+        </div>
+      )}
+
       <GitlabHeaderTabs
         activeView={activeView}
         onViewChange={handleViewChange}

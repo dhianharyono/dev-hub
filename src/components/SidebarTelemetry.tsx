@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { GitBranch, CheckCircle2, Zap } from 'lucide-react';
+import { useAppMode } from './AppModeContext';
 
 export const TELEMETRY_REFRESH_EVENT = 'devhub:telemetry-refresh';
 
@@ -32,49 +33,53 @@ interface SidebarTelemetryProps {
 }
 
 export function SidebarTelemetry({ telemetry }: SidebarTelemetryProps) {
+  const { isMonitoring } = useAppMode();
+
   return (
     <div className='flex flex-col gap-1.5'>
       <div className='text-[11px] font-bold uppercase tracking-wider text-slate-dim mb-0.5 px-2'>
         Layanan Terhubung
       </div>
 
-      {/* GitLab */}
-      <Link
-        href={telemetry.gitlab.connected ? '/gitlab' : '/settings'}
-        onClick={() => {
-          if (telemetry.gitlab.connected && typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('devhub:gitlab-reset-tab'));
-          }
-        }}
-        className={`flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all select-none no-underline ${
-          telemetry.gitlab.connected
-            ? 'hover:bg-surface-hover'
-            : 'opacity-55 grayscale hover:opacity-85'
-        }`}
-        title={
-          telemetry.gitlab.connected
-            ? 'GitLab terhubung - Lihat produktivitas kode'
-            : 'GitLab belum terhubung - Klik untuk konfigurasi di Pengaturan'
-        }
-      >
-        <div
-          className={`w-8 h-8 rounded-lg grid place-items-center text-base shrink-0 ${
+      {/* GitLab - Disembunyikan pada Mode Monitoring */}
+      {!isMonitoring && (
+        <Link
+          href={telemetry.gitlab.connected ? '/gitlab' : '/settings'}
+          onClick={() => {
+            if (telemetry.gitlab.connected && typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('devhub:gitlab-reset-tab'));
+            }
+          }}
+          className={`flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all select-none no-underline ${
             telemetry.gitlab.connected
-              ? 'bg-red-50 text-coral-accent'
-              : 'bg-slate-100 text-slate-400 border border-dashed border-slate-300'
+              ? 'hover:bg-surface-hover'
+              : 'opacity-55 grayscale hover:opacity-85'
           }`}
+          title={
+            telemetry.gitlab.connected
+              ? 'GitLab terhubung - Lihat produktivitas kode'
+              : 'GitLab belum terhubung - Klik untuk konfigurasi di Pengaturan'
+          }
         >
-          <GitBranch size={16} />
-        </div>
-        <div className='flex flex-col min-w-0'>
-          <span className='text-[13px] font-bold text-slate-text leading-tight'>GitLab</span>
-          <span className={`text-[11px] leading-tight mt-0.5 ${telemetry.gitlab.connected ? 'text-slate-muted' : 'text-slate-dim italic'}`}>
-            {telemetry.gitlab.connected
-              ? `${telemetry.gitlab.commits} Commit · ${telemetry.gitlab.mrs} MR`
-              : 'Belum Terhubung'}
-          </span>
-        </div>
-      </Link>
+          <div
+            className={`w-8 h-8 rounded-lg grid place-items-center text-base shrink-0 ${
+              telemetry.gitlab.connected
+                ? 'bg-red-50 text-coral-accent'
+                : 'bg-slate-100 text-slate-400 border border-dashed border-slate-300'
+            }`}
+          >
+            <GitBranch size={16} />
+          </div>
+          <div className='flex flex-col min-w-0'>
+            <span className='text-[13px] font-bold text-slate-text leading-tight'>GitLab</span>
+            <span className={`text-[11px] leading-tight mt-0.5 ${telemetry.gitlab.connected ? 'text-slate-muted' : 'text-slate-dim italic'}`}>
+              {telemetry.gitlab.connected
+                ? `${telemetry.gitlab.commits} Commit · ${telemetry.gitlab.mrs} MR`
+                : 'Belum Terhubung'}
+            </span>
+          </div>
+        </Link>
+      )}
 
       {/* Taiga */}
       <Link

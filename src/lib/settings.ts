@@ -1,7 +1,10 @@
 import 'server-only';
 import { db } from './db';
 
+export type AppMode = 'developer' | 'monitoring';
+
 export interface Settings {
+  appMode: AppMode;
   taigaBaseUrl: string;
   taigaProjectSlug: string;
   taigaSprintSlug: string;
@@ -28,6 +31,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  appMode: 'developer',
   taigaBaseUrl: '',
   taigaProjectSlug: '',
   taigaSprintSlug: '',
