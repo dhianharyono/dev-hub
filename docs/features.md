@@ -8,20 +8,25 @@ DevHub dilengkapi dengan serangkaian modul dan asisten otomatis untuk mempercepa
 
 - **Input Bebas ke Task Formal**: Ketik catatan kerja harian dengan gaya bahasa santai atau pesan commit ringkas. AI akan otomatis merapikan wording menjadi task formal profesional diawali kata kerja aktif.
 - **Deteksi Otomatis Induk User Story & Project**: AI mencocokkan pekerjaan dengan daftar User Story aktif di sprint Taiga yang sedang berjalan.
-- **Assigned Tasks Board & Update Status**: Pantau semua task Taiga yang di-assign ke Anda, lengkap dengan filter status dan update status langsung (*inline*) tanpa perlu membuka web Taiga.
 - **Dukungan Mode Input**: Tersedia tab input **Naratif** untuk sintesis AI dari deskripsi bebas dan tab **Multi Task** untuk pembuatan beberapa task sekaligus.
+- **Daftar Tiket Taiga (Assigned Tasks Board)**:
+  - **Tab Task Aktif**: Menampilkan semua task Taiga yang ditugaskan ke Anda dan berstatus aktif/dalam progres.
+  - **Tab Semua Task (Pagination 10 Task per Project)**: Memuat seluruh riwayat task Anda yang dikelompokkan rapi per project. Untuk menjaga performa dan keterbacaan, setiap project dibatasi menampilkan **10 task per halaman** dilengkapi kontrol pagination (Prev/Next, nomor halaman, dan indikator jumlah baris).
+  - **Inline Status & Quick Edit**: Perbarui status task, subject, jam kerja, atau tanggal aktivitas secara langsung tanpa perlu membuka web portal Taiga.
+- **Skeleton Loading Berpresisi Tinggi**: Antarmuka transisi loading yang dirancang 1:1 dengan form input dan card draft, menghilangkan kedipan atau lonjakan tata letak (*Cumulative Layout Shift*).
 
 ---
 
 ## 2. Workload Monitor & Timesheet Gap Healer (`/workload`)
 
 - **Monitoring Jam Kerja WAD**: Pantau pemenuhan target kerja 8.0 jam/hari (Senin - Jumat) secara real-time.
-- **Deteksi Kesenjangan (Gap) Jam Kerja**: Menandai hari kerja yang tercatat kurang dari target secara otomatis.
-- **Timesheet Gap Healer Berbasis Commit GitLab**:
+- **Deteksi Kesenjangan (Gap) Jam Kerja**: Menandai hari kerja yang tercatat kurang dari target secara otomatis dengan visualisasi grid kalender interaktif.
+- **Timesheet Gap Healer Berbasis Commit GitLab (Khusus Mode Developer)**:
   - Secara otomatis mendeteksi commit GitLab Anda pada tanggal terkait dari database lokal (terfilter khusus commit akun Anda).
   - AI merumuskan draf task pengisi kekurangan jam (subjek kata kerja aktif, jam mulai realistis antara 08:00 - 17:00, durasi, dan deskripsi aktivitas terperinci).
-- **Push Langsung ke Taiga & WAD**: Otomatis mengirim task ke Taiga dengan status **In Progress**, langsung di-assign ke user yang aktif, dan mengisi *Custom Attributes* WAD (*Activity Date*, *Start Time*, dan *Total Time Spent in Minutes*).
-- **Tabel Rekapitulasi**: Dilengkapi pagination, filter bulan, tombol analisis interaktif, serta penghapusan item draf/rekap.
+  - **Push Langsung ke Taiga & WAD**: Otomatis mengirim task ke Taiga dengan status **In Progress**, langsung di-assign ke user yang aktif, dan mengisi *Custom Attributes* WAD (*Activity Date*, *Start Time*, dan *Total Time Spent in Minutes*).
+- **Perilaku pada Mode Monitoring**: Pada mode monitoring, tombol Timesheet Gap Healer otomatis disembunyikan agar antarmuka fokus murni pada evaluasi dan kepatuhan waktu kerja tim.
+- **Tabel Rekapitulasi**: Dilengkapi pagination, filter bulan, pencarian aktivitas, serta penghapusan item draf/rekap.
 
 ---
 
@@ -40,7 +45,6 @@ DevHub dilengkapi dengan serangkaian modul dan asisten otomatis untuk mempercepa
   - Daftar MR tim yang memerlukan review Anda.
   - Generator komentar review cerdas per blok diff lengkap dengan saran perubahan kode (*suggested change*).
 - **Productivity Dashboard**: Radar 4 pilar metrik performa (Produktivitas, Kualitas, Kolaborasi, dan Konsistensi), grafik komparasi commit vs MR, rekomendasi teknis performa, serta evaluasi kebugaran *Work-Life Balance* (jam kerja normal, larut malam, akhir pekan).
-  - *Catatan Layout UI*: Tinggi kartu **Insight & saran / Work-Life Balance** minimal tingginya adalah sejajar dengan kartu **Profil Performa** dan **Skor Keseluruhan** (sejajar horizontal di baris pilar produktivitas).
 
 ---
 
@@ -62,10 +66,10 @@ DevHub dilengkapi dengan serangkaian modul dan asisten otomatis untuk mempercepa
 
 ## 6. Pengaturan Sistem & Layanan Background PM2 (`/settings`)
 
-- **Integrasi & Kredensial**: Konfigurasi koneksi SSO Taiga, GitLab Personal Access Token (PAT), dan Multi-Provider AI (Gemini, OpenAI, Claude, Custom LLM).
+- **Mode Tampilan Sistem (Developer Mode vs Monitoring Mode)**: Pilihan mode global dengan penyimpanan otomatis instan yang menyelaraskan fitur menu dan navigasi sidebar.
+- **Manajemen Kartu Modular (Minimize / Expand)**: Seluruh kartu modul konfigurasi (Taiga, GitLab, AI Engine, PM2) dapat di-minimize secara independen dengan status bawaan terlipat untuk kenyamanan visual.
 - **Background Process Manager (PM2)**:
-  - Tombol 1-klik untuk mengaktifkan PM2 agar aplikasi DEV HUB berjalan secara otomatis di layar belakang (*background daemon*).
-  - Menghilangkan ketergantungan pada jendela terminal terbuka agar server terus melayani request di port 4001 (independen dari port development 4000).
+  - Tombol 1-klik untuk mengaktifkan PM2 agar aplikasi DEV HUB berjalan secara otomatis di layar belakang (*background daemon*) pada port 4001.
+  - Menghilangkan ketergantungan pada jendela terminal terbuka agar server terus melayani request secara reliabel.
   - Telemetri live status: PID, CPU, Memory usage, Uptime, dan jumlah restart.
   - Opsi kontrol siklus hidup: Aktifkan, Restart, Hentikan, dan inspeksi log terminal terakhir.
-

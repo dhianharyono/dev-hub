@@ -149,7 +149,7 @@ export function WadAnalyticsCard({
                 </span>
                 <div className='flex items-baseline gap-1'>
                   <span
-                    className={`text-[16px] font-extrabold tracking-tight font-mono leading-none ${getRatioToneClass(workload?.kpis?.timeSpent || 0, workload?.kpis?.expectedHours || 0)}`}
+                    className={`text-[16px] font-extrabold tracking-tight leading-none ${getRatioToneClass(workload?.kpis?.timeSpent || 0, workload?.kpis?.expectedHours || 0)}`}
                   >
                     {workload?.kpis?.timeSpent || 0}h
                   </span>
@@ -165,7 +165,7 @@ export function WadAnalyticsCard({
                 </span>
                 <div className='flex items-baseline gap-1'>
                   <span
-                    className={`text-[16px] font-extrabold tracking-tight font-mono leading-none ${getRatioToneClass(workload?.statusBreakdown?.done || 0, workload?.kpis?.activitiesCount || 0)}`}
+                    className={`text-[16px] font-extrabold tracking-tight leading-none ${getRatioToneClass(workload?.statusBreakdown?.done || 0, workload?.kpis?.activitiesCount || 0)}`}
                   >
                     {workload?.statusBreakdown?.done || 0}
                   </span>
@@ -181,7 +181,7 @@ export function WadAnalyticsCard({
                 </span>
                 <div className='flex items-baseline gap-1'>
                   <span
-                    className={`text-[16px] font-extrabold tracking-tight font-mono leading-none`}
+                    className={`text-[16px] font-extrabold tracking-tight leading-none`}
                   >
                     {workload?.kpis?.workdaysPassed || 0}
                   </span>
@@ -196,7 +196,7 @@ export function WadAnalyticsCard({
                   Status Portal
                 </span>
                 <span
-                  className={`text-[15px] font-extrabold tracking-tight font-mono leading-none truncate ${textColors}`}
+                  className={`text-[15px] font-extrabold tracking-tight leading-none truncate ${textColors}`}
                 >
                   {statusType === 'Fit'
                     ? 'Fit'
