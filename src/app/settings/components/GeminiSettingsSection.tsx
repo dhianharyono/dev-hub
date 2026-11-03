@@ -10,6 +10,13 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { Select } from '@/components/Select';
+import {
+  AI_FEATURE_MODEL_KEYS,
+  DEFAULT_MODEL_BY_PROVIDER,
+  MODEL_OPTIONS,
+  type AiProvider,
+} from '@/lib/ai/models';
+import { AiMenuModelsPanel } from './AiMenuModelsPanel';
 import type { PublicSettings, TestResult, TestingState } from '../types';
 
 interface GeminiSettingsSectionProps {
@@ -31,21 +38,16 @@ export function GeminiSettingsSection({
   const provider = form.aiProvider || 'gemini';
   const currentKey = form.aiApiKey ?? form.geminiApiKey ?? '';
 
-  const handleProviderChange = (
-    newProvider: 'gemini' | 'openai' | 'anthropic' | 'custom',
-  ) => {
+  const handleProviderChange = (newProvider: AiProvider) => {
     onChange('aiProvider', newProvider);
     // Set default model for the selected provider if not set
+    const defaultModel = DEFAULT_MODEL_BY_PROVIDER[newProvider];
+    onChange('aiModel', defaultModel);
     if (newProvider === 'gemini') {
-      onChange('aiModel', 'gemini-3.8-flash');
-      onChange('geminiModel', 'gemini-3.8-flash');
-    } else if (newProvider === 'openai') {
-      onChange('aiModel', 'gpt-4o-mini');
-    } else if (newProvider === 'anthropic') {
-      onChange('aiModel', 'claude-3-5-sonnet-latest');
-    } else if (newProvider === 'custom') {
-      onChange('aiModel', 'deepseek-chat');
+      onChange('geminiModel', defaultModel);
     }
+    // Per-menu models belong to the previous provider, so fall back to global
+    for (const key of AI_FEATURE_MODEL_KEYS) onChange(key, '');
   };
 
   const handleApiKeyChange = (val: string) => {
@@ -142,74 +144,31 @@ export function GeminiSettingsSection({
 
         {/* Model Selector / Input */}
         <div className='field'>
-          <label>Model LLM</label>
-          {provider === 'gemini' && (
-            <Select
-              value={form.aiModel || form.geminiModel || 'gemini-3.8-flash'}
-              onChange={(e) => {
-                onChange('aiModel', e.target.value);
-                onChange('geminiModel', e.target.value);
-              }}
-            >
-              <option value='gemini-3.8-flash'>
-                gemini-3.8-flash (Rekomendasi Google - Generasi Terbaru)
-              </option>
-              <option value='gemini-3.7-flash'>
-                gemini-3.7-flash (Stabil &amp; Canggih)
-              </option>
-              <option value='gemini-3.6-flash'>
-                gemini-3.6-flash (Cepat &amp; Responsif)
-              </option>
-              <option value='gemini-3.5-flash'>
-                gemini-3.5-flash (Stabil &amp; Handal)
-              </option>
-              <option value='gemini-3.1-flash-lite'>
-                gemini-3.1-flash-lite (Ultra Cepat &amp; Hemat Kuota)
-              </option>
-              <option value='gemini-flash-lite-latest'>
-                gemini-flash-lite-latest (Versi Lite Otomatis)
-              </option>
-            </Select>
-          )}
-
-          {provider === 'openai' && (
-            <Select
-              value={form.aiModel || 'gpt-4o-mini'}
-              onChange={(e) => onChange('aiModel', e.target.value)}
-            >
-              <option value='gpt-4o-mini'>
-                gpt-4o-mini (Rekomendasi - Cepat &amp; Hemat)
-              </option>
-              <option value='gpt-4o'>gpt-4o (Kapasitas Analisis Penuh)</option>
-              <option value='o3-mini'>o3-mini (Reasoning Cepat)</option>
-            </Select>
-          )}
-
-          {provider === 'anthropic' && (
-            <Select
-              value={form.aiModel || 'claude-3-5-sonnet-latest'}
-              onChange={(e) => onChange('aiModel', e.target.value)}
-            >
-              <option value='claude-3-5-sonnet-latest'>
-                claude-3-5-sonnet (Rekomendasi - Kode &amp; Analisis)
-              </option>
-              <option value='claude-3-5-haiku-latest'>
-                claude-3-5-haiku (Super Cepat &amp; Ringkas)
-              </option>
-            </Select>
-          )}
-
-          {provider === 'custom' && (
+          <label>Model LLM Global</label>
+          {provider === 'custom' ? (
             <input
               className='input'
-              value={form.aiModel || 'deepseek-chat'}
+              value={form.aiModel || DEFAULT_MODEL_BY_PROVIDER.custom}
               placeholder='deepseek-chat, llama3.2, mistral, dll'
               onChange={(e) => onChange('aiModel', e.target.value)}
+            />
+          ) : (
+            <Select
+              value={
+                form.aiModel ||
+                (provider === 'gemini' ? form.geminiModel : '') ||
+                DEFAULT_MODEL_BY_PROVIDER[provider]
+              }
+              onChange={(e) => {
+                onChange('aiModel', e.target.value);
+                if (provider === 'gemini') onChange('geminiModel', e.target.value);
+              }}
+              options={MODEL_OPTIONS[provider]}
             />
           )}
 
           <span className='hint'>
-            Arsitektur model pemrosesan kecerdasan buatan.
+            Dipakai semua menu, kecuali yang diatur di Model per Menu.
           </span>
         </div>
 
@@ -349,6 +308,8 @@ export function GeminiSettingsSection({
           </span>
         </div>
       </div>
+
+      <AiMenuModelsPanel form={form} onChange={onChange} />
     </section>
   );
 }

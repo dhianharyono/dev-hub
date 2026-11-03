@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { getSettings } from '@/lib/settings';
+import { resolveAiModel, type AiFeature } from './models';
 
 export interface AiCompletionOptions {
   systemInstruction?: string;
@@ -8,6 +9,8 @@ export interface AiCompletionOptions {
   responseFormat?: 'json' | 'text';
   jsonSchema?: Record<string, unknown>;
   modelOverride?: string;
+  /** Menu making the call; picks the per-menu model from Settings when set. */
+  feature?: AiFeature;
 }
 
 /**
@@ -23,21 +26,8 @@ export async function runAiCompletion(
   const s = getSettings();
   const provider = s.aiProvider || 'gemini';
   const apiKey = (s.aiApiKey || s.geminiApiKey || '').trim();
-  let model =
-    options.modelOverride ||
-    s.aiModel ||
-    s.geminiModel ||
-    (provider === 'openai'
-      ? 'gpt-4o-mini'
-      : provider === 'anthropic'
-        ? 'claude-3-5-sonnet-latest'
-        : provider === 'custom'
-          ? 'deepseek-chat'
-          : 'gemini-3.8-flash');
-
-  if (provider === 'gemini' && (model.startsWith('gemini-2.5-') || model.startsWith('gemini-1.5-') || model.startsWith('gemini-2.0-'))) {
-    model = 'gemini-3.8-flash';
-  }
+  const model =
+    options.modelOverride?.trim() || resolveAiModel(s, options.feature);
 
   if (!apiKey && provider !== 'custom') {
     throw new Error(

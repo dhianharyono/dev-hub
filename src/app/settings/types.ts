@@ -21,6 +21,10 @@ export interface PublicSettings {
   aiApiKeySet: boolean;
   aiModel: string;
   aiBaseUrl: string;
+  aiModelSmartTask: string;
+  aiModelProductivity: string;
+  aiModelWorkload: string;
+  aiModelReport: string;
 }
 
 export interface TestResult {

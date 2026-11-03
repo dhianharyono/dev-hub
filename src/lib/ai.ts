@@ -97,6 +97,7 @@ ${input}
 
   try {
     const rawText = await runAiCompletion({
+      feature: "smartTask",
       systemInstruction: system,
       prompt,
       temperature: 0.3,

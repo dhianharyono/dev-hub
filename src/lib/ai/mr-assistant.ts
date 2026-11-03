@@ -115,6 +115,7 @@ ${(input.diff || '').slice(0, 7000) || '(Tidak ada diff langsung)'}
 
   try {
     const raw = await runAiCompletion({
+      feature: 'productivity',
       systemInstruction: system,
       prompt,
       temperature: 0.3,

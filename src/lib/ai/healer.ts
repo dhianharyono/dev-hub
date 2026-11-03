@@ -62,6 +62,7 @@ Hasilkan draf task pengisi jam WAD dalam format JSON sesuai schema.`;
 
   try {
     const raw = await runAiCompletion({
+      feature: 'workload',
       systemInstruction: system,
       prompt,
       temperature: 0.3,

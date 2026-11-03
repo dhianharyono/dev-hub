@@ -50,6 +50,7 @@ Berikan analisis mendalam, profesional, dan to-the-point dalam Bahasa Indonesia 
 Tulis dengan gaya suportif, ringkas, berbobot, dan actionable.`;
 
     const analysisText = await runAiCompletion({
+      feature: 'workload',
       prompt,
       temperature: 0.3,
     });

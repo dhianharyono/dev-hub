@@ -167,6 +167,7 @@ ${input.codeOrDiff.slice(0, 8000)}
 
   try {
     const raw = await runAiCompletion({
+      feature: 'productivity',
       systemInstruction: system,
       prompt,
       temperature: 0.2,

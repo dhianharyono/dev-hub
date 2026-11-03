@@ -20,6 +20,11 @@ export interface Settings {
   aiApiKey: string;
   aiModel: string;
   aiBaseUrl: string;
+  // Per-menu model overrides; empty = use aiModel
+  aiModelSmartTask: string;
+  aiModelProductivity: string;
+  aiModelWorkload: string;
+  aiModelReport: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -42,6 +47,10 @@ export const DEFAULT_SETTINGS: Settings = {
   aiApiKey: '',
   aiModel: 'gemini-3.8-flash',
   aiBaseUrl: '',
+  aiModelSmartTask: '',
+  aiModelProductivity: '',
+  aiModelWorkload: '',
+  aiModelReport: '',
 };
 
 const SECRET_KEYS: (keyof Settings)[] = [

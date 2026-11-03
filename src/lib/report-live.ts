@@ -3,6 +3,7 @@ import { db } from './db';
 import { getSettings } from './settings';
 import { loadMetrics } from './stats';
 import { runAiCompletion, extractJsonFromAiResponse } from './ai/client';
+import { resolveAiModel } from './ai/models';
 import {
   referenceReportData,
   type FullReportData,
@@ -71,16 +72,7 @@ export function saveCachedReportAiAnalysis(data: ReportAiAnalysisCache) {
 
 export async function generateLiveReportAi(metricsData?: ReturnType<typeof loadMetrics>): Promise<ReportAiAnalysisCache> {
   const s = getSettings();
-  const activeModel =
-    s.aiModel ||
-    s.geminiModel ||
-    (s.aiProvider === 'openai'
-      ? 'gpt-4o-mini'
-      : s.aiProvider === 'anthropic'
-        ? 'claude-3-5-sonnet-latest'
-        : s.aiProvider === 'custom'
-          ? 'deepseek-chat'
-          : 'gemini-3.8-flash');
+  const activeModel = resolveAiModel(s, 'report');
 
   const m = metricsData || loadMetrics(90);
   const user = m.user || { name: 'dhian haryono', username: 'telkomdev-dhianharyono' };
@@ -124,6 +116,7 @@ Tuliskan analisis performa teknis dengan gaya objektif, solutif, dan bebas bias.
 
   try {
     const rawAi = await runAiCompletion({
+      feature: 'report',
       systemInstruction,
       prompt,
       temperature: 0.3,
@@ -180,16 +173,7 @@ export function getLiveReportData(): FullReportData {
   const metrics = loadMetrics(90);
   const sIso = new Date(metrics.period.start).toISOString();
 
-  const activeModel =
-    s.aiModel ||
-    s.geminiModel ||
-    (s.aiProvider === 'openai'
-      ? 'gpt-4o-mini'
-      : s.aiProvider === 'anthropic'
-        ? 'claude-3-5-sonnet-latest'
-        : s.aiProvider === 'custom'
-          ? 'deepseek-chat'
-          : 'gemini-3.8-flash');
+  const activeModel = resolveAiModel(s, 'report');
 
   const glUser = metrics.user || {
     id: 835,
