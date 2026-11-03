@@ -156,7 +156,7 @@ export function TaigaDeliveryCard({
   );
 
   const renderMonthlyTrends = () => (
-    <div className='flex flex-col justify-between gap-4 p-5 sm:p-6 bg-slate-50/70 border border-border rounded-2xl min-h-[240px]'>
+    <div className='flex flex-col justify-between gap-4 p-5 sm:p-6 bg-slate-50/70 border border-border rounded-2xl min-h-60'>
       <div className='flex items-center justify-between'>
         <span className='text-[12px] font-bold text-slate-text'>
           Tren Tugas Bulanan
@@ -164,7 +164,7 @@ export function TaigaDeliveryCard({
         <span className='xs dim'>Rolling 6 Bulan</span>
       </div>
       {workload?.trends && workload.trends.length > 0 ? (
-        <div className='flex items-end justify-between gap-2.5 flex-1 min-h-[120px] p-2 pt-0'>
+        <div className='flex items-end justify-between gap-2.5 flex-1 min-h-30 p-2 pt-0'>
           {workload.trends.slice(-6).map((tr) => {
             const maxAct = Math.max(
               ...workload.trends.map((t) => t.totalActivities),
@@ -183,11 +183,11 @@ export function TaigaDeliveryCard({
                 <span className='text-[11px] font-bold text-slate-text-2'>
                   {tr.totalActivities}
                 </span>
-                <div className='w-full max-w-[28px] flex-1 min-h-[60px] bg-slate-100 rounded-lg flex items-end overflow-hidden'>
+                <div className='w-full max-w-7 flex-1 min-h-15 bg-slate-100 rounded-lg flex items-end overflow-hidden'>
                   <div
                     className={`w-full rounded-lg bg-violet-500 transition-all duration-500 ${
                       isCurrent
-                        ? '!bg-gradient-to-b !from-violet-500 !to-indigo-500 shadow-[0_2px_8px_rgba(139,92,246,0.35)]'
+                        ? 'bg-linear-to-b! from-violet-500! to-indigo-500! shadow-[0_2px_8px_rgba(139,92,246,0.35)]'
                         : ''
                     }`}
                     style={barHeightStyle}
@@ -338,7 +338,7 @@ export function TaigaDeliveryCard({
             action={
               <Link
                 href='/settings'
-                className='btn btn-primary no-underline max-w-full text-center whitespace-normal h-auto min-h-[42px] py-2 px-4 text-[13px] leading-snug'
+                className='btn btn-primary no-underline max-w-full text-center whitespace-normal h-auto min-h-10.5 py-2 px-4 text-[13px] leading-snug'
                 id='btn-taiga-settings'
               >
                 <Settings size={15} className='shrink-0' />
@@ -352,7 +352,7 @@ export function TaigaDeliveryCard({
           {/* Task Delivery KPIs */}
           {isMonitoring ? (
             <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 bg-surface-subtle border border-border rounded-2xl p-5 sm:p-6'>
-              <div className='flex flex-col justify-between min-h-[72px] gap-1.5'>
+              <div className='flex flex-col justify-between min-h-18 gap-1.5'>
                 <span className='text-[10.5px] font-bold text-slate-muted uppercase tracking-wider'>
                   Story &amp; Task
                 </span>
@@ -364,7 +364,7 @@ export function TaigaDeliveryCard({
                 </span>
               </div>
 
-              <div className='flex flex-col justify-between min-h-[72px] gap-1.5'>
+              <div className='flex flex-col justify-between min-h-18 gap-1.5'>
                 <span className='text-[10.5px] font-bold text-slate-muted uppercase tracking-wider'>
                   Delivery Rate
                 </span>
@@ -376,7 +376,7 @@ export function TaigaDeliveryCard({
                 </span>
               </div>
 
-              <div className='flex flex-col justify-between min-h-[72px] gap-1.5'>
+              <div className='flex flex-col justify-between min-h-18 gap-1.5'>
                 <span className='text-[10.5px] font-bold text-slate-muted uppercase tracking-wider'>
                   Tugas Aktif
                 </span>
@@ -388,7 +388,7 @@ export function TaigaDeliveryCard({
                 </span>
               </div>
 
-              <div className='flex flex-col justify-between min-h-[72px] gap-1.5'>
+              <div className='flex flex-col justify-between min-h-18 gap-1.5'>
                 <span className='text-[10.5px] font-bold text-slate-muted uppercase tracking-wider'>
                   Rata-Rata Durasi
                 </span>
@@ -400,7 +400,7 @@ export function TaigaDeliveryCard({
                 </span>
               </div>
 
-              <div className='flex flex-col justify-between min-h-[72px] gap-1.5'>
+              <div className='flex flex-col justify-between min-h-18 gap-1.5'>
                 <span className='text-[10.5px] font-bold text-slate-muted uppercase tracking-wider'>
                   Proyek Terpetakan
                 </span>
@@ -414,7 +414,7 @@ export function TaigaDeliveryCard({
             </div>
           ) : (
             <div className='grid grid-cols-2 sm:grid-cols-4 gap-4 bg-surface-subtle border border-border rounded-2xl p-5 sm:p-6'>
-              <div className='flex flex-col justify-between min-h-[72px] gap-1.5'>
+              <div className='flex flex-col justify-between min-h-18 gap-1.5'>
                 <span className='text-[10.5px] font-bold text-slate-muted uppercase tracking-wider'>
                   Story &amp; Task
                 </span>
@@ -426,7 +426,7 @@ export function TaigaDeliveryCard({
                 </span>
               </div>
 
-              <div className='flex flex-col justify-between min-h-[72px] gap-1.5'>
+              <div className='flex flex-col justify-between min-h-18 gap-1.5'>
                 <span className='text-[10.5px] font-bold text-slate-muted uppercase tracking-wider'>
                   Delivery
                 </span>
@@ -438,7 +438,7 @@ export function TaigaDeliveryCard({
                 </span>
               </div>
 
-              <div className='flex flex-col justify-between min-h-[72px] gap-1.5'>
+              <div className='flex flex-col justify-between min-h-18 gap-1.5'>
                 <span className='text-[10.5px] font-bold text-slate-muted uppercase tracking-wider'>
                   Rata-Rata
                 </span>
@@ -450,7 +450,7 @@ export function TaigaDeliveryCard({
                 </span>
               </div>
 
-              <div className='flex flex-col justify-between min-h-[72px] gap-1.5'>
+              <div className='flex flex-col justify-between min-h-18 gap-1.5'>
                 <span className='text-[10.5px] font-bold text-slate-muted uppercase tracking-wider'>
                   Proyek Aktif
                 </span>

@@ -177,7 +177,7 @@ export default function Sidebar() {
       <header className='sticky top-0 z-30 w-full bg-surface/95 backdrop-blur-md border-b border-border px-4 py-2.5 flex items-center justify-between lg:hidden print:hidden'>
         <Link href='/' className='flex items-center gap-2.5 no-underline'>
           <div
-            className='w-7.5 h-7.5 rounded-lg bg-gradient-to-br from-brand to-[#1e62d0] text-white grid place-items-center shadow-[0_2px_8px_rgba(25,119,243,0.2)] shrink-0'
+            className='w-7.5 h-7.5 rounded-lg bg-linear-to-br from-brand to-[#1e62d0] text-white grid place-items-center shadow-[0_2px_8px_rgba(25,119,243,0.2)] shrink-0'
             aria-hidden='true'
           >
             <FolderGit2 size={16} strokeWidth={2.4} />
@@ -221,7 +221,7 @@ export default function Sidebar() {
       {/* 3. Mobile Slide-over Drawer Panel */}
       <div
         id='mobile-sidebar-drawer'
-        className={`fixed inset-y-0 left-0 w-[290px] max-w-[85vw] bg-surface z-50 border-r border-border shadow-2xl flex flex-col p-5 gap-5 overflow-y-auto transition-transform duration-300 ease-out lg:hidden print:hidden ${
+        className={`fixed inset-y-0 left-0 w-72.5 max-w-[85vw] bg-surface z-50 border-r border-border shadow-2xl flex flex-col p-5 gap-5 overflow-y-auto transition-transform duration-300 ease-out lg:hidden print:hidden ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         role='dialog'
@@ -231,7 +231,7 @@ export default function Sidebar() {
         <div className='flex items-center justify-between pb-2 border-b border-border/60'>
           <div className='flex items-center gap-2.5 min-w-0'>
             <div
-              className='w-8 h-8 rounded-lg bg-gradient-to-br from-brand to-[#1e62d0] text-white grid place-items-center shadow-[0_2px_8px_rgba(25,119,243,0.2)] shrink-0'
+              className='w-8 h-8 rounded-lg bg-linear-to-br from-brand to-[#1e62d0] text-white grid place-items-center shadow-[0_2px_8px_rgba(25,119,243,0.2)] shrink-0'
               aria-hidden='true'
             >
               <FolderGit2 size={17} strokeWidth={2.4} />
@@ -310,13 +310,13 @@ export default function Sidebar() {
       {/* 4. Desktop Aside (Hidden on mobile < 1024px, visible on lg and up) */}
       <aside
         className={`sticky top-0 h-screen z-40 shrink-0 overflow-hidden transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] print:hidden hidden lg:flex ${
-          collapsed ? 'w-[68px]' : 'w-64'
+          collapsed ? 'w-17' : 'w-64'
         }`}
         aria-label='Navigasi utama'
       >
         {/* 4a. Primary Blue Icon Rail (Appears when sidebar is minimized / collapsed) */}
         <div
-          className={`w-[68px] min-w-[68px] h-full bg-brand flex flex-col items-center py-5 pb-6 gap-4 text-white transition-all duration-300 ${
+          className={`w-17 min-w-17 h-full bg-brand flex flex-col items-center py-5 pb-6 gap-4 text-white transition-all duration-300 ${
             collapsed ? 'flex' : 'hidden'
           }`}
         >
@@ -371,7 +371,7 @@ export default function Sidebar() {
           <div className='flex items-center justify-between gap-2.5 pb-0.5'>
             <div className='flex items-center gap-2.5 min-w-0'>
               <div
-                className='w-8 h-8 rounded-lg bg-gradient-to-br from-brand to-[#1e62d0] text-white grid place-items-center shadow-[0_2px_8px_rgba(25,119,243,0.2)] shrink-0'
+                className='w-8 h-8 rounded-lg bg-linear-to-br from-brand to-[#1e62d0] text-white grid place-items-center shadow-[0_2px_8px_rgba(25,119,243,0.2)] shrink-0'
                 aria-hidden='true'
               >
                 <FolderGit2 size={17} strokeWidth={2.4} />

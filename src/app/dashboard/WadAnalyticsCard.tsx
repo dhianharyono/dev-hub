@@ -76,7 +76,7 @@ export function WadAnalyticsCard({
 
   return (
     <section
-      className='bg-surface border border-border rounded-[18px] p-5 shadow-card flex flex-col gap-3.5'
+      className='bg-surface border border-border rounded-card p-5 shadow-card flex flex-col gap-3.5'
       aria-label='Analitik WAD Kepatuhan dan Workload'
     >
       <div className='flex items-center justify-between pb-2.5 border-b border-border'>
@@ -100,7 +100,7 @@ export function WadAnalyticsCard({
             action={
               <Link
                 href='/settings'
-                className='btn btn-primary no-underline max-w-full text-center whitespace-normal h-auto min-h-[42px] py-2 px-4 text-[13px] leading-snug'
+                className='btn btn-primary no-underline max-w-full text-center whitespace-normal h-auto min-h-10.5 py-2 px-4 text-[13px] leading-snug'
                 id='btn-wad-settings'
               >
                 <Settings size={15} className='shrink-0' />
@@ -143,7 +143,7 @@ export function WadAnalyticsCard({
             </div>
 
             <div className='grid grid-cols-1 sm:grid-cols-2 gap-2.5'>
-              <div className='bg-slate-50/80 border border-border rounded-xl p-2.5 px-3 flex flex-col justify-between min-h-[55px] gap-0.5 transition-all hover:bg-surface-hover hover:border-border-strong hover:shadow-xs'>
+              <div className='bg-slate-50/80 border border-border rounded-xl p-2.5 px-3 flex flex-col justify-between min-h-13.75 gap-0.5 transition-all hover:bg-surface-hover hover:border-border-strong hover:shadow-xs'>
                 <span className='text-[10px] font-bold uppercase tracking-wider text-slate-muted leading-tight'>
                   Jam Kerja Aktif
                 </span>
@@ -159,7 +159,7 @@ export function WadAnalyticsCard({
                 </div>
               </div>
 
-              <div className='bg-slate-50/80 border border-border rounded-xl p-2.5 px-3 flex flex-col justify-between min-h-[55px] gap-0.5 transition-all hover:bg-surface-hover hover:border-border-strong hover:shadow-xs'>
+              <div className='bg-slate-50/80 border border-border rounded-xl p-2.5 px-3 flex flex-col justify-between min-h-13.75 gap-0.5 transition-all hover:bg-surface-hover hover:border-border-strong hover:shadow-xs'>
                 <span className='text-[10px] font-bold uppercase tracking-wider text-slate-muted leading-tight'>
                   Tugas Selesai
                 </span>
@@ -175,7 +175,7 @@ export function WadAnalyticsCard({
                 </div>
               </div>
 
-              <div className='bg-slate-50/80 border border-border rounded-xl p-2.5 px-3 flex flex-col justify-between min-h-[55px] gap-0.5 transition-all hover:bg-surface-hover hover:border-border-strong hover:shadow-xs'>
+              <div className='bg-slate-50/80 border border-border rounded-xl p-2.5 px-3 flex flex-col justify-between min-h-13.75 gap-0.5 transition-all hover:bg-surface-hover hover:border-border-strong hover:shadow-xs'>
                 <span className='text-[10px] font-bold uppercase tracking-wider text-slate-muted leading-tight'>
                   Hari Kerja
                 </span>
@@ -191,7 +191,7 @@ export function WadAnalyticsCard({
                 </div>
               </div>
 
-              <div className='bg-slate-50/80 border border-border rounded-xl p-2.5 px-3 flex flex-col justify-between min-h-[55px] gap-0.5 transition-all hover:bg-surface-hover hover:border-border-strong hover:shadow-xs'>
+              <div className='bg-slate-50/80 border border-border rounded-xl p-2.5 px-3 flex flex-col justify-between min-h-13.75 gap-0.5 transition-all hover:bg-surface-hover hover:border-border-strong hover:shadow-xs'>
                 <span className='text-[10px] font-bold uppercase tracking-wider text-slate-muted leading-tight'>
                   Status Portal
                 </span>

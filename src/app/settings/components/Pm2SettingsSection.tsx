@@ -68,7 +68,7 @@ export function Pm2SettingsSection({
           onClick={handleToggleMinimize}
           title={isMinimized ? 'Klik untuk memperluas' : 'Klik untuk meminimalkan'}
         >
-          <span className='w-[26px] h-[26px] rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-xs font-extrabold text-slate-muted group-hover:border-brand/40 group-hover:text-brand shrink-0 mt-0.5 transition-colors'>
+          <span className='w-6.5 h-6.5 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-xs font-extrabold text-slate-muted group-hover:border-brand/40 group-hover:text-brand shrink-0 mt-0.5 transition-colors'>
             4
           </span>
           <div className='flex-1 min-w-0'>
