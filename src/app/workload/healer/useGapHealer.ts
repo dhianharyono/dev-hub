@@ -13,6 +13,20 @@ interface UseGapHealerProps {
   onClose: () => void;
 }
 
+function findInProgressStatusId(
+  statuses?: { id: number; name: string; slug?: string }[],
+): number | null {
+  if (!statuses || statuses.length === 0) return null;
+  const match = statuses.find(
+    (s) =>
+      /in[\s-_]?progress/i.test(s.name) ||
+      (s.slug && /in[\s-_]?progress/i.test(s.slug)) ||
+      /sedang[\s-_]?dikerjakan/i.test(s.name) ||
+      /progress/i.test(s.name),
+  );
+  return match?.id ?? statuses[0]?.id ?? null;
+}
+
 export function useGapHealer({
   isOpen,
   activeDay,
@@ -23,6 +37,8 @@ export function useGapHealer({
   const { notify } = useNotification();
   const { runAiTask, getTask, minimizeTask, dismissTask } = useAiTask();
   const [meta, setMeta] = useState<MetaData | null>(null);
+  const [projectMetaMap, setProjectMetaMap] = useState<Record<string, MetaData>>({});
+  const [loadingProject, setLoadingProject] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [suggestions, setSuggestions] = useState<HealerSuggestion[]>([]);
@@ -69,6 +85,10 @@ export function useGapHealer({
           const normalized = normalizeMeta(data);
           if (normalized) {
             setMeta(normalized);
+            setProjectMetaMap((prev) => ({
+              ...prev,
+              [normalized.projectSlug]: normalized,
+            }));
           }
         }
       } catch (err) {
@@ -160,10 +180,18 @@ export function useGapHealer({
 
       if (result) {
         lastConsumedTaskIdRef.current = taskId;
-        setSuggestions((result.suggestions || []).map((suggestion) => ({
-          ...suggestion,
-          description: normalizeGeneratedDescription(suggestion.description),
-        })));
+        const curProjSlug = meta?.projectSlug;
+        const curProjId = meta?.projectId;
+        const defaultStatus = findInProgressStatusId(meta?.taskStatuses);
+        setSuggestions(
+          (result.suggestions || []).map((suggestion) => ({
+            ...suggestion,
+            projectSlug: suggestion.projectSlug || curProjSlug,
+            projectId: suggestion.projectId ?? curProjId,
+            statusId: suggestion.statusId ?? defaultStatus,
+            description: normalizeGeneratedDescription(suggestion.description),
+          })),
+        );
         setDetectedCommits(result.commits || []);
       }
     } catch (e) {
@@ -173,6 +201,49 @@ export function useGapHealer({
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleProjectChange = async (index: number, newProjectSlug: string) => {
+    let targetMeta = projectMetaMap[newProjectSlug];
+    if (!targetMeta) {
+      setLoadingProject(true);
+      try {
+        const res = await fetch(`/api/taiga/meta?project=${encodeURIComponent(newProjectSlug)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const normalized = normalizeMeta(data);
+          if (normalized) {
+            targetMeta = normalized;
+            setProjectMetaMap((prev) => ({
+              ...prev,
+              [newProjectSlug]: normalized,
+            }));
+          }
+        }
+      } catch (e) {
+        console.warn('Gagal memuat metadata project:', e);
+      } finally {
+        setLoadingProject(false);
+      }
+    }
+
+    const defaultStatus = targetMeta
+      ? findInProgressStatusId(targetMeta.taskStatuses)
+      : null;
+
+    setSuggestions((prev) => {
+      const updated = [...prev];
+      if (updated[index]) {
+        updated[index] = {
+          ...updated[index],
+          projectSlug: newProjectSlug,
+          projectId: targetMeta?.projectId ?? updated[index].projectId,
+          parentUserStoryId: null, // Reset user story when project changes
+          statusId: defaultStatus,
+        };
+      }
+      return updated;
+    });
   };
 
   const handleUpdateSuggestion = (
@@ -214,6 +285,9 @@ export function useGapHealer({
   };
 
   const handleAddManualSuggestion = () => {
+    const curProjSlug = meta?.projectSlug;
+    const curProjId = meta?.projectId;
+    const defaultStatus = findInProgressStatusId(meta?.taskStatuses);
     const defaultStory = meta?.userStories?.[0]?.id ?? null;
     const newSug: HealerSuggestion = {
       subject: 'Penyesuaian logic dan pengujian komponen',
@@ -224,6 +298,9 @@ export function useGapHealer({
       totalTimeSpentMinutes: 90,
       parentUserStoryId: defaultStory,
       tags: ['refactor'],
+      projectSlug: curProjSlug,
+      projectId: curProjId,
+      statusId: defaultStatus,
     };
     setSuggestions((prev) => [...prev, newSug]);
   };
@@ -257,23 +334,10 @@ export function useGapHealer({
     setError(null);
 
     try {
-      // Cari status 'In Progress' dari daftar taskStatuses Taiga
-      const inProgressStatus =
-        activeMeta.taskStatuses?.find(
-          (s) =>
-            /in[\s-_]?progress/i.test(s.name) ||
-            (s.slug && /in[\s-_]?progress/i.test(s.slug)) ||
-            /sedang[\s-_]?dikerjakan/i.test(s.name) ||
-            /progress/i.test(s.name),
-        ) ??
-        activeMeta.statuses?.find(
-          (s) =>
-            /in[\s-_]?progress/i.test(s.name) ||
-            (s.slug && /in[\s-_]?progress/i.test(s.slug)) ||
-            /progress/i.test(s.name),
-        );
-
-      const inProgressStatusId = inProgressStatus?.id ?? null;
+      const defaultStatusId =
+        findInProgressStatusId(activeMeta.taskStatuses) ??
+        activeMeta.statuses?.[0]?.id ??
+        null;
       const assignedToId = activeMeta.me?.id ?? null;
 
       const payload = {
@@ -286,12 +350,14 @@ export function useGapHealer({
           subject: s.subject,
           description: normalizeGeneratedDescription(s.description),
           userStoryId: s.parentUserStoryId,
-          statusId: inProgressStatusId,
+          statusId: s.statusId ?? defaultStatusId,
           assignedTo: assignedToId,
           activityDate: s.activityDate,
           startTime: s.startTime,
           totalTimeSpentMinutes: s.totalTimeSpentMinutes,
           tags: s.tags,
+          projectId: s.projectId ?? activeMeta.projectId,
+          projectSlug: s.projectSlug ?? activeMeta.projectSlug,
         })),
       };
 
@@ -325,6 +391,8 @@ export function useGapHealer({
 
   return {
     meta,
+    projectMetaMap,
+    loadingProject,
     generating: isGenerating,
     handleMinimize,
     taskId,
@@ -338,6 +406,7 @@ export function useGapHealer({
     successMsg,
     setSuccessMsg,
     handleGenerate,
+    handleProjectChange,
     handleUpdateSuggestion,
     handleRemoveSuggestion,
     handleClearAll,

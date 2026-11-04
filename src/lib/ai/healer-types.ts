@@ -9,6 +9,9 @@ export const HealerSuggestionSchema = z.object({
   totalTimeSpentMinutes: z.number(),
   parentUserStoryId: z.number().nullable(),
   tags: z.array(z.string()),
+  projectId: z.number().nullable().optional(),
+  projectSlug: z.string().optional(),
+  statusId: z.number().nullable().optional(),
 });
 export type HealerSuggestion = z.infer<typeof HealerSuggestionSchema>;
 

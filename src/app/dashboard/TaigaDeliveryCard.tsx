@@ -171,7 +171,8 @@ export function TaigaDeliveryCard({
               1,
             );
             const heightPct = Math.round((tr.totalActivities / maxAct) * 100);
-            const isCurrent = tr.month === (workload.month || '2026-10');
+            const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+            const isCurrent = tr.month === (workload.month || currentMonthKey);
             const barHeightStyle: React.CSSProperties = {
               height: `${tr.totalActivities > 0 ? Math.max(16, heightPct) : 0}%`,
             };

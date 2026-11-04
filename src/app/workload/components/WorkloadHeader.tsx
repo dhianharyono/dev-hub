@@ -52,7 +52,7 @@ export function WorkloadHeader({
             <option key={m.value} value={m.value}>
               {m.label}
             </option>
-          )) || <option value='2026-10'>Oktober 2026</option>}
+          )) || <option value={selectedMonth}>{selectedMonth}</option>}
         </Select>
 
         <button

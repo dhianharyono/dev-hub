@@ -53,19 +53,18 @@ export function TimesheetGapHealerModal({
 
   const {
     meta,
+    projectMetaMap,
+    loadingProject,
     generating,
     handleMinimize,
     taskId,
     submitting,
     suggestions,
-    setSuggestions,
     detectedCommits,
-    setDetectedCommits,
-    error,
     setError,
-    successMsg,
     setSuccessMsg,
     handleGenerate,
+    handleProjectChange,
     handleUpdateSuggestion,
     handleRemoveSuggestion,
     handleClearAll,
@@ -192,16 +191,24 @@ export function TimesheetGapHealerModal({
               </div>
             </div>
 
-            {suggestions.map((sug, idx) => (
-              <HealerSuggestionCard
-                key={idx}
-                sug={sug}
-                idx={idx}
-                meta={meta}
-                onUpdate={handleUpdateSuggestion}
-                onRemove={handleRemoveSuggestion}
-              />
-            ))}
+            {suggestions.map((sug, idx) => {
+              const currentProjSlug =
+                sug.projectSlug || meta?.projectSlug || '';
+              const cardMeta = projectMetaMap[currentProjSlug] || meta;
+              return (
+                <HealerSuggestionCard
+                  key={idx}
+                  sug={sug}
+                  idx={idx}
+                  meta={meta}
+                  cardMeta={cardMeta}
+                  loadingProject={loadingProject}
+                  onProjectChange={handleProjectChange}
+                  onUpdate={handleUpdateSuggestion}
+                  onRemove={handleRemoveSuggestion}
+                />
+              );
+            })}
           </div>
         )}
       </div>

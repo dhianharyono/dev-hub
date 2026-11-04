@@ -3,11 +3,16 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import type { WorkloadData, WorkloadDaySummary } from '@/lib/workload';
 
+export function getCurrentMonthKey(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
 export function useWorkload() {
   const [data, setData] = useState<WorkloadData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<string>('2026-10');
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => getCurrentMonthKey());
   const [isHealerOpen, setIsHealerOpen] = useState(false);
   const [healerDay, setHealerDay] = useState<WorkloadDaySummary | null>(null);
 

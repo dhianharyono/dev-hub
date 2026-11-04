@@ -23,6 +23,9 @@ const Body = z.object({
       activityDate: z.string().optional(),
       startTime: z.string().optional(),
       totalTimeSpentMinutes: z.number().nullable().optional(),
+      projectId: z.number().optional(),
+      projectSlug: z.string().optional(),
+      milestoneId: z.number().nullable().optional(),
     }),
   ),
 });
@@ -49,11 +52,14 @@ export async function POST(req: Request) {
     const results: { ok: boolean; subject: string; url?: string; ref?: number; error?: string }[] = [];
     // sequential to keep Taiga refs in input order
     for (const it of body.items) {
+      const targetProjectId = it.projectId ?? body.projectId;
+      const targetProjectSlug = it.projectSlug ?? body.projectSlug;
+      const targetMilestoneId = it.milestoneId !== undefined ? it.milestoneId : body.milestoneId;
       try {
-        const r = await createItem(body.projectId, {
+        const r = await createItem(targetProjectId, {
           ...it,
-          milestoneId: body.milestoneId,
-          projectSlug: body.projectSlug,
+          milestoneId: targetMilestoneId,
+          projectSlug: targetProjectSlug,
           activityDate: it.activityDate,
           startTime: it.startTime,
           totalTimeSpentMinutes: it.totalTimeSpentMinutes ?? undefined,
