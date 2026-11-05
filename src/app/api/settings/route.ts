@@ -26,10 +26,17 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   try {
-    const body = (await req.json()) as Partial<Settings> & { taigaSession?: string };
-    const patch: Partial<Settings> = {};
+    const body = (await req.json()) as Partial<Settings> & {
+      taigaSession?: string;
+      aiApiKeys?: Record<string, string>;
+    };
+    const patch: Partial<Settings> & { aiApiKeys?: Record<string, string> } = {};
     for (const [k, v] of Object.entries(body)) {
       if (k === "taigaSession" || isMasked(v)) continue;
+      if (k === "aiApiKeys" && typeof v === "object" && v !== null) {
+        patch.aiApiKeys = v as Record<string, string>;
+        continue;
+      }
       (patch as Record<string, unknown>)[k] = typeof v === "string" ? v.trim() : v;
     }
 

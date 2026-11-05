@@ -76,4 +76,36 @@ describe('AI model resolution per menu', () => {
     expect(pub.aiModelSmartTask).toBe('haiku-4.5');
     expect(pub.aiModelProductivity).toBe('dpe/limited/claude-sonnet-5.5');
   });
+
+  it('saves and resolves AI API keys per provider', async () => {
+    const { saveSettings, getSettings, getPublicSettings } =
+      await import('../src/lib/settings');
+
+    saveSettings({
+      aiProvider: 'openai',
+      aiApiKeys: {
+        gemini: 'test-gemini-key',
+        openai: 'test-openai-key',
+        anthropic: 'test-anthropic-key',
+      },
+    });
+
+    let s = getSettings();
+    expect(s.aiProvider).toBe('openai');
+    expect(s.aiApiKey).toBe('test-openai-key');
+
+    const pub = getPublicSettings();
+    expect(pub.aiApiKeys).toEqual(
+      expect.objectContaining({
+        gemini: 'test-gemini-key',
+        openai: 'test-openai-key',
+        anthropic: 'test-anthropic-key',
+      }),
+    );
+
+    // Switch provider to anthropic
+    saveSettings({ aiProvider: 'anthropic' });
+    s = getSettings();
+    expect(s.aiApiKey).toBe('test-anthropic-key');
+  });
 });

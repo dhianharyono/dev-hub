@@ -65,6 +65,8 @@ const SECRET_KEYS: (keyof Settings)[] = [
   'aiApiKey',
 ];
 
+type AiProviderKey = 'gemini' | 'openai' | 'anthropic' | 'custom';
+
 export function getSettings(): Settings {
   const rows = db().prepare('SELECT key, value FROM settings').all() as {
     key: string;
@@ -72,29 +74,64 @@ export function getSettings(): Settings {
   }[];
   const s: Record<string, string> = { ...DEFAULT_SETTINGS };
   for (const r of rows) s[r.key] = r.value;
+
   // env fallbacks for secrets
   if (!s.geminiApiKey && process.env.GEMINI_API_KEY)
     s.geminiApiKey = process.env.GEMINI_API_KEY;
-  if (!s.aiApiKey) {
-    if (s.aiProvider === 'gemini' && s.geminiApiKey)
+
+  // Check per-provider key
+  const activeProvider = (s.aiProvider || 'gemini') as AiProviderKey;
+  const providerKeyInDb = s[`aiApiKey_${activeProvider}`];
+
+  if (providerKeyInDb) {
+    s.aiApiKey = providerKeyInDb;
+  } else if (!s.aiApiKey) {
+    if (activeProvider === 'gemini' && s.geminiApiKey)
       s.aiApiKey = s.geminiApiKey;
-    else if (s.aiProvider === 'openai' && process.env.OPENAI_API_KEY)
+    else if (activeProvider === 'openai' && process.env.OPENAI_API_KEY)
       s.aiApiKey = process.env.OPENAI_API_KEY;
-    else if (s.aiProvider === 'anthropic' && process.env.ANTHROPIC_API_KEY)
+    else if (activeProvider === 'anthropic' && process.env.ANTHROPIC_API_KEY)
       s.aiApiKey = process.env.ANTHROPIC_API_KEY;
-    else if (s.geminiApiKey) s.aiApiKey = s.geminiApiKey;
+    else if (s.geminiApiKey)
+      s.aiApiKey = s.geminiApiKey;
   }
+
+  // Auto-sync active gemini key
+  if (activeProvider === 'gemini' && s.aiApiKey && !s.geminiApiKey) {
+    s.geminiApiKey = s.aiApiKey;
+  }
+
   if (!s.gitlabToken && process.env.GITLAB_TOKEN)
     s.gitlabToken = process.env.GITLAB_TOKEN;
   return s as unknown as Settings;
 }
 
-export function saveSettings(patch: Partial<Settings>) {
+export function saveSettings(patch: Partial<Settings> & { aiApiKeys?: Record<string, string> }) {
   const stmt = db().prepare(
     'INSERT INTO settings(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
   );
+
+  // If aiApiKeys map is provided, persist each provider key
+  if (patch.aiApiKeys && typeof patch.aiApiKeys === 'object') {
+    for (const [provider, keyVal] of Object.entries(patch.aiApiKeys)) {
+      if (typeof keyVal === 'string' && !isMasked(keyVal)) {
+        stmt.run(`aiApiKey_${provider}`, keyVal.trim());
+      }
+    }
+  }
+
+  // If aiApiKey is passed in patch, also store it for the active provider
+  const targetProvider = patch.aiProvider || getSettings().aiProvider || 'gemini';
+  if (patch.aiApiKey !== undefined && !isMasked(patch.aiApiKey)) {
+    const keyVal = String(patch.aiApiKey).trim();
+    stmt.run(`aiApiKey_${targetProvider}`, keyVal);
+    if (targetProvider === 'gemini') {
+      stmt.run('geminiApiKey', keyVal);
+    }
+  }
+
   for (const [k, v] of Object.entries(patch)) {
-    if (!(k in DEFAULT_SETTINGS) || v === undefined) continue;
+    if (k === 'aiApiKeys' || !(k in DEFAULT_SETTINGS) || v === undefined) continue;
     let cleanVal = String(v).trim();
     if (k === 'taigaToken' || k === 'taigaRefresh') {
       cleanVal = cleanVal.replace(/^["']+|["']+$/g, '').trim();
@@ -106,12 +143,34 @@ export function saveSettings(patch: Partial<Settings>) {
 /** Settings sent to the browser: values are accessible for direct editing */
 export function getPublicSettings() {
   const s = getSettings();
-  const out: Record<string, string | boolean> = { ...s };
+  const out: Record<string, unknown> = { ...s };
   for (const k of SECRET_KEYS) {
     const v = s[k] as string;
     out[k] = v || '';
     out[`${k}Set`] = Boolean(v);
   }
+
+  // Gather all per-provider keys
+  const rows = db().prepare("SELECT key, value FROM settings WHERE key LIKE 'aiApiKey_%'").all() as {
+    key: string;
+    value: string;
+  }[];
+  const aiApiKeys: Record<string, string> = {};
+  for (const r of rows) {
+    const p = r.key.replace('aiApiKey_', '');
+    aiApiKeys[p] = r.value || '';
+  }
+
+  // Backwards compatibility migration / seed in output if not yet in aiApiKey_<provider>
+  if (!aiApiKeys.gemini && s.geminiApiKey) {
+    aiApiKeys.gemini = s.geminiApiKey;
+  }
+  const currentProvider = s.aiProvider || 'gemini';
+  if (!aiApiKeys[currentProvider] && s.aiApiKey) {
+    aiApiKeys[currentProvider] = s.aiApiKey;
+  }
+
+  out.aiApiKeys = aiApiKeys;
   return out;
 }
 

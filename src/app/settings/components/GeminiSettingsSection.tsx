@@ -5,21 +5,10 @@ import {
   AlertCircle,
   CheckCircle2,
   ChevronDown,
-  Cpu,
-  Eye,
-  EyeOff,
-  Languages,
   RefreshCw,
-  Sparkles,
 } from 'lucide-react';
-import { Select } from '@/components/Select';
-import { Tooltip } from '@/components/Tooltip';
-import {
-  AI_FEATURE_MODEL_KEYS,
-  DEFAULT_MODEL_BY_PROVIDER,
-  MODEL_OPTIONS,
-  type AiProvider,
-} from '@/lib/ai/models';
+import { AiApiKeyInput } from './AiApiKeyInput';
+import { AiProviderConfigRow } from './AiProviderConfigRow';
 import { AiMenuModelsPanel } from './AiMenuModelsPanel';
 import type { PublicSettings, TestResult, TestingState } from '../types';
 
@@ -47,28 +36,7 @@ export function GeminiSettingsSection({
   const handleToggleMinimize =
     onToggleMinimize || (() => setLocalMinimized((prev) => !prev));
 
-  const [showApiKey, setShowApiKey] = useState(false);
   const provider = form.aiProvider || 'gemini';
-  const currentKey = form.aiApiKey ?? form.geminiApiKey ?? '';
-
-  const handleProviderChange = (newProvider: AiProvider) => {
-    onChange('aiProvider', newProvider);
-    // Set default model for the selected provider if not set
-    const defaultModel = DEFAULT_MODEL_BY_PROVIDER[newProvider];
-    onChange('aiModel', defaultModel);
-    if (newProvider === 'gemini') {
-      onChange('geminiModel', defaultModel);
-    }
-    // Per-menu models belong to the previous provider, so fall back to global
-    for (const key of AI_FEATURE_MODEL_KEYS) onChange(key, '');
-  };
-
-  const handleApiKeyChange = (val: string) => {
-    onChange('aiApiKey', val);
-    if (provider === 'gemini') {
-      onChange('geminiApiKey', val);
-    }
-  };
 
   return (
     <section
@@ -168,209 +136,19 @@ export function GeminiSettingsSection({
             : 'flex flex-col gap-6 pt-5 border-t border-border'
         }
       >
-        <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-          {/* Provider Selector */}
-          <div className='field'>
-            <label className='flex items-center gap-1.5 min-h-[20px]'>
-              <Cpu size={14} className='gradient-text shrink-0' />
-              <span>Penyedia AI (LLM Provider)</span>
-            </label>
-            <Select
-              value={provider}
-              onChange={(e) =>
-                handleProviderChange(
-                  e.target.value as
-                    | 'gemini'
-                    | 'openai'
-                    | 'anthropic'
-                    | 'custom',
-                )
-              }
-            >
-              <option value='gemini'>Google Gemini</option>
-              <option value='openai'>OpenAI (ChatGPT / GPT-4o)</option>
-              <option value='anthropic'>Anthropic (Claude 3.5)</option>
-              <option value='custom'>Custom/OpenAI-Compatible</option>
-            </Select>
-            <span className='hint'>
-              Pilih provider AI yang ingin Anda gunakan di DEV HUB.
-            </span>
-          </div>
-
-          {/* Model Selector / Input */}
-          <div className='field'>
-            <div className='flex items-center gap-1.5 min-h-[20px]'>
-              <label
-                htmlFor='ai-model-global'
-                className='label-sm flex items-center gap-1.5 cursor-pointer !mb-0'
-              >
-                <Sparkles size={14} className='gradient-text shrink-0' />
-                <span>Model LLM Global</span>
-              </label>
-              <Tooltip
-                title='Peran Model LLM Global'
-                ariaLabel='Informasi Model LLM Global'
-                content={
-                  <div className='flex flex-col gap-1.5 text-xs text-slate-600 leading-relaxed'>
-                    <p>
-                      <strong className='text-slate-800 font-semibold'>
-                        Model Acuan Utama &amp; Fallback:
-                      </strong>{' '}
-                      Berfungsi sebagai model default. Semua menu yang
-                      pengaturan modelnya dikosongkan (&quot;Ikuti model
-                      global&quot;) akan otomatis menggunakan model ini.
-                    </p>
-                    <p>
-                      Model ini juga digunakan untuk{' '}
-                      <strong className='text-slate-800 font-semibold'>
-                        Uji Koneksi AI
-                      </strong>{' '}
-                      utama dan fungsi ringkasan mingguan (Weekly Summary).
-                    </p>
-                  </div>
-                }
-              />
-            </div>
-            {provider === 'custom' ? (
-              <input
-                id='ai-model-global'
-                className='input !h-[38px] !min-h-[38px] !py-0 !px-3 !text-[13.5px] !rounded-[10px]'
-                value={form.aiModel || DEFAULT_MODEL_BY_PROVIDER.custom}
-                placeholder='dpe/alias/glm-flash, llama3.2, mistral, dll'
-                onChange={(e) => onChange('aiModel', e.target.value)}
-              />
-            ) : (
-              <Select
-                id='ai-model-global'
-                value={
-                  form.aiModel ||
-                  (provider === 'gemini' ? form.geminiModel : '') ||
-                  DEFAULT_MODEL_BY_PROVIDER[provider]
-                }
-                onChange={(e) => {
-                  onChange('aiModel', e.target.value);
-                  if (provider === 'gemini')
-                    onChange('geminiModel', e.target.value);
-                }}
-                options={MODEL_OPTIONS[provider]}
-              />
-            )}
-
-            <span className='hint'>
-              Model acuan default dan fallback otomatis jika model per menu
-              dikosongkan.
-            </span>
-          </div>
-
-          {/* Bahasa Penulisan */}
-          <div className='field'>
-            <label className='flex items-center gap-1.5 min-h-[20px]'>
-              <Languages size={14} className='gradient-text shrink-0' />
-              <span>Bahasa Penulisan AI</span>
-            </label>
-            <Select
-              value={form.writingLanguage || 'id'}
-              onChange={(e) =>
-                onChange('writingLanguage', e.target.value as 'id' | 'en')
-              }
-            >
-              <option value='id'>Bahasa Indonesia (Profesional)</option>
-              <option value='en'>English (Professional)</option>
-            </Select>
-            <span className='hint'>
-              Bahasa output untuk draf task WAD, deskripsi MR, dan rangkuman
-              kerja.
-            </span>
-          </div>
-        </div>
+        <AiProviderConfigRow
+          provider={provider}
+          form={form}
+          onChange={onChange}
+        />
 
         <div className='grid grid-cols-1 md:grid-cols-2 gap-4 mt-2'>
-          {/* API Key with Direct Edit & Eye Toggle */}
-          <div className='field'>
-            <label>
-              API Key (
-              {provider === 'gemini'
-                ? 'Google Gemini'
-                : provider === 'openai'
-                  ? 'OpenAI'
-                  : provider === 'anthropic'
-                    ? 'Anthropic'
-                    : 'Kredensial Provider'}
-              )
-            </label>
-            <div className='relative flex items-center'>
-              <input
-                type={showApiKey ? 'text' : 'password'}
-                className='input pr-10'
-                value={currentKey}
-                placeholder={
-                  provider === 'gemini'
-                    ? 'AIzaSy...'
-                    : provider === 'openai'
-                      ? 'sk-proj-...'
-                      : provider === 'anthropic'
-                        ? 'sk-ant-...'
-                        : 'sk-... (kosongkan jika tanpa auth)'
-                }
-                onChange={(e) => handleApiKeyChange(e.target.value)}
-              />
-              <button
-                type='button'
-                onClick={() => setShowApiKey(!showApiKey)}
-                title={showApiKey ? 'Sembunyikan Key' : 'Tampilkan Key'}
-                className='absolute right-2.5 text-slate-400 hover:text-slate-600 p-1 flex items-center justify-center transition-colors'
-              >
-                {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-            <span className='hint'>
-              {provider === 'gemini' && (
-                <>
-                  Dapatkan gratis di{' '}
-                  <a
-                    href='https://aistudio.google.com/apikey'
-                    target='_blank'
-                    rel='noreferrer'
-                    className='gradient-text font-semibold'
-                  >
-                    aistudio.google.com ↗
-                  </a>
-                </>
-              )}
-              {provider === 'openai' && (
-                <>
-                  Dapatkan di{' '}
-                  <a
-                    href='https://platform.openai.com/api-keys'
-                    target='_blank'
-                    rel='noreferrer'
-                    className='gradient-text font-semibold'
-                  >
-                    platform.openai.com ↗
-                  </a>
-                </>
-              )}
-              {provider === 'anthropic' && (
-                <>
-                  Dapatkan di{' '}
-                  <a
-                    href='https://console.anthropic.com/settings/keys'
-                    target='_blank'
-                    rel='noreferrer'
-                    className='gradient-text font-semibold'
-                  >
-                    console.anthropic.com ↗
-                  </a>
-                </>
-              )}
-              {provider === 'custom' && (
-                <span>
-                  Dapat diedit langsung. Kosongkan bila server lokal (misal:
-                  Ollama) tidak butuh token.
-                </span>
-              )}
-            </span>
-          </div>
+          {/* API Key with Direct Edit & Eye Toggle (Per-Provider) */}
+          <AiApiKeyInput
+            provider={provider}
+            form={form}
+            onChange={onChange}
+          />
 
           {/* Base URL (Optional / Custom) */}
           <div className='field'>

@@ -151,9 +151,13 @@ export function useSettings() {
 
   const runTest = async (target: 'taiga' | 'gitlab' | 'gemini' | 'ai') => {
     const key = target === 'ai' ? 'ai' : target;
-    const targetLabel = target === 'ai' || target === 'gemini' ? 'AI Engine' : target.toUpperCase();
     setTesting((prev) => ({ ...prev, [key]: true, ...(target === 'ai' ? { gemini: true } : {}) }));
     try {
+      const activeProvider = form.aiProvider || 'gemini';
+      const activeApiKey =
+        form.aiApiKeys?.[activeProvider] ??
+        form.aiApiKey ??
+        (activeProvider === 'gemini' ? form.geminiApiKey : '');
       const payload = {
         target,
         taigaBaseUrl: form.taigaBaseUrl,
@@ -161,10 +165,10 @@ export function useSettings() {
         taigaToken: form.taigaToken,
         gitlabBaseUrl: form.gitlabBaseUrl,
         gitlabToken: form.gitlabToken,
-        geminiApiKey: form.aiApiKey || form.geminiApiKey,
+        geminiApiKey: activeApiKey,
         geminiModel: form.aiModel || form.geminiModel,
-        aiProvider: form.aiProvider || 'gemini',
-        aiApiKey: form.aiApiKey || form.geminiApiKey,
+        aiProvider: activeProvider,
+        aiApiKey: activeApiKey,
         aiModel: form.aiModel || form.geminiModel,
         aiBaseUrl: form.aiBaseUrl,
       };

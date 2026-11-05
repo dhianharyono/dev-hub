@@ -50,11 +50,18 @@ export function AiMenuModelsPanel({ form, onChange }: AiMenuModelsPanelProps) {
     setMenuResults((prev) => ({ ...prev, [settingKey]: null }));
 
     try {
+      const activeProvider = form.aiProvider || 'gemini';
+      const activeApiKey =
+        form.aiApiKeys?.[activeProvider] ??
+        form.aiApiKey ??
+        (activeProvider === 'gemini' ? form.geminiApiKey : '') ??
+        '';
+
       const payload = {
         target: 'ai',
-        aiProvider: form.aiProvider || 'gemini',
-        aiApiKey: form.aiApiKey || form.geminiApiKey || '',
-        geminiApiKey: form.aiApiKey || form.geminiApiKey || '',
+        aiProvider: activeProvider,
+        aiApiKey: activeApiKey,
+        geminiApiKey: activeApiKey,
         aiBaseUrl: form.aiBaseUrl || '',
         aiModel: effectiveModel,
         geminiModel: effectiveModel,

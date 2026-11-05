@@ -22,6 +22,7 @@ export interface PublicSettings {
   aiProvider: 'gemini' | 'openai' | 'anthropic' | 'custom';
   aiApiKey: string;
   aiApiKeySet: boolean;
+  aiApiKeys?: Record<string, string>;
   aiModel: string;
   aiBaseUrl: string;
   aiModelSmartTask: string;
