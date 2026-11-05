@@ -196,7 +196,7 @@ export function WadAnalyticsCard({
                   Status Portal
                 </span>
                 <span
-                  className={`text-[15px] font-extrabold tracking-tight leading-none truncate ${textColors}`}
+                  className={`text-[13.5px] font-extrabold tracking-tight leading-tight break-words ${textColors}`}
                 >
                   {statusType === 'Fit'
                     ? 'Fit'
