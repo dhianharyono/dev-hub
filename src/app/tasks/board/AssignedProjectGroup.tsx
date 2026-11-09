@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { AssignedTaskItem } from '@/app/api/taiga/assigned/route';
 import { AssignedTaskRow } from './AssignedTaskRow';
@@ -13,6 +13,7 @@ interface AssignedProjectGroupProps {
   availableStatuses: Status[];
   updatingTaskId: number | null;
   updateSuccessTaskId: number | null;
+  deletingTaskId: number | null;
   editingTaskId: number | null;
   editingSubject: string;
   savingEdit: boolean;
@@ -21,6 +22,7 @@ interface AssignedProjectGroupProps {
   onEditingSubjectChange: (val: string) => void;
   onOpenEditModal: (task: AssignedTaskItem) => void;
   onUpdateStatus: (task: AssignedTaskItem, newStatusId: number) => void;
+  onRequestDelete: (task: AssignedTaskItem) => void;
 }
 
 export function AssignedProjectGroup({
@@ -30,6 +32,7 @@ export function AssignedProjectGroup({
   availableStatuses,
   updatingTaskId,
   updateSuccessTaskId,
+  deletingTaskId,
   editingTaskId,
   editingSubject,
   savingEdit,
@@ -38,6 +41,7 @@ export function AssignedProjectGroup({
   onEditingSubjectChange,
   onOpenEditModal,
   onUpdateStatus,
+  onRequestDelete,
 }: AssignedProjectGroupProps) {
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -45,9 +49,28 @@ export function AssignedProjectGroup({
   const totalPages = isAllTasks ? Math.max(1, Math.ceil(totalTasks / pageSize)) : 1;
   const currentPage = Math.min(Math.max(1, page), totalPages);
 
+  // Urutkan per project: startTime terbaru di atas, yang kosong di akhir.
+  // Task tanpa startTime diurutkan ref ascending; waktu sama tetap stabil.
+  const sortedTasks = useMemo(
+    () =>
+      group.tasks
+        .map((task, index) => ({ task, index }))
+        .sort((a, b) => {
+          const aTime = a.task.startTime || '';
+          const bTime = b.task.startTime || '';
+          if (!aTime && !bTime) return a.task.ref - b.task.ref;
+          if (!aTime) return 1;
+          if (!bTime) return -1;
+          if (aTime !== bTime) return bTime.localeCompare(aTime);
+          return a.index - b.index;
+        })
+        .map(({ task }) => task),
+    [group.tasks],
+  );
+
   const displayedTasks = isAllTasks
-    ? group.tasks.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-    : group.tasks;
+    ? sortedTasks.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+    : sortedTasks;
 
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, totalTasks);
@@ -68,14 +91,16 @@ export function AssignedProjectGroup({
 
       {/* Table of Tasks */}
       <div className='overflow-x-auto'>
-        <table className='table min-w-[780px]'>
+        <table className='table min-w-[920px]'>
           <thead>
             <tr className='bg-surface-subtle/50 whitespace-nowrap'>
               <th className='w-[85px]'>#Ref</th>
               <th className='min-w-[240px]'>Judul Task</th>
               <th className='w-[240px]'>User Story Induk</th>
               <th className='w-[105px] text-center'>Jam</th>
+              <th className='w-[80px] text-center'>Waktu</th>
               <th className='w-[210px] text-right'>Status</th>
+              <th className='w-[56px] text-right'>Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -88,6 +113,7 @@ export function AssignedProjectGroup({
                 availableStatuses={availableStatuses}
                 isUpdating={updatingTaskId === task.id}
                 isSuccess={updateSuccessTaskId === task.id}
+                isDeleting={deletingTaskId === task.id}
                 isEditingThis={editingTaskId === task.id}
                 editingSubject={editingSubject}
                 savingEdit={savingEdit}
@@ -96,6 +122,7 @@ export function AssignedProjectGroup({
                 onEditingSubjectChange={onEditingSubjectChange}
                 onOpenEditModal={onOpenEditModal}
                 onUpdateStatus={onUpdateStatus}
+                onRequestDelete={onRequestDelete}
               />
             ))}
           </tbody>

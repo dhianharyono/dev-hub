@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
 import { EditTaskModal } from './board/EditTaskModal';
+import { DeleteTaskDialog } from './board/DeleteTaskDialog';
 import { AssignedProjectGroup } from './board/AssignedProjectGroup';
 import { AssignedTasksEmptyState } from './board/AssignedTasksEmptyState';
 import { AssignedTasksSkeleton } from './board/AssignedTasksSkeleton';
@@ -30,6 +31,8 @@ export default function AssignedTasksBoard({
     assignedTasks,
     setAssignedTasks,
     projectStatuses,
+    assignedActiveOnly,
+    onRefresh,
   });
 
   return (
@@ -99,6 +102,7 @@ export default function AssignedTasksBoard({
               availableStatuses={projectStatuses[group.projectId] || []}
               updatingTaskId={board.updatingTaskId}
               updateSuccessTaskId={board.updateSuccessTaskId}
+              deletingTaskId={board.deletingTaskId}
               editingTaskId={board.editingTaskId}
               editingSubject={board.editingSubject}
               savingEdit={board.savingEdit}
@@ -107,6 +111,7 @@ export default function AssignedTasksBoard({
               onEditingSubjectChange={board.setEditingSubject}
               onOpenEditModal={board.handleOpenEditModal}
               onUpdateStatus={board.handleUpdateStatus}
+              onRequestDelete={board.handleRequestDelete}
             />
           ))}
         </div>
@@ -122,6 +127,17 @@ export default function AssignedTasksBoard({
           availableStatuses={projectStatuses[board.taskToEdit.projectId] || []}
           baseUrl={baseUrl}
           onSave={board.handleSaveTaskEdit}
+        />
+      )}
+
+      {board.taskToDelete && (
+        <DeleteTaskDialog
+          key={board.taskToDelete.id}
+          task={board.taskToDelete}
+          error={board.deleteError}
+          isDeleting={board.deletingTaskId === board.taskToDelete.id}
+          onCancel={board.handleCancelDelete}
+          onConfirm={board.handleConfirmDelete}
         />
       )}
 

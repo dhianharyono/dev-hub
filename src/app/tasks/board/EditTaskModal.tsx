@@ -1,12 +1,20 @@
 'use client';
 
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { createPortal } from 'react-dom';
 import {
   Calendar,
   Clock,
   ExternalLink,
   FileText,
+  Folder,
+  ListTree,
   Save,
   Tag,
   X,
@@ -17,6 +25,18 @@ import type { AssignedTaskItem } from '@/app/api/taiga/assigned/route';
 import type { Status } from './types';
 
 const emptySubscribe = () => () => {};
+
+interface ProjectOption {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+interface UserStoryOption {
+  id: number;
+  ref: number;
+  subject: string;
+}
 
 interface EditTaskModalProps {
   task: AssignedTaskItem | null;
@@ -34,6 +54,8 @@ interface EditTaskModalProps {
       totalTimeSpentMinutes: number | null;
       activityDate?: string;
       startTime?: string;
+      projectId: number;
+      userStoryId: number | null;
     },
   ) => Promise<void>;
 }
@@ -62,6 +84,57 @@ export function EditTaskModal({
   const [loadingDetail, setLoadingDetail] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [projectId, setProjectId] = useState<number>(task?.projectId || 0);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [statusOptions, setStatusOptions] =
+    useState<Status[]>(availableStatuses);
+  const [userStoryId, setUserStoryId] = useState<number | null>(
+    task?.userStory?.id ?? null,
+  );
+  const [userStoryOptions, setUserStoryOptions] = useState<UserStoryOption[]>(
+    [],
+  );
+  const [optionsLoading, setOptionsLoading] = useState(true);
+  const [optionsError, setOptionsError] = useState<string | null>(null);
+  const optionsRequestRef = useRef(0);
+
+  const loadProjectOptions = useCallback(
+    async (targetProjectId: number, applyDefaultStatus: boolean) => {
+      const reqId = ++optionsRequestRef.current;
+      setOptionsLoading(true);
+      setOptionsError(null);
+
+      try {
+        const res = await fetch(
+          `/api/taiga/project-options?projectId=${targetProjectId}`,
+        );
+        const data = await res.json();
+        if (reqId !== optionsRequestRef.current) return;
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || 'Gagal memuat opsi project.');
+        }
+
+        setProjects(data.projects || []);
+        setStatusOptions(data.statuses || []);
+        setUserStoryOptions(data.userStories || []);
+        if (applyDefaultStatus) {
+          setStatusId(data.statuses?.[0]?.id ?? 0);
+        }
+      } catch (err) {
+        if (reqId === optionsRequestRef.current) {
+          setOptionsError(
+            (err as Error).message || 'Gagal memuat opsi project.',
+          );
+        }
+      } finally {
+        if (reqId === optionsRequestRef.current) {
+          setOptionsLoading(false);
+        }
+      }
+    },
+    [],
+  );
 
   // Fetch full task details (including description and custom attributes from Taiga)
   const taskId = task?.id;
@@ -93,6 +166,66 @@ export function EditTaskModal({
     };
   }, [taskId]);
 
+  useEffect(() => {
+    if (!task?.projectId) return;
+    const targetId = task.projectId;
+    const reqId = ++optionsRequestRef.current;
+    let ignore = false;
+
+    fetch(`/api/taiga/project-options?projectId=${targetId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (ignore || reqId !== optionsRequestRef.current) return;
+        if (!data.ok) {
+          throw new Error(data.error || 'Gagal memuat opsi project.');
+        }
+        setProjects(data.projects || []);
+        setStatusOptions(data.statuses || []);
+        setUserStoryOptions(data.userStories || []);
+      })
+      .catch((err) => {
+        if (!ignore && reqId === optionsRequestRef.current) {
+          setOptionsError(
+            (err as Error).message || 'Gagal memuat opsi project.',
+          );
+        }
+      })
+      .finally(() => {
+        if (!ignore && reqId === optionsRequestRef.current) {
+          setOptionsLoading(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [task?.id, task?.projectId]);
+
+  const handleProjectChange = (newProjectId: number) => {
+    if (!task || newProjectId === projectId) return;
+    setProjectId(newProjectId);
+    setUserStoryId(null);
+    setStatusId(0);
+    void loadProjectOptions(newProjectId, true);
+  };
+
+  const statusChoices =
+    statusOptions.length > 0 ? statusOptions : availableStatuses;
+  const projectChoices =
+    task && !projects.some((p) => p.id === projectId)
+      ? [
+          {
+            id: task.projectId,
+            name: task.projectName,
+            slug: task.projectSlug,
+          },
+          ...projects,
+        ]
+      : projects;
+  const selectedUserStoryMissing =
+    task?.userStory &&
+    userStoryId === task.userStory.id &&
+    !userStoryOptions.some((u) => u.id === task.userStory!.id);
 
   const handleAddHoursPreset = (amount: number) => {
     const current = hours ?? 0;
@@ -113,6 +246,16 @@ export function EditTaskModal({
 
     if (!task) return;
 
+    if (optionsLoading) {
+      setError('Opsi project masih dimuat. Coba lagi sebentar.');
+      return;
+    }
+
+    if (!projectId || !statusChoices.some((s) => s.id === statusId)) {
+      setError('Pilih status yang sesuai dengan project tujuan.');
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
@@ -125,6 +268,8 @@ export function EditTaskModal({
         totalTimeSpentMinutes: mins,
         activityDate: activityDate || undefined,
         startTime: startTime || undefined,
+        projectId,
+        userStoryId,
       });
       onClose();
     } catch (err) {
@@ -149,24 +294,10 @@ export function EditTaskModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className='flex items-center justify-between px-6 py-4 border-b border-border bg-surface-subtle/50'>
-          <div className='flex items-center gap-2.5 flex-wrap'>
-            <span className='px-2.5 py-1 text-xs font-bold font-mono rounded-lg bg-brand/10 text-brand border border-brand/20'>
-              #{task.ref}
-            </span>
-            <span className='text-xs font-semibold text-slate-muted'>
-              {task.projectName}
-            </span>
-            {task.userStory && (
-              <span className='text-xs text-violet-600 font-medium truncate max-w-[250px]'>
-                · US #{task.userStory.ref} {task.userStory.subject}
-              </span>
-            )}
-          </div>
-
+        <div className='flex items-center justify-end p-2 border-b border-border bg-surface-subtle/50'>
           <button
             type='button'
-            className='w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors'
+            className='cursor-pointer w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors'
             onClick={onClose}
             aria-label='Tutup dialog'
           >
@@ -187,8 +318,8 @@ export function EditTaskModal({
               Edit Tiket Taiga #{task.ref}
             </h2>
             <p className='text-xs text-slate-muted mt-1'>
-              Perbarui judul, jam pengerjaan, status, dan deskripsi task langsung
-              ke Taiga.
+              Perbarui judul, jam pengerjaan, status, dan deskripsi task
+              langsung ke Taiga.
             </p>
           </div>
 
@@ -218,7 +349,80 @@ export function EditTaskModal({
             />
           </div>
 
-          {/* 2. Status & Jam (Hours) Row */}
+          {/* 2. Project & User Story */}
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+            <div className='flex flex-col gap-1.5'>
+              <label
+                htmlFor='edit-task-project'
+                className='text-xs font-bold text-slate-700 flex items-center gap-1.5'
+              >
+                <Folder size={13} className='text-brand' />
+                <span>Project</span>
+              </label>
+              <Select
+                id='edit-task-project'
+                value={projectId}
+                onChange={(e) => handleProjectChange(Number(e.target.value))}
+                disabled={
+                  saving || optionsLoading || projectChoices.length === 0
+                }
+                className='!h-10 text-xs sm:text-sm font-semibold rounded-xl'
+              >
+                {projectChoices.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className='flex flex-col gap-1.5'>
+              <label
+                htmlFor='edit-task-userstory'
+                className='text-xs font-bold text-slate-700 flex items-center gap-1.5'
+              >
+                <ListTree size={13} className='text-violet-600' />
+                <span>User Story</span>
+              </label>
+              <Select
+                id='edit-task-userstory'
+                value={userStoryId ?? ''}
+                onChange={(e) =>
+                  setUserStoryId(e.target.value ? Number(e.target.value) : null)
+                }
+                disabled={saving || optionsLoading}
+                className='!h-10 text-xs sm:text-sm font-semibold rounded-xl'
+              >
+                <option value=''>Tanpa user story</option>
+                {selectedUserStoryMissing && task?.userStory && (
+                  <option value={task.userStory.id}>
+                    #{task.userStory.ref} {task.userStory.subject}
+                  </option>
+                )}
+                {userStoryOptions.map((us) => (
+                  <option key={us.id} value={us.id}>
+                    #{us.ref} {us.subject}
+                  </option>
+                ))}
+              </Select>
+              {optionsLoading && (
+                <span className='text-[11px] text-slate-400 flex items-center gap-1'>
+                  <span className='spinner w-2.5 h-2.5' /> Memuat opsi...
+                </span>
+              )}
+            </div>
+          </div>
+
+          {optionsError && (
+            <div
+              role='alert'
+              className='p-3 text-xs font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-xl'
+            >
+              {optionsError}
+            </div>
+          )}
+
+          {/* 3. Status & Jam (Hours) Row */}
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             {/* Status */}
             <div className='flex flex-col gap-1.5'>
@@ -233,9 +437,13 @@ export function EditTaskModal({
                 id='edit-task-status'
                 value={statusId}
                 onChange={(e) => setStatusId(Number(e.target.value))}
+                disabled={saving || optionsLoading}
                 className='!h-10 text-xs sm:text-sm font-semibold rounded-xl'
               >
-                {availableStatuses.map((st) => (
+                <option value={0} disabled>
+                  Pilih status...
+                </option>
+                {statusChoices.map((st) => (
                   <option key={st.id} value={st.id}>
                     {st.name} {st.is_closed ? '(Closed)' : ''}
                   </option>
@@ -310,7 +518,7 @@ export function EditTaskModal({
             </div>
           </div>
 
-          {/* 3. Log Aktivitas (Tanggal & Jam Mulai) */}
+          {/* 4. Log Aktivitas (Tanggal & Jam Mulai) */}
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-4 p-3.5 bg-surface-subtle/70 rounded-xl border border-border'>
             <div className='flex flex-col gap-1.5'>
               <label
@@ -353,7 +561,7 @@ export function EditTaskModal({
             </div>
           </div>
 
-          {/* 4. Deskripsi Task (Markdown) */}
+          {/* 5. Deskripsi Task (Markdown) */}
           <div className='flex flex-col gap-1.5'>
             <div className='flex items-center justify-between'>
               <label
@@ -384,17 +592,6 @@ export function EditTaskModal({
 
           {/* Modal Actions Footer */}
           <div className='flex items-center justify-between gap-3 pt-4 border-t border-border mt-2 flex-wrap'>
-            <a
-              href={`${baseUrl}/project/${task.projectSlug}/task/${task.ref}`}
-              target='_blank'
-              rel='noreferrer'
-              className='btn btn-ghost btn-sm text-xs text-slate-500 hover:text-slate-900 inline-flex items-center gap-1.5'
-              title='Buka task langsung di portal Taiga'
-            >
-              <span>Buka di Taiga</span>
-              <ExternalLink size={12} />
-            </a>
-
             <div className='flex items-center gap-2 ml-auto'>
               <button
                 type='button'

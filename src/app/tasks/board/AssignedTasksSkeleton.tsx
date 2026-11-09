@@ -18,14 +18,16 @@ export function AssignedTasksSkeleton() {
 
           {/* Table Rows Skeleton */}
           <div className='overflow-x-auto'>
-            <table className='table min-w-[780px]'>
+            <table className='table min-w-[920px]'>
               <thead>
                 <tr className='bg-surface-subtle/50 whitespace-nowrap'>
                   <th className='w-[85px]'>#Ref</th>
                   <th className='min-w-[240px]'>Judul Task</th>
                   <th className='w-[240px]'>User Story Induk</th>
                   <th className='w-[105px] text-center'>Jam</th>
+                  <th className='w-[80px] text-center'>Waktu</th>
                   <th className='w-[210px] text-right'>Status</th>
+                  <th className='w-[56px] text-right'>Aksi</th>
                 </tr>
               </thead>
               <tbody className='divide-y divide-border/60 text-xs sm:text-[13px]'>
@@ -49,8 +51,14 @@ export function AssignedTasksSkeleton() {
                     <td className='py-3.5 px-4 text-center'>
                       <div className='h-5 w-11 bg-slate-200 rounded-md animate-pulse mx-auto' />
                     </td>
+                    <td className='py-3.5 px-4 text-center'>
+                      <div className='h-4 w-9 bg-slate-200 rounded animate-pulse mx-auto' />
+                    </td>
                     <td className='py-3.5 px-4 text-right'>
                       <div className='h-8 w-36 bg-slate-200 rounded-lg animate-pulse ml-auto' />
+                    </td>
+                    <td className='py-3.5 px-4 text-right'>
+                      <div className='h-6 w-6 bg-slate-200 rounded-lg animate-pulse ml-auto' />
                     </td>
                   </tr>
                 ))}

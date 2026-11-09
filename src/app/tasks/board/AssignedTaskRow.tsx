@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, Clock, ExternalLink, X } from 'lucide-react';
+import { CheckCircle2, Clock, ExternalLink, Trash2, X } from 'lucide-react';
 import { Select } from '@/components/Select';
 import { formatTaskSubject } from '@/lib/task-utils';
 import type { AssignedTaskItem } from '@/app/api/taiga/assigned/route';
@@ -13,6 +13,7 @@ interface AssignedTaskRowProps {
   availableStatuses: Status[];
   isUpdating: boolean;
   isSuccess: boolean;
+  isDeleting: boolean;
   isEditingThis: boolean;
   editingSubject: string;
   savingEdit: boolean;
@@ -21,6 +22,7 @@ interface AssignedTaskRowProps {
   onEditingSubjectChange: (val: string) => void;
   onOpenEditModal: (task: AssignedTaskItem) => void;
   onUpdateStatus: (task: AssignedTaskItem, newStatusId: number) => void;
+  onRequestDelete: (task: AssignedTaskItem) => void;
 }
 
 export function AssignedTaskRow({
@@ -30,6 +32,7 @@ export function AssignedTaskRow({
   availableStatuses,
   isUpdating,
   isSuccess,
+  isDeleting,
   isEditingThis,
   editingSubject,
   savingEdit,
@@ -38,6 +41,7 @@ export function AssignedTaskRow({
   onEditingSubjectChange,
   onOpenEditModal,
   onUpdateStatus,
+  onRequestDelete,
 }: AssignedTaskRowProps) {
   const taskFormatted = formatTaskSubject(task.subject);
 
@@ -161,6 +165,17 @@ export function AssignedTaskRow({
         </button>
       </td>
 
+      {/* Start Time Cell */}
+      <td className='align-middle text-center whitespace-nowrap'>
+        {task.startTime ? (
+          <span className='font-mono text-xs text-slate-600'>
+            {task.startTime}
+          </span>
+        ) : (
+          <span className='text-xs text-slate-400'>-</span>
+        )}
+      </td>
+
       {/* Status Selector Cell */}
       <td className='align-middle text-right whitespace-nowrap'>
         <div className='inline-flex items-center justify-end gap-2'>
@@ -194,6 +209,24 @@ export function AssignedTaskRow({
             </span>
           )}
         </div>
+      </td>
+
+      {/* Delete Cell */}
+      <td className='align-middle text-right whitespace-nowrap'>
+        <button
+          type='button'
+          onClick={() => onRequestDelete(task)}
+          disabled={isDeleting}
+          aria-label={`Hapus task #${task.ref}`}
+          title={`Hapus task #${task.ref}`}
+          className='w-7 h-7 rounded-lg inline-flex items-center justify-center text-slate-400 transition-colors hover:text-rose-600 hover:bg-rose-50 disabled:cursor-wait disabled:opacity-60'
+        >
+          {isDeleting ? (
+            <span className='spinner w-3.5 h-3.5' />
+          ) : (
+            <Trash2 size={14} />
+          )}
+        </button>
       </td>
     </tr>
   );

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { taiga, updateTask, type TaigaStatus } from '@/lib/taiga';
+import { taiga, updateTask, deleteTask, type TaigaStatus } from '@/lib/taiga';
 import { getSettings } from '@/lib/settings';
 import { errorResponse } from '@/lib/http';
 
@@ -68,9 +68,19 @@ interface RawTaigaTask {
 interface ProjectTimeDefs {
   minAttrId?: number;
   hoursAttrId?: number;
+  startTimeAttrId?: number;
 }
 const projectTimeDefsCache = new Map<number, ProjectTimeDefs>();
 const taskCavCache = new Map<number, { vals: Record<string, unknown>; modifiedDate: string }>();
+
+/** Ubah nilai atribut start time Taiga menjadi HH:mm. */
+function normalizeStartTime(value: unknown): string | null {
+  if (value == null || value === '') return null;
+  const str = String(value).trim();
+  const match = str.match(/(\d{1,2}):(\d{2})/);
+  if (!match) return str;
+  return `${match[1].padStart(2, '0')}:${match[2]}`;
+}
 
 export async function GET(req: Request) {
   try {
@@ -224,43 +234,51 @@ export async function GET(req: Request) {
         }
 
         if (projectTimeDefsCache.has(pid)) {
-          projectTimeDefs[pid] = projectTimeDefsCache.get(pid)!;
-        } else {
-          try {
-            const attrs = await taiga<Array<{ id: number; name: string }>>(`/task-custom-attributes?project=${pid}`, {
-              headers: { 'x-disable-pagination': 'true' },
-            });
-            // Minute attributes: e.g. "Total Time Spent", "Total Timespent", "Time Spent (min)"
-            // Exclude dates/start/end e.g. "Start Timespent", "End Timespent"
-            const minAttr = attrs.find((a) =>
-              !/start|end|date/i.test(a.name) &&
-              (/total\s*time\s*spent/i.test(a.name) || /total\s*timespent/i.test(a.name) || /time\s*spent\s*\(min\)/i.test(a.name))
-            );
-            // Hour attributes: e.g. "Time Spent Hours Calculated", "Time Spent (Hours)"
-            const hoursAttr = attrs.find((a) =>
-              !/start|end|date/i.test(a.name) &&
-              (/time\s*spent\s*hours/i.test(a.name) || /time\s*spent\s*\(h/i.test(a.name))
-            );
-            const defs = {
-              minAttrId: minAttr?.id,
-              hoursAttrId: hoursAttr?.id,
-            };
-            projectTimeDefsCache.set(pid, defs);
-            projectTimeDefs[pid] = defs;
-          } catch {}
+          const cached = projectTimeDefsCache.get(pid)!;
+          // Cache lama belum punya startTimeAttrId; ambil ulang agar kolom Waktu terisi.
+          if ('startTimeAttrId' in cached) {
+            projectTimeDefs[pid] = cached;
+            return;
+          }
         }
+
+        try {
+          const attrs = await taiga<Array<{ id: number; name: string }>>(`/task-custom-attributes?project=${pid}`, {
+            headers: { 'x-disable-pagination': 'true' },
+          });
+          // Minute attributes: e.g. "Total Time Spent", "Total Timespent", "Time Spent (min)"
+          // Exclude dates/start/end e.g. "Start Timespent", "End Timespent"
+          const minAttr = attrs.find((a) =>
+            !/start|end|date/i.test(a.name) &&
+            (/total\s*time\s*spent/i.test(a.name) || /total\s*timespent/i.test(a.name) || /time\s*spent\s*\(min\)/i.test(a.name))
+          );
+          // Hour attributes: e.g. "Time Spent Hours Calculated", "Time Spent (Hours)"
+          const hoursAttr = attrs.find((a) =>
+            !/start|end|date/i.test(a.name) &&
+            (/time\s*spent\s*hours/i.test(a.name) || /time\s*spent\s*\(h/i.test(a.name))
+          );
+          const startAttr = attrs.find((a) => /start\s*time/i.test(a.name));
+          const defs = {
+            minAttrId: minAttr?.id,
+            hoursAttrId: hoursAttr?.id,
+            startTimeAttrId: startAttr?.id,
+          };
+          projectTimeDefsCache.set(pid, defs);
+          projectTimeDefs[pid] = defs;
+        } catch {}
       }),
     );
 
     // 5. Fetch hours/time-spent for tasks (prioritize active and recent tasks for fast loading)
     const taskHoursMap = new Map<number, number>();
+    const taskStartTimeMap = new Map<number, string>();
     const tasksToHydrate = rawTasks.filter((t, idx) => !t.is_closed || idx < 40);
     await Promise.all(
       tasksToHydrate.map(async (t) => {
         const def = projectTimeDefs[t.project];
         let foundHours: number | null = null;
 
-        if (def?.minAttrId || def?.hoursAttrId) {
+        if (def?.minAttrId || def?.hoursAttrId || def?.startTimeAttrId) {
           try {
             let vals: Record<string, unknown> = {};
             const cached = taskCavCache.get(t.id);
@@ -288,6 +306,11 @@ export async function GET(req: Request) {
               if (!isNaN(num) && num > 0) {
                 foundHours = Math.round(num * 10) / 10;
               }
+            }
+
+            if (def.startTimeAttrId) {
+              const startTime = normalizeStartTime(vals[String(def.startTimeAttrId)]);
+              if (startTime) taskStartTimeMap.set(t.id, startTime);
             }
           } catch {}
         }
@@ -344,6 +367,7 @@ export async function GET(req: Request) {
         milestoneSlug: t.milestone_slug,
         isClosed: Boolean(t.is_closed),
         hours: taskHoursMap.get(t.id) ?? null,
+        startTime: taskStartTimeMap.get(t.id) ?? null,
         createdDate: t.created_date,
         modifiedDate: t.modified_date,
         url: `${s.taigaBaseUrl}/project/${pSlug}/task/${t.ref}`,
@@ -376,6 +400,8 @@ const PatchBody = z.object({
   totalTimeSpentMinutes: z.number().nullable().optional(),
   activityDate: z.string().optional(),
   startTime: z.string().optional(),
+  projectId: z.number().int().positive().optional(),
+  userStoryId: z.number().int().positive().nullable().optional(),
 });
 
 export async function PATCH(req: Request) {
@@ -391,8 +417,25 @@ export async function PATCH(req: Request) {
       totalTimeSpentMinutes: b.totalTimeSpentMinutes,
       activityDate: b.activityDate,
       startTime: b.startTime,
+      projectId: b.projectId,
+      userStoryId: b.userStoryId,
     });
     return NextResponse.json({ ok: true, task: updated });
+  } catch (e) {
+    return errorResponse(e);
+  }
+}
+
+const DeleteBody = z.object({
+  taskId: z.number().int().positive(),
+});
+
+export async function DELETE(req: Request) {
+  try {
+    const b = DeleteBody.parse(await req.json());
+    await deleteTask(b.taskId);
+    taskCavCache.delete(b.taskId);
+    return NextResponse.json({ ok: true });
   } catch (e) {
     return errorResponse(e);
   }

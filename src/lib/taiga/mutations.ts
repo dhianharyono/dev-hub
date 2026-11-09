@@ -1,6 +1,7 @@
 import "server-only";
 import { getSettings } from "../settings";
 import { taiga } from "./client";
+import { TaigaError } from "./types";
 import type { CreateItem, TaigaCustomAttribute, UpdateTaskPayload } from "./types";
 
 export function formatTaigaDescription(rawDesc?: string | null): string {
@@ -117,6 +118,10 @@ export async function createItem(projectId: number, item: CreateItem) {
   return { ...us, url: `${s.taigaBaseUrl}/project/${targetSlug}/us/${us.ref}` };
 }
 
+export async function deleteTask(taskId: number): Promise<void> {
+  await taiga(`/tasks/${taskId}`, { method: "DELETE" });
+}
+
 export async function updateTask(taskId: number, updates: UpdateTaskPayload) {
   const s = getSettings();
 
@@ -128,22 +133,57 @@ export async function updateTask(taskId: number, updates: UpdateTaskPayload) {
     version: number;
     subject: string;
     description?: string;
-    project_extra_info?: { slug: string };
+    project_extra_info?: { id: number; name: string; slug: string };
   }>(`/tasks/${taskId}`);
+
+  const projectChanged =
+    updates.projectId != null && updates.projectId !== current.project;
+  const targetProjectId = updates.projectId ?? current.project;
+
+  if (projectChanged && updates.statusId == null) {
+    throw new TaigaError('Pilih status untuk project tujuan.', 400);
+  }
+
+  let selectedUserStory: { id: number; ref: number; subject: string } | null = null;
+  if (updates.userStoryId != null) {
+    const us = await taiga<{
+      id: number;
+      ref: number;
+      subject: string;
+      project: number;
+    }>(`/userstories/${updates.userStoryId}`);
+    if (us.project !== targetProjectId) {
+      throw new TaigaError('User story yang dipilih bukan milik project tujuan.', 400);
+    }
+    selectedUserStory = { id: us.id, ref: us.ref, subject: us.subject };
+  }
 
   const body: Record<string, unknown> = {
     version: current.version,
     tags: [],
   };
 
+  if (updates.projectId !== undefined) body.project = updates.projectId;
   if (updates.subject !== undefined) body.subject = updates.subject;
   if (updates.description !== undefined) body.description = formatTaigaDescription(updates.description);
   if (updates.statusId !== undefined) body.status = updates.statusId;
   if (updates.assignedTo !== undefined) body.assigned_to = updates.assignedTo;
   if (updates.userStoryId !== undefined) body.user_story = updates.userStoryId;
   if (updates.isClosed !== undefined) body.is_closed = updates.isClosed;
+  if (projectChanged) {
+    body.milestone = null;
+    if (updates.userStoryId === undefined) body.user_story = null;
+  }
 
-  const t = await taiga<{ id: number; ref: number; subject: string }>(`/tasks/${taskId}`, {
+  const t = await taiga<{
+    id: number;
+    ref: number;
+    subject: string;
+    project?: number;
+    project_extra_info?: { id: number; name: string; slug: string };
+    user_story?: number | null;
+    user_story_extra_info?: { id: number; ref: number; subject: string } | null;
+  }>(`/tasks/${taskId}`, {
     method: "PATCH",
     body: JSON.stringify(body),
   });
@@ -159,7 +199,7 @@ export async function updateTask(taskId: number, updates: UpdateTaskPayload) {
   if (updates.activityDate || updates.startTime || timeSpentMins != null || updates.hours != null) {
     try {
       const customAttrs = await taiga<TaigaCustomAttribute[]>(
-        `/task-custom-attributes?project=${current.project}`
+        `/task-custom-attributes?project=${targetProjectId}`
       ).catch(() => [] as TaigaCustomAttribute[]);
       const activityDateAttr = customAttrs.find((a) => /activity\s*date/i.test(a.name));
       const startTimeAttr = customAttrs.find((a) => /start\s*time/i.test(a.name));
@@ -203,7 +243,31 @@ export async function updateTask(taskId: number, updates: UpdateTaskPayload) {
     }
   }
 
-  const slug = current.project_extra_info?.slug || s.taigaProjectSlug || 'project';
-  return { ...t, url: `${s.taigaBaseUrl}/project/${slug}/task/${t.ref}` };
+  const projectInfo = projectChanged
+    ? await taiga<{ id: number; name: string; slug: string }>(
+        `/projects/${targetProjectId}`,
+      ).catch(() => t.project_extra_info ?? current.project_extra_info)
+    : (t.project_extra_info ?? current.project_extra_info);
+  const slug = projectInfo?.slug || s.taigaProjectSlug || 'project';
+  const resolvedUserStory =
+    t.user_story_extra_info
+      ? {
+          id: t.user_story_extra_info.id,
+          ref: t.user_story_extra_info.ref,
+          subject: t.user_story_extra_info.subject,
+        }
+      : updates.userStoryId != null
+        ? selectedUserStory
+        : updates.userStoryId === null || projectChanged
+          ? null
+          : undefined;
+  return {
+    ...t,
+    projectId: updates.projectId ?? t.project ?? targetProjectId,
+    projectName: projectInfo?.name ?? `Project #${targetProjectId}`,
+    projectSlug: projectInfo?.slug ?? slug,
+    userStory: resolvedUserStory,
+    url: `${s.taigaBaseUrl}/project/${slug}/task/${t.ref}`,
+  };
 }
 

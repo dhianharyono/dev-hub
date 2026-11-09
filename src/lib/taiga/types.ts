@@ -108,6 +108,7 @@ export interface UpdateTaskPayload {
   statusId?: number | null;
   assignedTo?: number | null;
   userStoryId?: number | null;
+  projectId?: number;
   activityDate?: string;
   startTime?: string;
   totalTimeSpentMinutes?: number | null;
