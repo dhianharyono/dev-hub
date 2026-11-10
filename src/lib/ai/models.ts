@@ -2,13 +2,19 @@
 
 export type AiProvider = 'gemini' | 'openai' | 'anthropic' | 'custom';
 
-export type AiFeature = 'smartTask' | 'productivity' | 'workload' | 'report';
+export type AiFeature =
+  | 'smartTask'
+  | 'productivity'
+  | 'workload'
+  | 'report'
+  | 'release-note';
 
 export type AiFeatureModelKey =
   | 'aiModelSmartTask'
   | 'aiModelProductivity'
   | 'aiModelWorkload'
-  | 'aiModelReport';
+  | 'aiModelReport'
+  | 'aiModelReleaseNote';
 
 export interface AiFeatureInfo {
   feature: AiFeature;
@@ -41,6 +47,12 @@ export const AI_FEATURES: AiFeatureInfo[] = [
     settingKey: 'aiModelReport',
     label: 'Report',
     usage: 'Bagian Analisis AI di laporan performa',
+  },
+  {
+    feature: 'release-note',
+    settingKey: 'aiModelReleaseNote',
+    label: 'Release Note',
+    usage: 'Deskripsi perubahan database pada Release Note Generator',
   },
 ];
 

@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FolderGit2,
+  FileText,
   Menu,
   X,
 } from 'lucide-react';
@@ -23,11 +24,13 @@ import {
   type GitlabSyncEventDetail,
 } from './SidebarTelemetry';
 import { useAppMode } from './AppModeContext';
+import { filterNavByMode } from '@/lib/nav';
 
-const PRIMARY_NAV = [
+export const PRIMARY_NAV = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/tasks', label: 'Smart Task', icon: Sparkles },
-  { href: '/gitlab', label: 'Productivity Monitor', icon: Activity },
+  { href: '/gitlab', label: 'Productivity Monitor', icon: Activity, developerOnly: true },
+  { href: '/release-note', label: 'Release Note', icon: FileText, developerOnly: true },
   { href: '/workload', label: 'Workload Analysis', icon: Zap },
   { href: '/settings', label: 'Pengaturan', icon: Settings },
 ];
@@ -40,9 +43,7 @@ export default function Sidebar() {
   // Mobile drawer state
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const navItems = PRIMARY_NAV.filter(
-    (item) => !isMonitoring || item.href !== '/gitlab',
-  );
+  const navItems = filterNavByMode(PRIMARY_NAV, isMonitoring);
 
   const [telemetry, setTelemetry] = useState<ServiceTelemetry>({
     gitlab: { connected: false, commits: 0, mrs: 0 },

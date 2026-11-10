@@ -28,6 +28,7 @@ export function IncomingReviewsCard() {
   // Handle restoring modal when clicked from bottom-right progress dock
   useEffect(() => {
     if (restoreTarget?.mr) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedMr(restoreTarget.mr);
       setModalTab(restoreTarget.tab || 'ai_review');
       setModalOpen(true);

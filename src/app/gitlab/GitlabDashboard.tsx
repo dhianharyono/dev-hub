@@ -71,6 +71,7 @@ export default function GitlabDashboard() {
   // Switch tab view if restoreTarget is requested from dock
   useEffect(() => {
     if (restoreTarget?.view === 'mr_assistant' || restoreTarget?.type === 'mr_assistant') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveView('mr_assistant');
     } else if (restoreTarget?.view === 'pre_review' || restoreTarget?.type === 'pre_review') {
       setActiveView('pre_review');

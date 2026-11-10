@@ -83,6 +83,7 @@ export function AiTaskProgressDock({
   onDismissAllCompleted,
 }: AiTaskProgressDockProps) {
   const [isPill, setIsPill] = useState(false);
+  // eslint-disable-next-line react-hooks/purity
   const [now, setNow] = useState(Date.now());
 
   // Timer tick for running tasks

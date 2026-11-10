@@ -28,6 +28,7 @@ export interface Settings {
   aiModelProductivity: string;
   aiModelWorkload: string;
   aiModelReport: string;
+  aiModelReleaseNote: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -55,6 +56,7 @@ export const DEFAULT_SETTINGS: Settings = {
   aiModelProductivity: '',
   aiModelWorkload: '',
   aiModelReport: '',
+  aiModelReleaseNote: '',
 };
 
 const SECRET_KEYS: (keyof Settings)[] = [

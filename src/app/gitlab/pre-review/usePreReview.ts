@@ -93,6 +93,7 @@ export function usePreReview() {
         targetBranch?: string;
       };
       if (p.projectId && selectedProjectId !== Number(p.projectId)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedProjectId(Number(p.projectId));
       }
       if (p.branch && branch !== p.branch) {
@@ -117,6 +118,7 @@ export function usePreReview() {
   useEffect(() => {
     if (restoreTarget?.type === 'pre_review' || restoreTarget?.view === 'pre_review') {
       if (restoreTarget.branch && branch !== restoreTarget.branch) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setBranch(restoreTarget.branch);
       }
       if (restoreTarget.projectId && selectedProjectId !== restoreTarget.projectId) {

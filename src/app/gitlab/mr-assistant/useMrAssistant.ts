@@ -59,6 +59,7 @@ export function useMrAssistant() {
       }
     }
     if (currentTask?.status === 'completed' && currentTask.result && !result) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResult(currentTask.result as MrResult);
     }
   }, [currentTask, result, gitlabMeta]);

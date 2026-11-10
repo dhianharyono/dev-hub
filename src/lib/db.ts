@@ -85,6 +85,21 @@ CREATE TABLE IF NOT EXISTS gl_commit_diffs (
   sha        TEXT PRIMARY KEY,
   files_json TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS release_notes (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id    INTEGER NOT NULL,
+  project_path  TEXT NOT NULL,
+  release_title TEXT NOT NULL DEFAULT '',
+  feature_name  TEXT NOT NULL,
+  service       TEXT NOT NULL,
+  deploy_at     TEXT NOT NULL,
+  mr_iids       TEXT NOT NULL,
+  content       TEXT NOT NULL,
+  target_branch TEXT,
+  created_at    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_release_notes_created ON release_notes(created_at);
 `;
 
 const globalForDb = globalThis as unknown as { __devhubDb?: DatabaseSync };
@@ -107,6 +122,12 @@ export function db(): DatabaseSync {
     } catch {}
     try {
       d.exec("CREATE INDEX IF NOT EXISTS idx_commits_author ON gl_commits(author_email, author_name);");
+    } catch {}
+    try {
+      d.exec("ALTER TABLE release_notes ADD COLUMN release_title TEXT NOT NULL DEFAULT '';");
+    } catch {}
+    try {
+      d.exec("ALTER TABLE release_notes ADD COLUMN target_branch TEXT;");
     } catch {}
     globalForDb.__devhubDb = d;
   }

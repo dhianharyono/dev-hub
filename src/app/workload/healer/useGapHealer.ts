@@ -63,6 +63,7 @@ export function useGapHealer({
         suggestions: HealerSuggestion[];
         commits?: HealerDetectedCommit[];
       };
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (res.suggestions) setSuggestions(res.suggestions);
       if (res.commits) setDetectedCommits(res.commits);
     }
