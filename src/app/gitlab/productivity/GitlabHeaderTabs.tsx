@@ -156,7 +156,7 @@ export function GitlabHeaderTabs({
 
       {/* View Switcher Tabs */}
       <div
-        className='print:hidden flex items-center gap-2 p-1.5 rounded-2xl bg-white border border-border w-fit max-w-full overflow-x-auto mb-8 shadow-xs'
+        className='print:hidden flex items-center gap-2 p-1.5 rounded-2xl bg-white border border-border w-fit max-w-full overflow-x-auto mb-4 shadow-xs'
         role='tablist'
         aria-label='Pilihan Modul GitLab'
       >
