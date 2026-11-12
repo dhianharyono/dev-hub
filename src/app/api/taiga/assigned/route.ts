@@ -69,6 +69,7 @@ interface ProjectTimeDefs {
   minAttrId?: number;
   hoursAttrId?: number;
   startTimeAttrId?: number;
+  activityDateAttrId?: number;
 }
 const projectTimeDefsCache = new Map<number, ProjectTimeDefs>();
 const taskCavCache = new Map<number, { vals: Record<string, unknown>; modifiedDate: string }>();
@@ -235,8 +236,8 @@ export async function GET(req: Request) {
 
         if (projectTimeDefsCache.has(pid)) {
           const cached = projectTimeDefsCache.get(pid)!;
-          // Cache lama belum punya startTimeAttrId; ambil ulang agar kolom Waktu terisi.
-          if ('startTimeAttrId' in cached) {
+          // Cache lama belum punya startTimeAttrId/activityDateAttrId; ambil ulang agar kolom Waktu dan grup tanggal terisi.
+          if ('startTimeAttrId' in cached && 'activityDateAttrId' in cached) {
             projectTimeDefs[pid] = cached;
             return;
           }
@@ -258,10 +259,12 @@ export async function GET(req: Request) {
             (/time\s*spent\s*hours/i.test(a.name) || /time\s*spent\s*\(h/i.test(a.name))
           );
           const startAttr = attrs.find((a) => /start\s*time/i.test(a.name));
+          const dateAttr = attrs.find((a) => /activity\s*date/i.test(a.name));
           const defs = {
             minAttrId: minAttr?.id,
             hoursAttrId: hoursAttr?.id,
             startTimeAttrId: startAttr?.id,
+            activityDateAttrId: dateAttr?.id,
           };
           projectTimeDefsCache.set(pid, defs);
           projectTimeDefs[pid] = defs;
@@ -272,13 +275,14 @@ export async function GET(req: Request) {
     // 5. Fetch hours/time-spent for tasks (prioritize active and recent tasks for fast loading)
     const taskHoursMap = new Map<number, number>();
     const taskStartTimeMap = new Map<number, string>();
+    const taskActivityDateMap = new Map<number, string>();
     const tasksToHydrate = rawTasks.filter((t, idx) => !t.is_closed || idx < 40);
     await Promise.all(
       tasksToHydrate.map(async (t) => {
         const def = projectTimeDefs[t.project];
         let foundHours: number | null = null;
 
-        if (def?.minAttrId || def?.hoursAttrId || def?.startTimeAttrId) {
+        if (def?.minAttrId || def?.hoursAttrId || def?.startTimeAttrId || def?.activityDateAttrId) {
           try {
             let vals: Record<string, unknown> = {};
             const cached = taskCavCache.get(t.id);
@@ -311,6 +315,13 @@ export async function GET(req: Request) {
             if (def.startTimeAttrId) {
               const startTime = normalizeStartTime(vals[String(def.startTimeAttrId)]);
               if (startTime) taskStartTimeMap.set(t.id, startTime);
+            }
+
+            if (def.activityDateAttrId) {
+              const rawDate = vals[String(def.activityDateAttrId)];
+              if (rawDate != null && rawDate !== '') {
+                taskActivityDateMap.set(t.id, String(rawDate));
+              }
             }
           } catch {}
         }
@@ -368,6 +379,7 @@ export async function GET(req: Request) {
         isClosed: Boolean(t.is_closed),
         hours: taskHoursMap.get(t.id) ?? null,
         startTime: taskStartTimeMap.get(t.id) ?? null,
+        activityDate: taskActivityDateMap.get(t.id) ?? null,
         createdDate: t.created_date,
         modifiedDate: t.modified_date,
         url: `${s.taigaBaseUrl}/project/${pSlug}/task/${t.ref}`,
