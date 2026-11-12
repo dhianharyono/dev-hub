@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Fragment, useMemo, useState } from 'react';
+import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { AssignedTaskItem } from '@/app/api/taiga/assigned/route';
 import { AssignedTaskRow } from './AssignedTaskRow';
+import { groupTasksByDate } from './task-date-groups';
 import type { ProjectTaskGroup, Status } from './types';
 
 interface AssignedProjectGroupProps {
@@ -72,6 +73,11 @@ export function AssignedProjectGroup({
     ? sortedTasks.slice((currentPage - 1) * pageSize, currentPage * pageSize)
     : sortedTasks;
 
+  const displayedDateGroups = useMemo(
+    () => groupTasksByDate(displayedTasks),
+    [displayedTasks],
+  );
+
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, totalTasks);
 
@@ -104,26 +110,45 @@ export function AssignedProjectGroup({
             </tr>
           </thead>
           <tbody>
-            {displayedTasks.map((task) => (
-              <AssignedTaskRow
-                key={task.id}
-                task={task}
-                projectSlug={group.projectSlug}
-                baseUrl={baseUrl}
-                availableStatuses={availableStatuses}
-                isUpdating={updatingTaskId === task.id}
-                isSuccess={updateSuccessTaskId === task.id}
-                isDeleting={deletingTaskId === task.id}
-                isEditingThis={editingTaskId === task.id}
-                editingSubject={editingSubject}
-                savingEdit={savingEdit}
-                onCancelEdit={onCancelEdit}
-                onSaveSubject={onSaveSubject}
-                onEditingSubjectChange={onEditingSubjectChange}
-                onOpenEditModal={onOpenEditModal}
-                onUpdateStatus={onUpdateStatus}
-                onRequestDelete={onRequestDelete}
-              />
+            {displayedDateGroups.map((dateGroup) => (
+              <Fragment key={dateGroup.key}>
+                <tr className='bg-surface-subtle/70'>
+                  <th
+                    scope='rowgroup'
+                    colSpan={7}
+                    className='text-left px-5 py-2 border-b border-border'
+                  >
+                    <span className='inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-500'>
+                      <CalendarDays size={13} className='text-slate-400' />
+                      <span>{dateGroup.label}</span>
+                      <span className='px-1.5 py-0.5 rounded-md bg-white border border-border text-[10px] font-semibold normal-case tracking-normal text-slate-500'>
+                        {dateGroup.tasks.length} task
+                      </span>
+                    </span>
+                  </th>
+                </tr>
+                {dateGroup.tasks.map((task) => (
+                  <AssignedTaskRow
+                    key={task.id}
+                    task={task}
+                    projectSlug={group.projectSlug}
+                    baseUrl={baseUrl}
+                    availableStatuses={availableStatuses}
+                    isUpdating={updatingTaskId === task.id}
+                    isSuccess={updateSuccessTaskId === task.id}
+                    isDeleting={deletingTaskId === task.id}
+                    isEditingThis={editingTaskId === task.id}
+                    editingSubject={editingSubject}
+                    savingEdit={savingEdit}
+                    onCancelEdit={onCancelEdit}
+                    onSaveSubject={onSaveSubject}
+                    onEditingSubjectChange={onEditingSubjectChange}
+                    onOpenEditModal={onOpenEditModal}
+                    onUpdateStatus={onUpdateStatus}
+                    onRequestDelete={onRequestDelete}
+                  />
+                ))}
+              </Fragment>
             ))}
           </tbody>
         </table>
