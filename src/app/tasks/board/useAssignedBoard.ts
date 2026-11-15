@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import type { AssignedTaskItem } from '@/app/api/taiga/assigned/route';
+import { useToast } from '@/components/Notification';
+import { buildBulkDonePlan } from './bulk-done';
 import type { ProjectTaskGroup, Status } from './types';
 
 interface UseAssignedBoardProps {
@@ -26,6 +28,15 @@ export function useAssignedBoard({
   const [taskToDelete, setTaskToDelete] = useState<AssignedTaskItem | null>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const [bulkDoneOpen, setBulkDoneOpen] = useState(false);
+  const [bulkDoneRunning, setBulkDoneRunning] = useState(false);
+  const { notify } = useToast();
+
+  const bulkDonePlan = useMemo(
+    () => buildBulkDonePlan(assignedTasks, projectStatuses),
+    [assignedTasks, projectStatuses],
+  );
 
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [editingSubject, setEditingSubject] = useState('');
@@ -97,6 +108,87 @@ export function useAssignedBoard({
   const handleStartEdit = (task: AssignedTaskItem) => {
     setEditingTaskId(task.id);
     setEditingSubject(task.subject);
+  };
+
+  const handleRequestBulkDone = () => {
+    if (bulkDonePlan.targets.length === 0) return;
+    setBulkDoneOpen(true);
+  };
+
+  const handleCancelBulkDone = () => {
+    if (bulkDoneRunning) return;
+    setBulkDoneOpen(false);
+  };
+
+  const handleConfirmBulkDone = async () => {
+    if (bulkDoneRunning || bulkDonePlan.targets.length === 0) return;
+    setBulkDoneRunning(true);
+
+    const successIds = new Set<number>();
+    const failedRefs: string[] = [];
+
+    for (const { task, status } of bulkDonePlan.targets) {
+      try {
+        const res = await fetch('/api/taiga/assigned', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            taskId: task.id,
+            statusId: status.id,
+            isClosed: Boolean(status.is_closed),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || 'Gagal memperbarui status task.');
+        }
+        successIds.add(task.id);
+      } catch {
+        failedRefs.push(`#${task.ref}`);
+      }
+    }
+
+    if (successIds.size > 0) {
+      setAssignedTasks((prev) =>
+        prev.map((t) => {
+          if (!successIds.has(t.id)) return t;
+          const status = bulkDonePlan.targets.find(
+            (target) => target.task.id === t.id,
+          )?.status;
+          if (!status) return t;
+          return {
+            ...t,
+            status: status.id,
+            statusExtraInfo: {
+              name: status.name,
+              color: status.color,
+              is_closed: status.is_closed,
+            },
+            isClosed: Boolean(status.is_closed),
+          };
+        }),
+      );
+    }
+
+    setBulkDoneRunning(false);
+    setBulkDoneOpen(false);
+
+    if (failedRefs.length === 0) {
+      notify.success(
+        `${successIds.size} task aktif berhasil ditandai Done.`,
+        'Semua task selesai',
+      );
+    } else if (successIds.size === 0) {
+      notify.error(
+        `Gagal menandai ${failedRefs.length} task (${failedRefs.join(', ')}). Coba lagi.`,
+        'Tidak ada task yang berubah',
+      );
+    } else {
+      notify.warning(
+        `${successIds.size} task selesai, ${failedRefs.length} gagal (${failedRefs.join(', ')}).`,
+        'Sebagian berhasil',
+      );
+    }
   };
 
   const handleCancelEdit = () => {
@@ -350,6 +442,12 @@ export function useAssignedBoard({
     handleCancelEdit,
     handleSaveSubject,
     groupedTasksByProject,
+    bulkDonePlan,
+    bulkDoneOpen,
+    bulkDoneRunning,
+    handleRequestBulkDone,
+    handleCancelBulkDone,
+    handleConfirmBulkDone,
   };
 }
 
