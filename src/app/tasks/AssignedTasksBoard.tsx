@@ -9,6 +9,7 @@ import { AssignedProjectGroup } from './board/AssignedProjectGroup';
 import { AssignedTasksEmptyState } from './board/AssignedTasksEmptyState';
 import { AssignedTasksSkeleton } from './board/AssignedTasksSkeleton';
 import { AssignedTasksToolbar } from './board/AssignedTasksToolbar';
+import { BulkDoneDialog } from './board/BulkDoneDialog';
 import type { AssignedTasksBoardProps } from './board/types';
 import { useAssignedBoard } from './board/useAssignedBoard';
 
@@ -50,6 +51,10 @@ export default function AssignedTasksBoard({
         setSelectedAssignedProject={board.setSelectedAssignedProject}
         assignedSearch={board.assignedSearch}
         setAssignedSearch={board.setAssignedSearch}
+        bulkDoneCount={board.bulkDonePlan.targets.length}
+        alreadyClosedCount={board.bulkDonePlan.alreadyClosed}
+        bulkDoneRunning={board.bulkDoneRunning}
+        onRequestBulkDone={board.handleRequestBulkDone}
       />
 
       {loadingAssigned ? (
@@ -138,6 +143,15 @@ export default function AssignedTasksBoard({
           isDeleting={board.deletingTaskId === board.taskToDelete.id}
           onCancel={board.handleCancelDelete}
           onConfirm={board.handleConfirmDelete}
+        />
+      )}
+
+      {board.bulkDoneOpen && (
+        <BulkDoneDialog
+          plan={board.bulkDonePlan}
+          isRunning={board.bulkDoneRunning}
+          onCancel={board.handleCancelBulkDone}
+          onConfirm={board.handleConfirmBulkDone}
         />
       )}
 

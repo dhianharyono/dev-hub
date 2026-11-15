@@ -1,6 +1,6 @@
 'use client';
 
-import { RefreshCw, Search } from 'lucide-react';
+import { CheckCheck, RefreshCw, Search } from 'lucide-react';
 import { Select } from '@/components/Select';
 
 interface AssignedTasksToolbarProps {
@@ -13,6 +13,10 @@ interface AssignedTasksToolbarProps {
   setSelectedAssignedProject: (id: number | 'all') => void;
   assignedSearch: string;
   setAssignedSearch: (q: string) => void;
+  bulkDoneCount: number;
+  alreadyClosedCount: number;
+  bulkDoneRunning: boolean;
+  onRequestBulkDone: () => void;
 }
 
 export function AssignedTasksToolbar({
@@ -25,7 +29,20 @@ export function AssignedTasksToolbar({
   setSelectedAssignedProject,
   assignedSearch,
   setAssignedSearch,
+  bulkDoneCount,
+  alreadyClosedCount,
+  bulkDoneRunning,
+  onRequestBulkDone,
 }: AssignedTasksToolbarProps) {
+  const bulkDoneDisabled =
+    loadingAssigned || bulkDoneRunning || bulkDoneCount === 0;
+  const bulkDoneTitle =
+    bulkDoneCount > 0
+      ? `Tandai ${bulkDoneCount} task aktif sebagai Done sekaligus`
+      : alreadyClosedCount > 0
+        ? 'Semua task aktif sudah selesai'
+        : 'Tidak ada task aktif';
+
   return (
     <>
       {/* Section Header */}
@@ -44,6 +61,33 @@ export function AssignedTasksToolbar({
         </div>
 
         <div className='flex items-center gap-2'>
+          {bulkDoneCount === 0 && (
+            <span className='text-[11px] sm:text-xs text-slate-muted'>
+              {alreadyClosedCount > 0
+                ? 'Semua task aktif sudah selesai'
+                : 'Tidak ada task aktif'}
+            </span>
+          )}
+          <button
+            type='button'
+            className='btn btn-primary btn-sm text-xs sm:text-sm px-4 gap-1.5'
+            onClick={onRequestBulkDone}
+            disabled={bulkDoneDisabled}
+            title={bulkDoneTitle}
+          >
+            {bulkDoneRunning ? (
+              <span className='spinner w-3.5 h-3.5' />
+            ) : (
+              <CheckCheck size={14} />
+            )}
+            <span>
+              {bulkDoneRunning
+                ? 'Memproses...'
+                : `Tandai Semua Done${
+                    bulkDoneCount > 0 ? ` (${bulkDoneCount})` : ''
+                  }`}
+            </span>
+          </button>
           <button
             type='button'
             className='btn btn-ghost btn-sm text-xs sm:text-sm px-4'
