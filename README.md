@@ -21,8 +21,8 @@
 
 1. Clone repositori ini:
    ```bash
-   git clone <URL_REPO_GITHUB>
-   cd devhub
+   git clone https://github.com/dhianharyono/dev-hub.git
+   cd dev-hub
    ```
 2. Pasang dependensi project:
    ```bash
