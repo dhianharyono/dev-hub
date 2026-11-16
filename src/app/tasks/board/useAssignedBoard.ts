@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { AssignedTaskItem } from '@/app/api/taiga/assigned/route';
 import { useToast } from '@/components/Notification';
-import { buildBulkDonePlan } from './bulk-done';
+import { buildBulkDoneDayOptions, buildBulkDonePlan, ALL_DAYS } from './bulk-done';
 import type { ProjectTaskGroup, Status } from './types';
 
 interface UseAssignedBoardProps {
@@ -31,11 +31,17 @@ export function useAssignedBoard({
 
   const [bulkDoneOpen, setBulkDoneOpen] = useState(false);
   const [bulkDoneRunning, setBulkDoneRunning] = useState(false);
+  const [bulkDoneDay, setBulkDoneDay] = useState<string>(ALL_DAYS);
   const { notify } = useToast();
 
+  const bulkDoneDayOptions = useMemo(
+    () => buildBulkDoneDayOptions(assignedTasks),
+    [assignedTasks],
+  );
+
   const bulkDonePlan = useMemo(
-    () => buildBulkDonePlan(assignedTasks, projectStatuses),
-    [assignedTasks, projectStatuses],
+    () => buildBulkDonePlan(assignedTasks, projectStatuses, bulkDoneDay),
+    [assignedTasks, projectStatuses, bulkDoneDay],
   );
 
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
@@ -118,12 +124,17 @@ export function useAssignedBoard({
   const handleCancelBulkDone = () => {
     if (bulkDoneRunning) return;
     setBulkDoneOpen(false);
+    setBulkDoneDay(ALL_DAYS);
   };
 
   const handleConfirmBulkDone = async () => {
     if (bulkDoneRunning || bulkDonePlan.targets.length === 0) return;
     setBulkDoneRunning(true);
 
+    const scopeLabel =
+      bulkDoneDay === ALL_DAYS
+        ? 'task aktif'
+        : `task aktif (${bulkDoneDayOptions.find((o) => o.value === bulkDoneDay)?.label ?? bulkDoneDay})`;
     const successIds = new Set<number>();
     const failedRefs: string[] = [];
 
@@ -172,15 +183,16 @@ export function useAssignedBoard({
 
     setBulkDoneRunning(false);
     setBulkDoneOpen(false);
+    setBulkDoneDay(ALL_DAYS);
 
     if (failedRefs.length === 0) {
       notify.success(
-        `${successIds.size} task aktif berhasil ditandai Done.`,
+        `${successIds.size} ${scopeLabel} berhasil ditandai Done.`,
         'Semua task selesai',
       );
     } else if (successIds.size === 0) {
       notify.error(
-        `Gagal menandai ${failedRefs.length} task (${failedRefs.join(', ')}). Coba lagi.`,
+        `Gagal menandai ${failedRefs.length} ${scopeLabel} (${failedRefs.join(', ')}). Coba lagi.`,
         'Tidak ada task yang berubah',
       );
     } else {
@@ -443,6 +455,9 @@ export function useAssignedBoard({
     handleSaveSubject,
     groupedTasksByProject,
     bulkDonePlan,
+    bulkDoneDay,
+    setBulkDoneDay,
+    bulkDoneDayOptions,
     bulkDoneOpen,
     bulkDoneRunning,
     handleRequestBulkDone,

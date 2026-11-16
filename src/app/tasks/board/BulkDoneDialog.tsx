@@ -2,14 +2,19 @@
 
 import { useEffect, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCheck, Info, X } from 'lucide-react';
-import type { BulkDonePlan } from './bulk-done';
+import { CheckCheck, CalendarDays, Info, X } from 'lucide-react';
+import { Select } from '@/components/Select';
+import type { BulkDoneDayOption, BulkDonePlan } from './bulk-done';
+import { ALL_DAYS } from './bulk-done';
 
 const emptySubscribe = () => () => {};
 
 interface BulkDoneDialogProps {
   plan: BulkDonePlan;
   isRunning: boolean;
+  day: string;
+  dayOptions: BulkDoneDayOption[];
+  onDayChange: (day: string) => void;
   onCancel: () => void;
   onConfirm: () => void;
 }
@@ -17,6 +22,9 @@ interface BulkDoneDialogProps {
 export function BulkDoneDialog({
   plan,
   isRunning,
+  day,
+  dayOptions,
+  onDayChange,
   onCancel,
   onConfirm,
 }: BulkDoneDialogProps) {
@@ -38,6 +46,9 @@ export function BulkDoneDialog({
 
   const preview = plan.targets.slice(0, 6);
   const remaining = plan.targets.length - preview.length;
+  const allDays = day === ALL_DAYS;
+  const dayLabel =
+    dayOptions.find((option) => option.value === day)?.label ?? 'Semua hari';
 
   return createPortal(
     <div
@@ -73,12 +84,45 @@ export function BulkDoneDialog({
         </div>
 
         <div className='p-5 flex flex-col gap-3'>
-          <p className='text-sm font-semibold text-slate-text'>
-            {plan.targets.length} task aktif akan diubah ke status Done.
-          </p>
+          <div className='flex flex-col gap-1.5'>
+            <label
+              htmlFor='bulk-done-day'
+              className='text-xs font-medium text-slate-600 flex items-center gap-1.5'
+            >
+              <CalendarDays size={12} className='text-slate-400' />
+              <span>Pilih hari</span>
+            </label>
+            <Select
+              id='bulk-done-day'
+              size='sm'
+              value={day}
+              onChange={(e) => onDayChange(e.target.value)}
+              disabled={isRunning}
+              className='h-9 text-xs sm:text-sm rounded-lg'
+            >
+              {dayOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label} ({option.count} task)
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          {plan.targets.length === 0 ? (
+            <p className='text-sm font-semibold text-slate-text'>
+              Tidak ada task aktif{allDays ? '' : ` pada ${dayLabel}`} yang bisa
+              ditandai Done.
+            </p>
+          ) : (
+            <p className='text-sm font-semibold text-slate-text'>
+              {plan.targets.length} task aktif
+              {allDays ? '' : ` pada ${dayLabel}`} akan diubah ke status Done.
+            </p>
+          )}
           <p className='text-xs text-slate-600 leading-relaxed'>
-            Semua task aktif yang sedang tampil di board ikut diubah, apa pun
-            tanggalnya. Task yang sudah selesai dilewati.
+            {allDays
+              ? 'Semua task aktif yang sedang tampil di board ikut diubah, apa pun tanggalnya. Task yang sudah selesai dilewati.'
+              : 'Hanya task pada hari terpilih yang diubah. Task di hari lain dan task yang sudah selesai tidak disentuh.'}
           </p>
 
           <ul className='flex flex-col gap-1.5 m-0 p-0 list-none max-h-44 overflow-y-auto'>

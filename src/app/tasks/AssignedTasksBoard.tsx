@@ -150,6 +150,9 @@ export default function AssignedTasksBoard({
         <BulkDoneDialog
           plan={board.bulkDonePlan}
           isRunning={board.bulkDoneRunning}
+          day={board.bulkDoneDay}
+          dayOptions={board.bulkDoneDayOptions}
+          onDayChange={board.setBulkDoneDay}
           onCancel={board.handleCancelBulkDone}
           onConfirm={board.handleConfirmBulkDone}
         />
