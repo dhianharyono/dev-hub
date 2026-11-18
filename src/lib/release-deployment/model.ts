@@ -155,6 +155,8 @@ export interface ReleaseCreation {
   tasks: CreatedTask[];
 }
 
+export type ServiceGroup = 'BE' | 'FE' | 'MOBILE' | 'FULLSTACK';
+
 /** Payload task Taiga: custom attribute hanya dikirim bila diisi. */
 export interface DeploymentTaskPayload {
   subject: string;
@@ -184,24 +186,20 @@ export function deploymentTaskPayload(
   return payload;
 }
 
-export interface ServiceLink {
-  id: string;
-  service: string;
-  url: string;
-}
-
 export interface DeploymentFormInput {
   judul: string;
   tiket: string;
   squad: string;
   environment: string;
   picDeveloper: string;
+  picDeveloperText: string;
   picQa: string[];
   picHoe: string;
   deployDate: string;
   deployTime: string;
   deployTimeBe: string;
   deployTimeFe: string;
+  deployTimeMobile: string;
   envVault: string;
   envVaultBe: string;
   envVaultFe: string;
@@ -210,11 +208,19 @@ export interface DeploymentFormInput {
   tableName: string;
   columnName: string;
   databaseDescription: string;
+  fullstackDatabaseTypes: string[];
+  fullstackDatabaseName: string;
+  fullstackTableName: string;
+  fullstackColumnName: string;
+  fullstackDatabaseDescription: string;
+  firestore: string;
+  linkApk: string;
   kafkaMessage: string;
   kafkaConsumer: string;
   kafkaProducer: string;
   kafkaTopic: string;
-  services: ServiceLink[];
+  /** Nama service form -> link MR. Service tanpa isian tidak dikirim. */
+  services: Record<string, string>;
 }
 
 export interface ReleaseOptions {

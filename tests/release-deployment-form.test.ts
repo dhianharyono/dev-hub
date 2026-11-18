@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   FORM_FIELDS,
+  FORM_SECTION_ORDER,
   FORM_SERVICE_FIELDS,
   buildFormAnswers,
   missingRequiredFields,
@@ -17,12 +18,14 @@ function input(
     squad: 'Control Tower',
     environment: 'Staging',
     picDeveloper: 'Dhian Haryono',
+    picDeveloperText: '',
     picQa: ['Fabiola Matara'],
     picHoe: 'Budi Hari Sulaksono',
     deployDate: '2026-11-19',
-    deployTime: '14:00',
+    deployTime: '',
     deployTimeBe: '14:00',
     deployTimeFe: '14:30',
+    deployTimeMobile: '',
     envVault: '',
     envVaultBe: '',
     envVaultFe: '',
@@ -31,11 +34,18 @@ function input(
     tableName: '',
     columnName: '',
     databaseDescription: '',
+    fullstackDatabaseTypes: [],
+    fullstackDatabaseName: '',
+    fullstackTableName: '',
+    fullstackColumnName: '',
+    fullstackDatabaseDescription: '',
+    firestore: '',
+    linkApk: '',
     kafkaMessage: '',
     kafkaConsumer: '',
     kafkaProducer: '',
     kafkaTopic: '',
-    services: [],
+    services: {},
     ...overrides,
   };
 }
@@ -67,6 +77,49 @@ describe('buildFormAnswers', () => {
     });
   });
 
+  it('mengelompokkan jawaban sesuai section dan urutan form', () => {
+    const answers = buildFormAnswers(
+      input({
+        services: { 'ms-core': 'https://gitlab/!1', 'fe-buyer': 'https://gitlab/!2' },
+      }),
+    );
+    const sections = answers.map((answer) => answer.section);
+    const expectedOrder = [...FORM_SECTION_ORDER];
+
+    expect(sections).toEqual(
+      [...sections].sort(
+        (a, b) => expectedOrder.indexOf(a) - expectedOrder.indexOf(b),
+      ),
+    );
+
+    const umum = answers
+      .filter((answer) => answer.section === 'Umum')
+      .map((answer) => answer.title);
+    expect(umum).toEqual([
+      'Tanggal Deploy',
+      'Skuad',
+      'Environment',
+      'Judul Release Dev',
+      'Tiket Taiga Deployment Checklist Dev',
+      'PIC HoE',
+      'PIC Developer',
+      'PIC Software Quality Assurance',
+    ]);
+
+    const backend = answers.filter(
+      (answer) => answer.section === 'Technical Backend',
+    );
+    expect(backend[0].title).toBe('Waktu Deploy BE');
+    expect(backend.find((answer) => answer.title === 'Service ms-core')).toBeTruthy();
+    expect(
+      answers.some(
+        (answer) =>
+          answer.section === 'Technical Frontend' &&
+          answer.title === 'Service fe-buyer',
+      ),
+    ).toBe(true);
+  });
+
   it('tidak mengirim field yang kosong', () => {
     const answers = buildFormAnswers(
       input({ deployTime: '', deployTimeBe: '', deployTimeFe: '' }),
@@ -77,7 +130,7 @@ describe('buildFormAnswers', () => {
     expect(answerFor(answers, FORM_FIELDS.deployTimeFe.id)).toBeUndefined();
   });
 
-  it('mengisi kedua pertanyaan database yang judulnya sama', () => {
+  it('memisahkan pertanyaan database Backend dan Fullstack yang judulnya sama', () => {
     const answers = buildFormAnswers(
       input({
         databaseTypes: ['PostgreSQL'],
@@ -85,62 +138,80 @@ describe('buildFormAnswers', () => {
         tableName: 'orders',
         columnName: 'status',
         databaseDescription: 'Tambah kolom status',
+        fullstackDatabaseTypes: ['MongoDB'],
+        fullstackDatabaseName: 'dashboard',
+        fullstackTableName: 'releases',
+        fullstackColumnName: 'stage',
+        fullstackDatabaseDescription: 'Tambah kolom stage',
       }),
     );
 
-    for (const id of [
-      'r50fd3d69ff5d468cb9b2286f59d161b7',
-      'rbb7c438b60684d43acac19129d1bbf8a',
-    ]) {
-      expect(answerFor(answers, id)?.value).toEqual(['PostgreSQL']);
-    }
-    for (const id of [
-      'r9a2c4d4a2d6b419f885f7f37de251495',
-      'r8b22b2429d5d4cf6a09806e1cd87fbca',
-    ]) {
-      expect(answerFor(answers, id)?.value).toBe('ms-core');
-    }
-    for (const id of [
-      'r5c8ccb197b8f403b997d51749879d516',
-      'r818f9d7a471d4d349d492e71de417b9b',
-    ]) {
-      expect(answerFor(answers, id)?.value).toBe('orders');
-    }
-    for (const id of [
-      'r5d90946e1c7b4c0e9962f2169c21be02',
-      'rca97995d77784b0d9962ed20feb76060',
-    ]) {
-      expect(answerFor(answers, id)?.value).toBe('status');
-    }
-    for (const id of [
-      'r5595c8a7c69e4f0ea01d9b998cf2e283',
-      'ra363f35b9c364d77bfb781bd899be603',
-    ]) {
-      expect(answerFor(answers, id)?.value).toBe('Tambah kolom status');
-    }
+    const backend = answers.filter(
+      (answer) => answer.section === 'Technical Backend',
+    );
+    const fullstack = answers.filter(
+      (answer) => answer.section === 'Technical Fullstack New',
+    );
+
+    expect(answerFor(backend, 'r50fd3d69ff5d468cb9b2286f59d161b7')?.value).toEqual([
+      'PostgreSQL',
+    ]);
+    expect(answerFor(backend, 'r9a2c4d4a2d6b419f885f7f37de251495')?.value).toBe(
+      'ms-core',
+    );
+    expect(answerFor(backend, 'r5c8ccb197b8f403b997d51749879d516')?.value).toBe(
+      'orders',
+    );
+    expect(answerFor(backend, 'r5d90946e1c7b4c0e9962f2169c21be02')?.value).toBe(
+      'status',
+    );
+    expect(answerFor(backend, 'r5595c8a7c69e4f0ea01d9b998cf2e283')?.value).toBe(
+      'Tambah kolom status',
+    );
+
+    expect(
+      answerFor(fullstack, 'rbb7c438b60684d43acac19129d1bbf8a')?.value,
+    ).toEqual(['MongoDB']);
+    expect(answerFor(fullstack, 'r8b22b2429d5d4cf6a09806e1cd87fbca')?.value).toBe(
+      'dashboard',
+    );
+    expect(answerFor(fullstack, 'r818f9d7a471d4d349d492e71de417b9b')?.value).toBe(
+      'releases',
+    );
+    expect(answerFor(fullstack, 'rca97995d77784b0d9962ed20feb76060')?.value).toBe(
+      'stage',
+    );
+    expect(answerFor(fullstack, 'ra363f35b9c364d77bfb781bd899be603')?.value).toBe(
+      'Tambah kolom stage',
+    );
   });
 
-  it('memetakan link MR ke pertanyaan service yang sesuai', () => {
-    const service = FORM_SERVICE_FIELDS.find(
-      (field) => field.name === 'ms-core',
-    );
+  it('memetakan link MR ke pertanyaan service pada section yang sesuai', () => {
+    const msCore = FORM_SERVICE_FIELDS.find((field) => field.name === 'ms-core');
+    const buyer = FORM_SERVICE_FIELDS.find((field) => field.name === 'fe-buyer');
     const answers = buildFormAnswers(
       input({
-        services: [
-          { id: 'svc-1', service: 'ms-core', url: 'https://gitlab/!1' },
-          { id: 'svc-2', service: 'tidak-ada', url: 'https://gitlab/!2' },
-          { id: 'svc-3', service: 'ms-order', url: '   ' },
-        ],
+        services: {
+          'ms-core': 'https://gitlab/!1',
+          'fe-buyer': 'https://gitlab/!2',
+          '  ': 'https://gitlab/!3',
+          'ms-order': '   ',
+        },
       }),
     );
 
-    expect(answerFor(answers, service!.id)?.value).toBe('https://gitlab/!1');
-    expect(answers.filter((answer) => answer.value === 'https://gitlab/!2')).toEqual(
+    expect(answerFor(answers, msCore!.id)).toMatchObject({
+      section: 'Technical Backend',
+      value: 'https://gitlab/!1',
+    });
+    expect(answerFor(answers, buyer!.id)).toMatchObject({
+      section: 'Technical Frontend',
+      value: 'https://gitlab/!2',
+    });
+    expect(answers.filter((answer) => answer.value === 'https://gitlab/!3')).toEqual(
       [],
     );
-    expect(answers.filter((answer) => answer.title === 'Service ms-order')).toEqual(
-      [],
-    );
+    expect(answerFor(answers, 'r1dfd3f6e11e54c84816f69b5e4e73cd3')).toBeUndefined();
   });
 
   it('melaporkan field wajib yang belum diisi', () => {

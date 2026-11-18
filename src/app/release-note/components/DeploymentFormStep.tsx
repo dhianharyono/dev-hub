@@ -2,31 +2,30 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import {
-  ChevronLeft,
-  ExternalLink,
-  Loader2,
-  Plus,
-  Trash2,
-  Wand2,
-} from 'lucide-react';
+import { ChevronLeft, ExternalLink, Loader2, Wand2 } from 'lucide-react';
 import { Select } from '@/components/Select';
 import {
   RELEASE_TARGETS,
+  SQUAD_OPTIONS,
   type DeploymentFormInput,
   type ReleaseCreation,
   type ReleaseStoryForm,
-  type ServiceLink,
+  type ServiceGroup,
 } from '@/lib/release-deployment/model';
 import {
+  DATABASE_FIELDS,
   DATABASE_TYPE_OPTIONS,
   DEPLOYMENT_FORM_URL,
+  FORM_FIELDS,
+  FORM_SECTION_ORDER,
   FORM_SERVICE_FIELDS,
   PIC_DEVELOPER_OPTIONS,
   PIC_HOE_OPTIONS,
   PIC_QA_OPTIONS,
   buildFormAnswers,
   missingRequiredFields,
+  type FormAnswer,
+  type FormSection,
 } from '@/lib/release-deployment/form';
 
 interface DeploymentFormStepProps {
@@ -43,12 +42,234 @@ interface AutofillResponse {
   results: { id: string; title: string; ok: boolean; reason?: string }[];
 }
 
-function makeServiceLink(): ServiceLink {
-  return {
-    id: `svc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    service: '',
-    url: '',
-  };
+interface DatabaseValues {
+  types: string[];
+  name: string;
+  table: string;
+  column: string;
+  description: string;
+}
+
+const ENVIRONMENT_OPTIONS = ['Staging', 'Production'];
+
+type TechTab = 'BE' | 'FE' | 'MOBILE' | 'FULLSTACK';
+
+const TECH_TABS: { key: TechTab; label: string; section: FormSection }[] = [
+  { key: 'BE', label: 'BE', section: 'Technical Backend' },
+  { key: 'FE', label: 'FE', section: 'Technical Frontend' },
+  { key: 'MOBILE', label: 'Mobile', section: 'Technical Mobile' },
+  { key: 'FULLSTACK', label: 'Fullstack', section: 'Technical Fullstack New' },
+];
+
+function TechTabBar({
+  value,
+  onChange,
+}: {
+  value: TechTab;
+  onChange: (tab: TechTab) => void;
+}) {
+  return (
+    <div className='flex flex-wrap gap-2'>
+      {TECH_TABS.map((tab) => {
+        const active = tab.key === value;
+        return (
+          <button
+            key={tab.key}
+            type='button'
+            onClick={() => onChange(tab.key)}
+            aria-pressed={active}
+            className={`rounded-full border px-4 py-1.5 text-[13px] font-semibold transition-colors ${
+              active
+                ? 'border-brand bg-brand-light text-brand'
+                : 'border-border-strong bg-white text-slate-500 hover:border-brand'
+            }`}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Penanda wajib per role seperti pada form asli. */
+const ROLE_BADGES: Record<string, string> = {
+  [FORM_FIELDS.deployTimeBe.id]: 'BE wajib isi',
+  [DATABASE_FIELDS.be.type.id]: 'BE wajib isi',
+  [DATABASE_FIELDS.be.name.id]: 'BE wajib isi',
+  [DATABASE_FIELDS.be.table.id]: 'BE wajib isi',
+  [DATABASE_FIELDS.be.column.id]: 'BE wajib isi',
+  [DATABASE_FIELDS.be.description.id]: 'BE wajib isi',
+  [FORM_FIELDS.kafkaTopic.id]: 'BE wajib isi',
+  [FORM_FIELDS.kafkaMessage.id]: 'BE wajib isi',
+  [FORM_FIELDS.kafkaProducer.id]: 'BE wajib isi',
+  [FORM_FIELDS.kafkaConsumer.id]: 'BE wajib isi',
+  [FORM_FIELDS.envVaultBe.id]: 'BE wajib isi',
+  [FORM_FIELDS.firestore.id]: 'BE wajib isi',
+  [FORM_FIELDS.deployTimeFe.id]: 'FE wajib isi',
+  [FORM_FIELDS.envVaultFe.id]: 'FE wajib isi',
+  [FORM_FIELDS.deployTimeMobile.id]: 'Mobile wajib isi',
+  [FORM_FIELDS.deployTime.id]: 'wajib isi',
+};
+
+function FieldLabel({
+  htmlFor,
+  label,
+  required,
+  badge,
+}: {
+  htmlFor?: string;
+  label: string;
+  required?: boolean;
+  badge?: string;
+}) {
+  return (
+    <label htmlFor={htmlFor}>
+      {label}
+      {required && <span className='ml-0.5 text-rose-600'>*</span>}
+      {badge && (
+        <>
+          {' '}
+          <span className='ml-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700'>
+            {badge}
+          </span>
+        </>
+      )}
+    </label>
+  );
+}
+
+function ServiceInputs({
+  group,
+  services,
+  onChange,
+}: {
+  group: ServiceGroup;
+  services: Record<string, string>;
+  onChange: (service: string, url: string) => void;
+}) {
+  return (
+    <div className='mt-3.5'>
+      <p className='mb-2 text-xs font-bold text-slate-600'>Link MR service</p>
+      <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+        {FORM_SERVICE_FIELDS.filter((field) => field.group === group).map(
+          (field) => (
+            <div key={field.id} className='field !gap-1'>
+              <FieldLabel
+                htmlFor={`svc-${field.id}`}
+                label={`Service ${field.name}`}
+              />
+              <input
+                id={`svc-${field.id}`}
+                className='input !h-9 text-[12px]'
+                placeholder='Link MR'
+                value={services[field.name] ?? ''}
+                onChange={(event) => onChange(field.name, event.target.value)}
+              />
+            </div>
+          ),
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DatabaseInputs({
+  idPrefix,
+  values,
+  onChange,
+  onToggleType,
+}: {
+  idPrefix: string;
+  values: DatabaseValues;
+  onChange: (changes: Partial<DatabaseValues>) => void;
+  onToggleType: (type: string) => void;
+}) {
+  return (
+    <div className='mt-3.5'>
+      <div className='field'>
+        <FieldLabel
+          label='Database Yang Terdampak'
+          badge={idPrefix === 'be' ? ROLE_BADGES[DATABASE_FIELDS.be.type.id] : undefined}
+        />
+        <div className='flex flex-wrap gap-2'>
+          {DATABASE_TYPE_OPTIONS.map((type) => {
+            const active = values.types.includes(type);
+            return (
+              <button
+                key={type}
+                type='button'
+                onClick={() => onToggleType(type)}
+                aria-pressed={active}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                  active
+                    ? 'border-brand bg-brand-light text-brand'
+                    : 'border-border-strong text-slate-500 hover:border-brand'
+                }`}
+              >
+                {type}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className='mt-3.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2'>
+        <div className='field'>
+          <FieldLabel
+            htmlFor={`${idPrefix}-db-name`}
+            label='Nama Database'
+            badge={idPrefix === 'be' ? ROLE_BADGES[DATABASE_FIELDS.be.name.id] : undefined}
+          />
+          <input
+            id={`${idPrefix}-db-name`}
+            className='input'
+            value={values.name}
+            onChange={(event) => onChange({ name: event.target.value })}
+          />
+        </div>
+        <div className='field'>
+          <FieldLabel
+            htmlFor={`${idPrefix}-db-table`}
+            label='Nama Tabel Database'
+            badge={idPrefix === 'be' ? ROLE_BADGES[DATABASE_FIELDS.be.table.id] : undefined}
+          />
+          <input
+            id={`${idPrefix}-db-table`}
+            className='input'
+            value={values.table}
+            onChange={(event) => onChange({ table: event.target.value })}
+          />
+        </div>
+        <div className='field'>
+          <FieldLabel
+            htmlFor={`${idPrefix}-db-column`}
+            label='Nama Field/Kolom Database'
+            badge={idPrefix === 'be' ? ROLE_BADGES[DATABASE_FIELDS.be.column.id] : undefined}
+          />
+          <input
+            id={`${idPrefix}-db-column`}
+            className='input'
+            value={values.column}
+            onChange={(event) => onChange({ column: event.target.value })}
+          />
+        </div>
+        <div className='field'>
+          <FieldLabel
+            htmlFor={`${idPrefix}-db-desc`}
+            label='Deskripsi Perubahan Database'
+            badge={idPrefix === 'be' ? ROLE_BADGES[DATABASE_FIELDS.be.description.id] : undefined}
+          />
+          <input
+            id={`${idPrefix}-db-desc`}
+            className='input'
+            value={values.description}
+            onChange={(event) => onChange({ description: event.target.value })}
+          />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function initialInput(
@@ -63,26 +284,53 @@ function initialInput(
     squad: form.squad,
     environment: RELEASE_TARGETS[form.target].environment,
     picDeveloper: PIC_DEVELOPER_OPTIONS.includes(memberName) ? memberName : '',
+    picDeveloperText: PIC_DEVELOPER_OPTIONS.includes(memberName)
+      ? ''
+      : memberName,
     picQa: [],
     picHoe: '',
     deployDate: form.releaseDate,
     deployTime: '',
     deployTimeBe: '',
     deployTimeFe: '',
+    deployTimeMobile: '',
     envVault: '',
     envVaultBe: '',
     envVaultFe: '',
+    firestore: '',
+    linkApk: '',
     databaseTypes: [],
     databaseName: '',
     tableName: '',
     columnName: '',
     databaseDescription: '',
+    fullstackDatabaseTypes: [],
+    fullstackDatabaseName: '',
+    fullstackTableName: '',
+    fullstackColumnName: '',
+    fullstackDatabaseDescription: '',
     kafkaMessage: '',
     kafkaConsumer: '',
     kafkaProducer: '',
     kafkaTopic: '',
-    services: [],
+    services: {},
   };
+}
+
+function answerValue(answer: FormAnswer): string {
+  return Array.isArray(answer.value)
+    ? answer.value.join(', ')
+    : String(answer.value);
+}
+
+function answerLabel(answer: FormAnswer): string {
+  if (answer.id === FORM_FIELDS.picDeveloperText.id) {
+    return 'PIC Developer (teks)';
+  }
+  if (answer.id === FORM_FIELDS.picDeveloper.id) {
+    return 'PIC Developer (pilihan)';
+  }
+  return answer.title;
 }
 
 export function DeploymentFormStep({
@@ -95,6 +343,7 @@ export function DeploymentFormStep({
   const [input, setInput] = useState<DeploymentFormInput>(() =>
     initialInput(form, created, projectSlug, memberName),
   );
+  const [tab, setTab] = useState<TechTab>('BE');
   const [filling, setFilling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AutofillResponse | null>(null);
@@ -106,11 +355,22 @@ export function DeploymentFormStep({
 
   const missing = useMemo(() => missingRequiredFields(input), [input]);
   const answers = useMemo(() => buildFormAnswers(input), [input]);
+  const activeSection =
+    TECH_TABS.find((item) => item.key === tab)?.section ?? 'Technical Backend';
+  const groups = useMemo(
+    () =>
+      FORM_SECTION_ORDER.filter(
+        (section) => section === 'Umum' || section === activeSection,
+      )
+        .map((section) => ({
+          section,
+          rows: answers.filter((answer) => answer.section === section),
+        }))
+        .filter((group) => group.rows.length > 0),
+    [answers, activeSection],
+  );
 
-  const toggleList = (
-    key: 'picQa' | 'databaseTypes',
-    value: string,
-  ) => {
+  const toggleList = (key: 'picQa' | 'databaseTypes', value: string) => {
     const current = input[key];
     patch({
       [key]: current.includes(value)
@@ -119,11 +379,12 @@ export function DeploymentFormStep({
     });
   };
 
-  const changeService = (id: string, changes: Partial<ServiceLink>) => {
+  const toggleFullstackDatabase = (value: string) => {
+    const current = input.fullstackDatabaseTypes;
     patch({
-      services: input.services.map((service) =>
-        service.id === id ? { ...service, ...changes } : service,
-      ),
+      fullstackDatabaseTypes: current.includes(value)
+        ? current.filter((item) => item !== value)
+        : [...current, value],
     });
   };
 
@@ -149,54 +410,6 @@ export function DeploymentFormStep({
     }
   }
 
-  const databaseSummary = [
-    input.databaseTypes.join(', '),
-    [input.databaseName, input.tableName, input.columnName]
-      .filter((value) => value.trim())
-      .join(' · '),
-  ]
-    .filter(Boolean)
-    .join(' — ');
-
-  const kafkaSummary = [
-    input.kafkaTopic,
-    input.kafkaProducer,
-    input.kafkaConsumer,
-    input.kafkaMessage,
-  ]
-    .filter((value) => value.trim())
-    .join(' · ');
-
-  const summaryRows = [
-    { label: 'Skuad', value: input.squad },
-    { label: 'Environment', value: input.environment },
-    { label: 'Judul Release Dev', value: input.judul },
-    { label: 'Tiket Taiga', value: input.tiket },
-    {
-      label: 'Tanggal & Waktu Deploy',
-      value: [
-        input.deployDate,
-        input.deployTime,
-        input.deployTimeBe && `BE ${input.deployTimeBe}`,
-        input.deployTimeFe && `FE ${input.deployTimeFe}`,
-      ]
-        .filter(Boolean)
-        .join(' · '),
-    },
-    { label: 'PIC Developer', value: input.picDeveloper },
-    { label: 'PIC QA', value: input.picQa.join(', ') },
-    { label: 'PIC HoE', value: input.picHoe },
-    { label: 'Database', value: databaseSummary },
-    { label: 'Kafka', value: kafkaSummary },
-    {
-      label: 'Service (link MR)',
-      value: input.services
-        .filter((service) => service.service && service.url.trim())
-        .map((service) => service.service)
-        .join(', '),
-    },
-  ];
-
   return (
     <div className='space-y-4'>
       <section className='card'>
@@ -207,9 +420,61 @@ export function DeploymentFormStep({
           sendiri.
         </p>
 
-        <div className='mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3.5'>
-          <div className='field sm:col-span-2'>
-            <label htmlFor='deploy-judul'>Judul Release Dev</label>
+        <div className='mt-4 grid grid-cols-1 gap-3.5 sm:grid-cols-2'>
+          <div className='field'>
+            <FieldLabel htmlFor='deploy-date' label='Tanggal Deploy' required />
+            <input
+              id='deploy-date'
+              type='date'
+              className='input'
+              value={input.deployDate}
+              onChange={(event) => patch({ deployDate: event.target.value })}
+            />
+          </div>
+
+          <div className='field'>
+            <FieldLabel htmlFor='deploy-squad' label='Skuad' required />
+            <Select
+              id='deploy-squad'
+              aria-label='Skuad'
+              value={input.squad}
+              onChange={(event) => patch({ squad: event.target.value })}
+            >
+              <option value=''>Pilih skuad...</option>
+              {SQUAD_OPTIONS.map((squad) => (
+                <option key={squad} value={squad}>
+                  {squad}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          <div className='field'>
+            <FieldLabel
+              htmlFor='deploy-environment'
+              label='Environment'
+              required
+            />
+            <Select
+              id='deploy-environment'
+              aria-label='Environment'
+              value={input.environment}
+              onChange={(event) => patch({ environment: event.target.value })}
+            >
+              {ENVIRONMENT_OPTIONS.map((environment) => (
+                <option key={environment} value={environment}>
+                  {environment}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          <div className='field'>
+            <FieldLabel
+              htmlFor='deploy-judul'
+              label='Judul Release Dev'
+              required
+            />
             <input
               id='deploy-judul'
               className='input'
@@ -218,10 +483,12 @@ export function DeploymentFormStep({
             />
           </div>
 
-          <div className='field'>
-            <label htmlFor='deploy-tiket'>
-              Tiket Taiga Deployment Checklist Dev
-            </label>
+          <div className='field sm:col-span-2'>
+            <FieldLabel
+              htmlFor='deploy-tiket'
+              label='Tiket Taiga Deployment Checklist Dev'
+              required
+            />
             <input
               id='deploy-tiket'
               className='input'
@@ -231,7 +498,44 @@ export function DeploymentFormStep({
           </div>
 
           <div className='field'>
-            <label htmlFor='deploy-pic-dev'>PIC Developer</label>
+            <FieldLabel htmlFor='deploy-pic-hoe' label='PIC HoE' required />
+            <Select
+              id='deploy-pic-hoe'
+              aria-label='PIC HoE'
+              value={input.picHoe}
+              onChange={(event) => patch({ picHoe: event.target.value })}
+            >
+              <option value=''>Pilih HoE...</option>
+              {PIC_HOE_OPTIONS.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          <div className='field'>
+            <FieldLabel
+              htmlFor='deploy-pic-dev-text'
+              label='PIC Developer (teks)'
+            />
+            <input
+              id='deploy-pic-dev-text'
+              className='input'
+              placeholder='Nama developer, pisahkan dengan koma'
+              value={input.picDeveloperText}
+              onChange={(event) =>
+                patch({ picDeveloperText: event.target.value })
+              }
+            />
+          </div>
+
+          <div className='field'>
+            <FieldLabel
+              htmlFor='deploy-pic-dev'
+              label='PIC Developer (pilihan)'
+              required
+            />
             <Select
               id='deploy-pic-dev'
               aria-label='PIC Developer'
@@ -249,52 +553,11 @@ export function DeploymentFormStep({
             </Select>
           </div>
 
-          <div className='field'>
-            <label htmlFor='deploy-date'>Tanggal Deploy</label>
-            <input
-              id='deploy-date'
-              type='date'
-              className='input'
-              value={input.deployDate}
-              onChange={(event) => patch({ deployDate: event.target.value })}
-            />
-          </div>
-
-          <div className='field'>
-            <label htmlFor='deploy-time'>Waktu Deploy</label>
-            <input
-              id='deploy-time'
-              type='time'
-              className='input'
-              value={input.deployTime}
-              onChange={(event) => patch({ deployTime: event.target.value })}
-            />
-          </div>
-
-          <div className='field'>
-            <label htmlFor='deploy-time-be'>Waktu Deploy BE</label>
-            <input
-              id='deploy-time-be'
-              type='time'
-              className='input'
-              value={input.deployTimeBe}
-              onChange={(event) => patch({ deployTimeBe: event.target.value })}
-            />
-          </div>
-
-          <div className='field'>
-            <label htmlFor='deploy-time-fe'>Waktu Deploy FE</label>
-            <input
-              id='deploy-time-fe'
-              type='time'
-              className='input'
-              value={input.deployTimeFe}
-              onChange={(event) => patch({ deployTimeFe: event.target.value })}
-            />
-          </div>
-
           <div className='field sm:col-span-2'>
-            <label>PIC Software Quality Assurance</label>
+            <FieldLabel
+              label='PIC Software Quality Assurance'
+              required
+            />
             <div className='flex flex-wrap gap-2'>
               {PIC_QA_OPTIONS.map((name) => {
                 const active = input.picQa.includes(name);
@@ -316,242 +579,354 @@ export function DeploymentFormStep({
               })}
             </div>
           </div>
-
-          <div className='field'>
-            <label htmlFor='deploy-pic-hoe'>PIC HoE</label>
-            <Select
-              id='deploy-pic-hoe'
-              aria-label='PIC HoE'
-              value={input.picHoe}
-              onChange={(event) => patch({ picHoe: event.target.value })}
-            >
-              <option value=''>Pilih HoE...</option>
-              {PIC_HOE_OPTIONS.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </Select>
-          </div>
         </div>
       </section>
 
-      <section className='card'>
-        <h2 className='card-title'>Database, Kafka, Env/Vault</h2>
+      <div className='flex flex-wrap items-center gap-2'>
+        <TechTabBar value={tab} onChange={setTab} />
+      </div>
 
-        <div className='field'>
-          <label>Database Yang Terdampak</label>
-          <div className='flex flex-wrap gap-2'>
-            {DATABASE_TYPE_OPTIONS.map((type) => {
-              const active = input.databaseTypes.includes(type);
-              return (
-                <button
-                  key={type}
-                  type='button'
-                  onClick={() => toggleList('databaseTypes', type)}
-                  aria-pressed={active}
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-                    active
-                      ? 'border-brand bg-brand-light text-brand'
-                      : 'border-border-strong text-slate-500 hover:border-brand'
-                  }`}
-                >
-                  {type}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      {missing.length > 0 && (
+        <p className='rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2 text-xs font-medium text-amber-800'>
+          Field wajib belum lengkap: {missing.join(', ')}.
+        </p>
+      )}
 
-        <div className='mt-3.5 grid grid-cols-1 sm:grid-cols-2 gap-3.5'>
-          <div className='field'>
-            <label htmlFor='deploy-db-name'>Nama Database</label>
-            <input
-              id='deploy-db-name'
-              className='input'
-              value={input.databaseName}
-              onChange={(event) => patch({ databaseName: event.target.value })}
-            />
-          </div>
-          <div className='field'>
-            <label htmlFor='deploy-db-table'>Nama Tabel Database</label>
-            <input
-              id='deploy-db-table'
-              className='input'
-              value={input.tableName}
-              onChange={(event) => patch({ tableName: event.target.value })}
-            />
-          </div>
-          <div className='field'>
-            <label htmlFor='deploy-db-column'>Nama Field/Kolom Database</label>
-            <input
-              id='deploy-db-column'
-              className='input'
-              value={input.columnName}
-              onChange={(event) => patch({ columnName: event.target.value })}
-            />
-          </div>
-          <div className='field'>
-            <label htmlFor='deploy-db-desc'>Deskripsi Perubahan Database</label>
-            <input
-              id='deploy-db-desc'
-              className='input'
-              value={input.databaseDescription}
-              onChange={(event) =>
-                patch({ databaseDescription: event.target.value })
-              }
-            />
+      {tab === 'BE' && (
+        <section className='card'>
+          <h2 className='card-title'>Technical Backend</h2>
+
+          <div className='grid grid-cols-1 gap-3.5 sm:grid-cols-2'>
+            <div className='field'>
+              <FieldLabel
+                htmlFor='deploy-time-be'
+                label='Waktu Deploy BE'
+                badge={ROLE_BADGES[FORM_FIELDS.deployTimeBe.id]}
+              />
+              <input
+                id='deploy-time-be'
+                type='time'
+                className='input'
+                value={input.deployTimeBe}
+                onChange={(event) => patch({ deployTimeBe: event.target.value })}
+              />
+            </div>
           </div>
 
-          <div className='field'>
-            <label htmlFor='deploy-kafka-topic'>Kafka Topic Yang Terdampak</label>
-            <input
-              id='deploy-kafka-topic'
-              className='input'
-              value={input.kafkaTopic}
-              onChange={(event) => patch({ kafkaTopic: event.target.value })}
-            />
+          <ServiceInputs
+            group='BE'
+            services={input.services}
+            onChange={(service, url) =>
+              patch({ services: { ...input.services, [service]: url } })
+            }
+          />
+
+          <DatabaseInputs
+            idPrefix='be'
+            values={{
+              types: input.databaseTypes,
+              name: input.databaseName,
+              table: input.tableName,
+              column: input.columnName,
+              description: input.databaseDescription,
+            }}
+            onChange={(changes) =>
+              patch({
+                ...(changes.types ? { databaseTypes: changes.types } : {}),
+                ...(changes.name !== undefined
+                  ? { databaseName: changes.name }
+                  : {}),
+                ...(changes.table !== undefined
+                  ? { tableName: changes.table }
+                  : {}),
+                ...(changes.column !== undefined
+                  ? { columnName: changes.column }
+                  : {}),
+                ...(changes.description !== undefined
+                  ? { databaseDescription: changes.description }
+                  : {}),
+              })
+            }
+            onToggleType={(type) => toggleList('databaseTypes', type)}
+          />
+
+          <div className='mt-3.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2'>
+            <div className='field'>
+              <FieldLabel
+                htmlFor='deploy-kafka-topic'
+                label='Kafka Topic Yang Terdampak'
+                badge={ROLE_BADGES[FORM_FIELDS.kafkaTopic.id]}
+              />
+              <input
+                id='deploy-kafka-topic'
+                className='input'
+                value={input.kafkaTopic}
+                onChange={(event) => patch({ kafkaTopic: event.target.value })}
+              />
+            </div>
+            <div className='field'>
+              <FieldLabel
+                htmlFor='deploy-kafka-message'
+                label='Kafka Message'
+                badge={ROLE_BADGES[FORM_FIELDS.kafkaMessage.id]}
+              />
+              <input
+                id='deploy-kafka-message'
+                className='input'
+                placeholder='Link wiki kafka message'
+                value={input.kafkaMessage}
+                onChange={(event) => patch({ kafkaMessage: event.target.value })}
+              />
+            </div>
+            <div className='field'>
+              <FieldLabel
+                htmlFor='deploy-kafka-producer'
+                label='Kafka Producer'
+                badge={ROLE_BADGES[FORM_FIELDS.kafkaProducer.id]}
+              />
+              <input
+                id='deploy-kafka-producer'
+                className='input'
+                value={input.kafkaProducer}
+                onChange={(event) => patch({ kafkaProducer: event.target.value })}
+              />
+            </div>
+            <div className='field'>
+              <FieldLabel
+                htmlFor='deploy-kafka-consumer'
+                label='Kafka Consumer'
+                badge={ROLE_BADGES[FORM_FIELDS.kafkaConsumer.id]}
+              />
+              <input
+                id='deploy-kafka-consumer'
+                className='input'
+                value={input.kafkaConsumer}
+                onChange={(event) => patch({ kafkaConsumer: event.target.value })}
+              />
+            </div>
+            <div className='field'>
+              <FieldLabel
+                htmlFor='deploy-env-vault-be'
+                label='Env/Vault BE'
+                badge={ROLE_BADGES[FORM_FIELDS.envVaultBe.id]}
+              />
+              <input
+                id='deploy-env-vault-be'
+                className='input'
+                value={input.envVaultBe}
+                onChange={(event) => patch({ envVaultBe: event.target.value })}
+              />
+            </div>
+            <div className='field'>
+              <FieldLabel
+                htmlFor='deploy-firestore'
+                label='Firestore'
+                badge={ROLE_BADGES[FORM_FIELDS.firestore.id]}
+              />
+              <input
+                id='deploy-firestore'
+                className='input'
+                value={input.firestore}
+                onChange={(event) => patch({ firestore: event.target.value })}
+              />
+            </div>
           </div>
-          <div className='field'>
-            <label htmlFor='deploy-kafka-producer'>Kafka Producer</label>
-            <input
-              id='deploy-kafka-producer'
-              className='input'
-              value={input.kafkaProducer}
-              onChange={(event) => patch({ kafkaProducer: event.target.value })}
-            />
-          </div>
-          <div className='field'>
-            <label htmlFor='deploy-kafka-consumer'>Kafka Consumer</label>
-            <input
-              id='deploy-kafka-consumer'
-              className='input'
-              value={input.kafkaConsumer}
-              onChange={(event) => patch({ kafkaConsumer: event.target.value })}
-            />
-          </div>
-          <div className='field'>
-            <label htmlFor='deploy-kafka-message'>Kafka Message</label>
-            <input
-              id='deploy-kafka-message'
-              className='input'
-              placeholder='Link wiki kafka message'
-              value={input.kafkaMessage}
-              onChange={(event) => patch({ kafkaMessage: event.target.value })}
-            />
+        </section>
+      )}
+
+      {tab === 'FE' && (
+        <section className='card'>
+          <h2 className='card-title'>Technical Frontend</h2>
+
+          <div className='grid grid-cols-1 gap-3.5 sm:grid-cols-2'>
+            <div className='field'>
+              <FieldLabel
+                htmlFor='deploy-time-fe'
+                label='Waktu Deploy FE'
+                badge={ROLE_BADGES[FORM_FIELDS.deployTimeFe.id]}
+              />
+              <input
+                id='deploy-time-fe'
+                type='time'
+                className='input'
+                value={input.deployTimeFe}
+                onChange={(event) => patch({ deployTimeFe: event.target.value })}
+              />
+            </div>
           </div>
 
-          <div className='field'>
-            <label htmlFor='deploy-env-vault'>Env/Vault</label>
-            <input
-              id='deploy-env-vault'
-              className='input'
-              value={input.envVault}
-              onChange={(event) => patch({ envVault: event.target.value })}
-            />
-          </div>
-          <div className='field'>
-            <label htmlFor='deploy-env-vault-be'>Env/Vault BE</label>
-            <input
-              id='deploy-env-vault-be'
-              className='input'
-              value={input.envVaultBe}
-              onChange={(event) => patch({ envVaultBe: event.target.value })}
-            />
-          </div>
-          <div className='field'>
-            <label htmlFor='deploy-env-vault-fe'>Env/Vault FE</label>
-            <input
-              id='deploy-env-vault-fe'
-              className='input'
-              value={input.envVaultFe}
-              onChange={(event) => patch({ envVaultFe: event.target.value })}
-            />
-          </div>
-        </div>
-      </section>
+          <ServiceInputs
+            group='FE'
+            services={input.services}
+            onChange={(service, url) =>
+              patch({ services: { ...input.services, [service]: url } })
+            }
+          />
 
-      <section className='card'>
-        <h2 className='card-title'>Link MR per Service</h2>
-        {input.services.length === 0 ? (
-          <p className='rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-slate-400'>
-            Belum ada service. Tambahkan service yang berubah beserta link MR.
-          </p>
-        ) : (
-          <ul className='space-y-2'>
-            {input.services.map((service, index) => (
-              <li
-                key={service.id}
-                className='grid grid-cols-1 sm:grid-cols-[220px_1fr_auto] gap-2'
-              >
-                <Select
-                  aria-label={`Service ${index + 1}`}
-                  value={service.service}
-                  onChange={(event) =>
-                    changeService(service.id, { service: event.target.value })
-                  }
-                >
-                  <option value=''>Pilih service...</option>
-                  {FORM_SERVICE_FIELDS.map((field) => (
-                    <option key={field.id} value={field.name}>
-                      {field.name}
-                    </option>
-                  ))}
-                </Select>
-                <input
-                  className='input'
-                  placeholder='https://gitlab.../merge_requests/124'
-                  aria-label={`Link MR service ${index + 1}`}
-                  value={service.url}
-                  onChange={(event) =>
-                    changeService(service.id, { url: event.target.value })
-                  }
-                />
-                <button
-                  type='button'
-                  className='btn btn-ghost btn-icon !h-9 !w-9 text-slate-400 hover:text-rose-600'
-                  aria-label={`Hapus service ${index + 1}`}
-                  onClick={() =>
-                    patch({
-                      services: input.services.filter(
-                        (item) => item.id !== service.id,
-                      ),
-                    })
-                  }
-                >
-                  <Trash2 size={14} />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <button
-          type='button'
-          className='btn btn-ghost btn-sm mt-3 text-brand'
-          onClick={() =>
-            patch({ services: [...input.services, makeServiceLink()] })
-          }
-        >
-          <Plus size={14} />
-          Tambah service
-        </button>
-      </section>
+          <div className='mt-3.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2'>
+            <div className='field'>
+              <FieldLabel
+                htmlFor='deploy-env-vault-fe'
+                label='Env/Vault FE'
+                badge={ROLE_BADGES[FORM_FIELDS.envVaultFe.id]}
+              />
+              <input
+                id='deploy-env-vault-fe'
+                className='input'
+                value={input.envVaultFe}
+                onChange={(event) => patch({ envVaultFe: event.target.value })}
+              />
+            </div>
+          </div>
+        </section>
+      )}
+
+      {tab === 'MOBILE' && (
+        <section className='card'>
+          <h2 className='card-title'>Technical Mobile</h2>
+
+          <div className='grid grid-cols-1 gap-3.5 sm:grid-cols-2'>
+            <div className='field'>
+              <FieldLabel
+                htmlFor='deploy-time-mobile'
+                label='Waktu Deploy Mobile'
+                badge={ROLE_BADGES[FORM_FIELDS.deployTimeMobile.id]}
+              />
+              <input
+                id='deploy-time-mobile'
+                type='time'
+                className='input'
+                value={input.deployTimeMobile}
+                onChange={(event) =>
+                  patch({ deployTimeMobile: event.target.value })
+                }
+              />
+            </div>
+          </div>
+
+          <ServiceInputs
+            group='MOBILE'
+            services={input.services}
+            onChange={(service, url) =>
+              patch({ services: { ...input.services, [service]: url } })
+            }
+          />
+
+          <div className='mt-3.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2'>
+            <div className='field'>
+              <FieldLabel htmlFor='deploy-link-apk' label='Link APK' />
+              <input
+                id='deploy-link-apk'
+                className='input'
+                value={input.linkApk}
+                onChange={(event) => patch({ linkApk: event.target.value })}
+              />
+            </div>
+          </div>
+        </section>
+      )}
+
+      {tab === 'FULLSTACK' && (
+        <section className='card'>
+          <h2 className='card-title'>Technical Fullstack New</h2>
+
+          <div className='grid grid-cols-1 gap-3.5 sm:grid-cols-2'>
+            <div className='field'>
+              <FieldLabel
+                htmlFor='deploy-time'
+                label='Waktu Deploy'
+                badge={ROLE_BADGES[FORM_FIELDS.deployTime.id]}
+              />
+              <input
+                id='deploy-time'
+                type='time'
+                className='input'
+                value={input.deployTime}
+                onChange={(event) => patch({ deployTime: event.target.value })}
+              />
+            </div>
+          </div>
+
+          <ServiceInputs
+            group='FULLSTACK'
+            services={input.services}
+            onChange={(service, url) =>
+              patch({ services: { ...input.services, [service]: url } })
+            }
+          />
+
+          <DatabaseInputs
+            idPrefix='fullstack'
+            values={{
+              types: input.fullstackDatabaseTypes,
+              name: input.fullstackDatabaseName,
+              table: input.fullstackTableName,
+              column: input.fullstackColumnName,
+              description: input.fullstackDatabaseDescription,
+            }}
+            onChange={(changes) =>
+              patch({
+                ...(changes.types
+                  ? { fullstackDatabaseTypes: changes.types }
+                  : {}),
+                ...(changes.name !== undefined
+                  ? { fullstackDatabaseName: changes.name }
+                  : {}),
+                ...(changes.table !== undefined
+                  ? { fullstackTableName: changes.table }
+                  : {}),
+                ...(changes.column !== undefined
+                  ? { fullstackColumnName: changes.column }
+                  : {}),
+                ...(changes.description !== undefined
+                  ? { fullstackDatabaseDescription: changes.description }
+                  : {}),
+              })
+            }
+            onToggleType={toggleFullstackDatabase}
+          />
+
+          <div className='mt-3.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2'>
+            <div className='field'>
+              <FieldLabel htmlFor='deploy-env-vault' label='Env/Vault' />
+              <input
+                id='deploy-env-vault'
+                className='input'
+                value={input.envVault}
+                onChange={(event) => patch({ envVault: event.target.value })}
+              />
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className='card'>
         <h2 className='card-title'>Ringkasan Field</h2>
-        <div className='overflow-hidden rounded-xl border border-border'>
-          {summaryRows.map((row, index) => (
-            <div
-              key={row.label}
-              className={`grid grid-cols-[minmax(150px,230px)_1fr] text-[13px] ${
-                index > 0 ? 'border-t border-border' : ''
-              }`}
-            >
-              <div className='bg-surface-subtle px-3 py-1.5 font-semibold text-slate-600'>
-                {row.label}
-              </div>
-              <div className='px-3 py-1.5 text-slate-800 break-words'>
-                {row.value || '—'}
+
+        <TechTabBar value={tab} onChange={setTab} />
+
+        <div className='mt-4 space-y-4'>
+          {groups.map((group) => (
+            <div key={group.section}>
+              <p className='mb-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500'>
+                {group.section}
+              </p>
+              <div className='overflow-hidden rounded-xl border border-border'>
+                {group.rows.map((answer, index) => (
+                  <div
+                    key={answer.id}
+                    className={`grid grid-cols-[minmax(150px,230px)_1fr] text-[13px] ${
+                      index > 0 ? 'border-t border-border' : ''
+                    }`}
+                  >
+                    <div className='bg-surface-subtle px-3 py-1.5 font-semibold text-slate-600'>
+                      {answerLabel(answer)}
+                    </div>
+                    <div className='px-3 py-1.5 text-slate-800 break-words'>
+                      {answerValue(answer)}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ))}
@@ -561,12 +936,6 @@ export function DeploymentFormStep({
           {answers.length} field akan diisi otomatis. Tanggal dan waktu bisa
           berbeda format di form; cek lagi sebelum submit.
         </p>
-
-        {missing.length > 0 && (
-          <p className='mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2 text-xs font-medium text-amber-800'>
-            Field wajib belum lengkap: {missing.join(', ')}.
-          </p>
-        )}
 
         {error && (
           <p className='mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-medium text-rose-700'>
