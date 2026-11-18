@@ -200,10 +200,7 @@ export function DeploymentFormStep({
   return (
     <div className='space-y-4'>
       <section className='card'>
-        <h2 className='card-title flex items-center gap-2'>
-          <Wand2 size={15} className='text-brand' />
-          Autofill Form Deployment
-        </h2>
+        <h2 className='card-title'>Autofill Form Deployment</h2>
         <p className='hint'>
           dev-hub mengisi form MS Forms lewat Google Chrome yang sudah login
           Microsoft. Form tidak disubmit otomatis: periksa lalu tekan Submit

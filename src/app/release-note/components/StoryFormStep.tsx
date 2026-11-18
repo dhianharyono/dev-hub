@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRight, Rocket, UserRound } from 'lucide-react';
+import { ChevronRight, UserRound } from 'lucide-react';
 import { Select } from '@/components/Select';
 import {
   RELEASE_TARGETS,
@@ -73,10 +73,7 @@ export function StoryFormStep({
       </section>
 
       <section className='card'>
-        <h2 className='card-title flex items-center gap-2'>
-          <Rocket size={15} className='text-brand' />
-          User Story
-        </h2>
+        <h2 className='card-title'>User Story</h2>
 
         <div className='grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-3'>
           <div className='field'>
