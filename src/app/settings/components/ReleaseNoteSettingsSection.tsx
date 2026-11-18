@@ -38,11 +38,6 @@ export function ReleaseNoteSettingsSection({
               <span className='text-[15px] font-bold text-slate-text tracking-tight group-hover:text-brand transition-colors'>
                 Release Note Automation
               </span>
-              {isMinimized && (
-                <span className='inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200'>
-                  Diminimalkan
-                </span>
-              )}
             </div>
             <div className='xs dim mt-0.5'>
               Link form MS Forms yang dipakai autofill halaman Deployment
