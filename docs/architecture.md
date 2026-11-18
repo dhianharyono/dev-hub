@@ -41,12 +41,14 @@ devhub/
 │   │   ├── api/                           # Next.js API Routes
 │   │   │   ├── ai/                        # Endpoint inferensi Gemini & model selection
 │   │   │   ├── gitlab/                    # Proxy & cache GitLab API
+│   │   │   ├── release-note/              # Opsi Taiga & autofill form Deployment
 │   │   │   ├── settings/                  # Endpoint CRUD settings & PM2 daemon control
 │   │   │   ├── taiga/                     # Proxy Taiga SSO, assigned tasks & mutations
 │   │   │   └── workload/                  # Perhitungan WAD & gap healer
 │   │   ├── dashboard/                     # Komponen modular dashboard utama
 │   │   ├── gitlab/                        # Fitur GitLab (Productivity, MR Assistant, Code Audit)
 │   │   ├── report/                        # Laporan mingguan & export Talent Tracer
+│   │   ├── release-note/                  # Stepper release note & form Deployment
 │   │   ├── settings/                      # Halaman konfigurasi & modul service
 │   │   │   ├── components/                # Mode section, PM2 section, AI model panel, dsb.
 │   │   │   └── SettingsView.tsx           # Tampilan utama pengaturan
@@ -58,7 +60,7 @@ devhub/
 │   │   ├── layout.tsx                     # Root layout & providers
 │   │   └── page.tsx                       # Dashboard utama
 │   ├── components/                        # Komponen UI bersama (Dock, Sidebar, Select, Markdown)
-│   └── lib/                               # Core logic: ai, db, gitlab, taiga, workload, sync
+│   └── lib/                               # Core logic: ai, db, gitlab, taiga, workload, release-deployment, sync
 ├── data/                                  # Database SQLite lokal (devhub.db, gitignored)
 ├── public/                                # Static assets & icon SVG
 ├── tests/                                 # Suite pengujian unit (Vitest)

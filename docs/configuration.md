@@ -20,7 +20,7 @@ Di bagian atas halaman Pengaturan, Anda dapat memilih mode operasional sistem:
 
 ## 2. Modul Konfigurasi Modular (Minimize & Maximize)
 
-Setiap card modul integrasi (Taiga, GitLab, AI & LLM Engine, PM2) kini dilengkapi tombol **Minimize / Expand** di pojok kanan atas kartu serta dapat diklik pada judulnya. Status terlipat kartu disimpan di `localStorage` per peramban dan secara default berada dalam kondisi ter-minimize agar antarmuka tetap ringkas dan teratur.
+Setiap card modul integrasi (Taiga, GitLab, AI & LLM Engine, Release Note, PM2) kini dilengkapi tombol **Minimize / Expand** di pojok kanan atas kartu serta dapat diklik pada judulnya. Status terlipat kartu disimpan di `localStorage` per peramban dan secara default berada dalam kondisi ter-minimize agar antarmuka tetap ringkas dan teratur.
 
 ---
 
@@ -96,3 +96,21 @@ Pada modul **Background Process Service (PM2)** di halaman Pengaturan:
 - **Tombol Aktifkan / Hentikan**: Menjalankan daemon di port **4001** (`ecosystem.config.js`) secara instan.
 - **Restart**: Melakukan reload zero-downtime saat ada pembaruan konfigurasi.
 - **Log Terminal**: Membuka collapsible drawer log stdout & stderr proses server DevHub secara realtime.
+
+---
+
+## 7. Form Deployment (MS Forms)
+
+Modul **Release Note Automation** (`/release-note`) mengisi form Deployment MS Forms secara otomatis di Google Chrome. Konfigurasinya ada di kartu **Release Note Automation** pada halaman Pengaturan:
+
+- **Link Form Deployment (MS Forms)**: isi URL form yang dipakai tim Anda. Jika dikosongkan, DevHub memakai link form bawaan. Nilai harus URL `http(s)` dari `forms.office.com` atau `forms.cloud.microsoft`; link lain ditolak saat disimpan.
+- Link ini dipakai saat membuka tab form maupun saat mencari tab form yang sudah terbuka di Chrome.
+
+### Prasyarat Autofill
+
+1. Berjalan di **macOS** (autofill memakai AppleScript untuk mengendalikan Chrome).
+2. **Google Chrome terpasang** dan sudah login akun Microsoft yang punya akses ke form.
+3. Aktifkan **View → Developer → Allow JavaScript from Apple Events** di Chrome.
+4. Izinkan **Automation** macOS saat diminta (System Settings → Privacy & Security → Automation) agar proses DevHub dapat mengendalikan Google Chrome.
+
+Autofill hanya mengisi field per halaman dan berhenti di halaman terakhir. Tombol **Submit tetap ditekan sendiri** setelah pengguna memeriksa isian.

@@ -67,9 +67,21 @@ DevHub dilengkapi dengan serangkaian modul dan asisten otomatis untuk mempercepa
 ## 6. Pengaturan Sistem & Layanan Background PM2 (`/settings`)
 
 - **Mode Tampilan Sistem (Developer Mode vs Monitoring Mode)**: Pilihan mode global dengan penyimpanan otomatis instan yang menyelaraskan fitur menu dan navigasi sidebar.
-- **Manajemen Kartu Modular (Minimize / Expand)**: Seluruh kartu modul konfigurasi (Taiga, GitLab, AI Engine, PM2) dapat di-minimize secara independen dengan status bawaan terlipat untuk kenyamanan visual.
+- **Manajemen Kartu Modular (Minimize / Expand)**: Seluruh kartu modul konfigurasi (Taiga, GitLab, AI Engine, Release Note, PM2) dapat di-minimize secara independen dengan status bawaan terlipat untuk kenyamanan visual.
 - **Background Process Manager (PM2)**:
   - Tombol 1-klik untuk mengaktifkan PM2 agar aplikasi DEV HUB berjalan secara otomatis di layar belakang (*background daemon*) pada port 4001.
   - Menghilangkan ketergantungan pada jendela terminal terbuka agar server terus melayani request secara reliabel.
   - Telemetri live status: PID, CPU, Memory usage, Uptime, dan jumlah restart.
   - Opsi kontrol siklus hidup: Aktifkan, Restart, Hentikan, dan inspeksi log terminal terakhir.
+
+---
+
+## 7. Release Note Automation (`/release-note`)
+
+- **Stepper 3 Langkah**: Input user story dan task di Taiga → upload user story + task ke epic → isi form Deployment. Setiap langkah dapat kembali ke langkah sebelumnya tanpa kehilangan isian.
+- **User Story & Task Template**:
+  - Judul user story berformat `[squad] (dd/MM) Deployment Checklist <nama fitur>`.
+  - Chip task template (Backend, Frontend, Mobile, Fullstack, dan task umum) dapat ditambah manual atau dihapus.
+  - Input waktu task mengikuti gaya Smart Task: **Start Time** berupa dropdown `TIME_SLOTS`, **Activity Date**, dan durasi menit kelipatan 15.
+- **Target Epic**: User story dan task diunggah ke epic SPA sesuai target rilis — Staging (`67174`) atau Production (`67170`).
+- **Autofill Form Deployment (MS Forms)**: Form diisi otomatis lewat Google Chrome yang sudah login Microsoft. Autofill **tidak pernah menekan Submit**; pengguna memeriksa hasilnya lalu mengirim sendiri. Link form dapat diganti di halaman Pengaturan.
