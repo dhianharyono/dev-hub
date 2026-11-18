@@ -1,11 +1,11 @@
 import type { DeploymentFormInput, ServiceGroup } from './model';
 
-export const DEPLOYMENT_FORM_URL =
-  'https://forms.office.com/pages/responsepage.aspx?id=AUuJHtOwQk6t9xkohyiixwSkjYOhAcFKuJZ6k2T9OEpUQjNLUU5SQzYxRFFXQThTOEg4TjdPWjM5MSQlQCN0PWcu';
+export const MISSING_DEPLOYMENT_FORM_URL =
+  'Link Form Deployment belum diisi. Isi di menu Pengaturan, kartu Release Note Automation.';
 
-/** Nilai setting kosong berarti memakai link form bawaan. */
+/** Link form murni dari Pengaturan; kosong berarti fitur belum siap dipakai. */
 export function resolveDeploymentFormUrl(configured: string): string {
-  return configured.trim() || DEPLOYMENT_FORM_URL;
+  return configured.trim();
 }
 
 export function isDeploymentFormUrl(value: string): boolean {
@@ -19,6 +19,14 @@ export function isDeploymentFormUrl(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+export function deploymentFormUrlError(formUrl: string): string | null {
+  if (!formUrl) return MISSING_DEPLOYMENT_FORM_URL;
+  if (!isDeploymentFormUrl(formUrl)) {
+    return 'Link Form Deployment harus URL http(s) dari forms.office.com atau forms.cloud.microsoft.';
+  }
+  return null;
 }
 
 export type FormSection =

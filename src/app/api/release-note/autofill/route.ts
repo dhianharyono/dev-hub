@@ -4,6 +4,7 @@ import { errorResponse } from '@/lib/http';
 import { fillDeploymentFormInChrome } from '@/lib/release-deployment/browser';
 import {
   buildFormAnswers,
+  deploymentFormUrlError,
   missingRequiredFields,
   resolveDeploymentFormUrl,
 } from '@/lib/release-deployment/form';
@@ -52,6 +53,12 @@ export async function POST(request: Request) {
   try {
     const { input } = Body.parse(await request.json());
 
+    const formUrl = resolveDeploymentFormUrl(getSettings().deploymentFormUrl);
+    const formUrlError = deploymentFormUrlError(formUrl);
+    if (formUrlError) {
+      return NextResponse.json({ error: formUrlError }, { status: 400 });
+    }
+
     const missing = missingRequiredFields(input);
     if (missing.length > 0) {
       return NextResponse.json(
@@ -61,10 +68,7 @@ export async function POST(request: Request) {
     }
 
     const answers = buildFormAnswers(input);
-    const { results } = await fillDeploymentFormInChrome(
-      resolveDeploymentFormUrl(getSettings().deploymentFormUrl),
-      answers,
-    );
+    const { results } = await fillDeploymentFormInChrome(formUrl, answers);
 
     return NextResponse.json({
       total: results.length,

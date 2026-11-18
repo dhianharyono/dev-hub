@@ -92,7 +92,7 @@ pm2 delete devhub
 Dokumentasi teknis modular tersedia di dalam folder [`docs/`](./docs/):
 
 - **[Fitur Utama](docs/features.md)**: Rincian modul Smart Task Studio, Workload Monitor, GitLab Assistant, Release Note Automation, Dashboard, dan Pengaturan.
-- **[Panduan Konfigurasi](docs/configuration.md)**: Setup Taiga SSO, GitLab PAT, Gemini AI, Mode Tampilan, dan Service PM2.
+- **[Panduan Konfigurasi](docs/configuration.md)**: Setup Taiga SSO, GitLab PAT, Gemini AI, Link Form Deployment, Mode Tampilan, dan Service PM2.
 - **[Arsitektur & Struktur Proyek](docs/architecture.md)**: Spesifikasi Tech Stack, skema database SQLite, dan pemetaan direktori kode.
 - **[Privasi & Keamanan Data](docs/security.md)**: Prinsip penyimpanan SQLite lokal (*zero token leak* dan isolasi data).
 - **[Pengujian & Verifikasi Kualitas](docs/testing.md)**: Eksekusi unit test Vitest, validasi TypeScript, dan linter ESLint.

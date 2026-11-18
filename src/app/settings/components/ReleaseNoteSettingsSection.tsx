@@ -73,7 +73,7 @@ export function ReleaseNoteSettingsSection({
         }
       >
         <div className='field'>
-          <label>Link Form Deployment (MS Forms)</label>
+          <label>Link Form Deployment (MS Forms)*</label>
           <input
             className='input font-mono text-xs'
             value={form.deploymentFormUrl || ''}
@@ -81,8 +81,9 @@ export function ReleaseNoteSettingsSection({
             onChange={(e) => onChange('deploymentFormUrl', e.target.value)}
           />
           <span className='hint'>
-            Kosongkan untuk memakai link form bawaan. Harus URL http(s) dari
-            forms.office.com atau forms.cloud.microsoft.
+            Wajib diisi. Autofill dan tombol Buka form memakai link ini; tanpa
+            link, fitur nonaktif. Harus URL http(s) dari forms.office.com atau
+            forms.cloud.microsoft.
           </span>
         </div>
       </div>

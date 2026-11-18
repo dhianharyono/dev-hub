@@ -103,7 +103,7 @@ Pada modul **Background Process Service (PM2)** di halaman Pengaturan:
 
 Modul **Release Note Automation** (`/release-note`) mengisi form Deployment MS Forms secara otomatis di Google Chrome. Konfigurasinya ada di kartu **Release Note Automation** pada halaman Pengaturan:
 
-- **Link Form Deployment (MS Forms)**: isi URL form yang dipakai tim Anda. Jika dikosongkan, DevHub memakai link form bawaan. Nilai harus URL `http(s)` dari `forms.office.com` atau `forms.cloud.microsoft`; link lain ditolak saat disimpan.
+- **Link Form Deployment (MS Forms)\***: wajib diisi dengan URL form tim Anda. Tidak ada link bawaan; jika kosong, autofill nonaktif dan tombol Buka form di langkah 3 tidak bisa dipakai. Nilai harus URL `http(s)` dari `forms.office.com` atau `forms.cloud.microsoft`; link lain ditolak saat disimpan.
 - Link ini dipakai saat membuka tab form maupun saat mencari tab form yang sudah terbuka di Chrome.
 
 ### Prasyarat Autofill

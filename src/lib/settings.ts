@@ -28,7 +28,7 @@ export interface Settings {
   aiModelProductivity: string;
   aiModelWorkload: string;
   aiModelReport: string;
-  deploymentFormUrl: string; // kosong = pakai DEPLOYMENT_FORM_URL
+  deploymentFormUrl: string; // wajib diisi; kosong = autofill nonaktif
 }
 
 export const DEFAULT_SETTINGS: Settings = {

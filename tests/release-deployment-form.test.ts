@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DEPLOYMENT_FORM_URL,
   FORM_FIELDS,
   FORM_SECTION_ORDER,
   FORM_SERVICE_FIELDS,
+  MISSING_DEPLOYMENT_FORM_URL,
   buildFormAnswers,
+  deploymentFormUrlError,
   isDeploymentFormUrl,
   missingRequiredFields,
   resolveDeploymentFormUrl,
@@ -258,9 +259,10 @@ describe('buildFormAnswers', () => {
 });
 
 describe('link form deployment', () => {
-  it('memakai link bawaan saat setting kosong', () => {
-    expect(resolveDeploymentFormUrl('')).toBe(DEPLOYMENT_FORM_URL);
-    expect(resolveDeploymentFormUrl('   ')).toBe(DEPLOYMENT_FORM_URL);
+  it('menolak autofill saat setting kosong', () => {
+    expect(resolveDeploymentFormUrl('')).toBe('');
+    expect(resolveDeploymentFormUrl('   ')).toBe('');
+    expect(deploymentFormUrlError('')).toBe(MISSING_DEPLOYMENT_FORM_URL);
   });
 
   it('memakai nilai setting saat diisi', () => {
@@ -268,6 +270,7 @@ describe('link form deployment', () => {
       'https://forms.cloud.microsoft/pages/responsepage.aspx?id=abc123';
 
     expect(resolveDeploymentFormUrl(custom)).toBe(custom);
+    expect(deploymentFormUrlError(custom)).toBeNull();
   });
 
   it('menerima host form Microsoft dan menolak URL lain', () => {

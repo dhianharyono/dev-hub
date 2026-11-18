@@ -956,20 +956,32 @@ export function DeploymentFormStep({
             Kembali
           </button>
           <div className='flex flex-wrap items-center gap-2'>
-            <Link
-              href={formUrl}
-              target='_blank'
-              rel='noreferrer'
-              className='btn btn-ghost btn-sm'
-            >
-              Buka form
-              <ExternalLink size={13} />
-            </Link>
+            {formUrl ? (
+              <Link
+                href={formUrl}
+                target='_blank'
+                rel='noreferrer'
+                className='btn btn-ghost btn-sm'
+              >
+                Buka form
+                <ExternalLink size={13} />
+              </Link>
+            ) : (
+              <button
+                type='button'
+                className='btn btn-ghost btn-sm'
+                disabled
+                title='Isi Link Form Deployment di Pengaturan'
+              >
+                Buka form
+                <ExternalLink size={13} />
+              </button>
+            )}
             <button
               type='button'
               className='btn btn-primary'
               onClick={() => void autofill()}
-              disabled={filling || missing.length > 0}
+              disabled={filling || missing.length > 0 || !formUrl}
             >
               {filling ? (
                 <Loader2 size={16} className='animate-spin' />
@@ -980,6 +992,11 @@ export function DeploymentFormStep({
             </button>
           </div>
         </div>
+        {!formUrl && (
+          <p className='mt-2 text-xs text-amber-700'>
+            Isi Link Form Deployment di Pengaturan.
+          </p>
+        )}
       </section>
     </div>
   );

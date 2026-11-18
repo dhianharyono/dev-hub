@@ -84,4 +84,4 @@ DevHub dilengkapi dengan serangkaian modul dan asisten otomatis untuk mempercepa
   - Chip task template (Backend, Frontend, Mobile, Fullstack, dan task umum) dapat ditambah manual atau dihapus.
   - Input waktu task mengikuti gaya Smart Task: **Start Time** berupa dropdown `TIME_SLOTS`, **Activity Date**, dan durasi menit kelipatan 15.
 - **Target Epic**: User story dan task diunggah ke epic SPA sesuai target rilis — Staging (`67174`) atau Production (`67170`).
-- **Autofill Form Deployment (MS Forms)**: Form diisi otomatis lewat Google Chrome yang sudah login Microsoft. Autofill **tidak pernah menekan Submit**; pengguna memeriksa hasilnya lalu mengirim sendiri. Link form dapat diganti di halaman Pengaturan.
+- **Autofill Form Deployment (MS Forms)**: Form diisi otomatis lewat Google Chrome yang sudah login Microsoft. Link form **wajib diisi** di halaman Pengaturan (kartu Release Note Automation); tanpa link, autofill dan tombol Buka form nonaktif. Autofill **tidak pernah menekan Submit**; pengguna memeriksa hasilnya lalu mengirim sendiri.
