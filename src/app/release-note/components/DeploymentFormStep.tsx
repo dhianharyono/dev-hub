@@ -284,9 +284,6 @@ function initialInput(
     squad: form.squad,
     environment: RELEASE_TARGETS[form.target].environment,
     picDeveloper: PIC_DEVELOPER_OPTIONS.includes(memberName) ? memberName : '',
-    picDeveloperText: PIC_DEVELOPER_OPTIONS.includes(memberName)
-      ? ''
-      : memberName,
     picQa: [],
     picHoe: '',
     deployDate: form.releaseDate,
@@ -324,12 +321,6 @@ function answerValue(answer: FormAnswer): string {
 }
 
 function answerLabel(answer: FormAnswer): string {
-  if (answer.id === FORM_FIELDS.picDeveloperText.id) {
-    return 'PIC Developer (teks)';
-  }
-  if (answer.id === FORM_FIELDS.picDeveloper.id) {
-    return 'PIC Developer (pilihan)';
-  }
   return answer.title;
 }
 
@@ -516,24 +507,8 @@ export function DeploymentFormStep({
 
           <div className='field'>
             <FieldLabel
-              htmlFor='deploy-pic-dev-text'
-              label='PIC Developer (teks)'
-            />
-            <input
-              id='deploy-pic-dev-text'
-              className='input'
-              placeholder='Nama developer, pisahkan dengan koma'
-              value={input.picDeveloperText}
-              onChange={(event) =>
-                patch({ picDeveloperText: event.target.value })
-              }
-            />
-          </div>
-
-          <div className='field'>
-            <FieldLabel
               htmlFor='deploy-pic-dev'
-              label='PIC Developer (pilihan)'
+              label='PIC Developer'
               required
             />
             <Select
@@ -923,7 +898,18 @@ export function DeploymentFormStep({
                       {answerLabel(answer)}
                     </div>
                     <div className='px-3 py-1.5 text-slate-800 break-words'>
-                      {answerValue(answer)}
+                      {answer.id === FORM_FIELDS.ticket.id ? (
+                        <a
+                          href={created.story.url}
+                          target='_blank'
+                          rel='noreferrer'
+                          className='text-brand underline'
+                        >
+                          Buka user story Taiga
+                        </a>
+                      ) : (
+                        answerValue(answer)
+                      )}
                     </div>
                   </div>
                 ))}

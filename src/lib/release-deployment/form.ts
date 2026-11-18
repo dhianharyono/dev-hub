@@ -33,10 +33,6 @@ export const FORM_FIELDS = {
     title: 'Tiket Taiga Deployment Checklist Dev',
   },
   picHoe: { id: 're2a534aeeae043c4a264a1ed6a2061e9', title: 'PIC HoE' },
-  picDeveloperText: {
-    id: 'r8991aeab0d2445b6ad278fd00726ec58',
-    title: 'PIC Developer',
-  },
   picDeveloper: {
     id: 'r146b66c57e2c44c29ea11bbafe1003f6',
     title: 'PIC Developer',
@@ -314,7 +310,6 @@ export function buildFormAnswers(input: DeploymentFormInput): FormAnswer[] {
   pushText(answers, 'Umum', FORM_FIELDS.releaseTitle, input.judul);
   pushText(answers, 'Umum', FORM_FIELDS.ticket, input.tiket);
   pushChoice(answers, 'Umum', FORM_FIELDS.picHoe, [input.picHoe]);
-  pushText(answers, 'Umum', FORM_FIELDS.picDeveloperText, input.picDeveloperText);
   pushChoice(answers, 'Umum', FORM_FIELDS.picDeveloper, [input.picDeveloper]);
   pushChoice(answers, 'Umum', FORM_FIELDS.picQa, input.picQa);
 

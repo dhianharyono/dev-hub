@@ -17,7 +17,6 @@ const Body = z.object({
     squad: z.string(),
     environment: z.string(),
     picDeveloper: z.string(),
-    picDeveloperText: z.string(),
     picQa: z.array(z.string()),
     picHoe: z.string(),
     deployDate: z.string(),

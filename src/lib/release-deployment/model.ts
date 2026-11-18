@@ -192,7 +192,6 @@ export interface DeploymentFormInput {
   squad: string;
   environment: string;
   picDeveloper: string;
-  picDeveloperText: string;
   picQa: string[];
   picHoe: string;
   deployDate: string;

@@ -18,7 +18,6 @@ function input(
     squad: 'Control Tower',
     environment: 'Staging',
     picDeveloper: 'Dhian Haryono',
-    picDeveloperText: '',
     picQa: ['Fabiola Matara'],
     picHoe: 'Budi Hari Sulaksono',
     deployDate: '2026-11-19',
@@ -74,6 +73,20 @@ describe('buildFormAnswers', () => {
     expect(answerFor(answers, FORM_FIELDS.deployDate.id)).toMatchObject({
       kind: 'date',
       value: '2026-11-19',
+    });
+  });
+
+  it('hanya mengirim satu field PIC Developer berupa pilihan', () => {
+    const answers = buildFormAnswers(input());
+    const picDevelopers = answers.filter(
+      (answer) => answer.title === 'PIC Developer',
+    );
+
+    expect(picDevelopers).toHaveLength(1);
+    expect(picDevelopers[0]).toMatchObject({
+      id: FORM_FIELDS.picDeveloper.id,
+      kind: 'choice',
+      value: ['Dhian Haryono'],
     });
   });
 
