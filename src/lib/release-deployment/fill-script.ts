@@ -16,15 +16,38 @@ function setNativeValue(el, value) {
   el.dispatchEvent(new Event('blur', { bubbles: true }));
   el.blur();
 }
+function setDateValue(el, value) {
+  el.focus();
+  if (el.select) el.select();
+  var inserted = false;
+  try {
+    inserted = document.execCommand('insertText', false, value);
+  } catch (err) {
+    inserted = false;
+  }
+  if (!inserted) {
+    var desc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+    if (desc && desc.set) desc.set.call(el, value); else el.value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27, bubbles: true }));
+  el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Escape', keyCode: 27, bubbles: true }));
+  el.blur();
+}
 function findField(id) {
   return document.getElementById(id)
     || document.querySelector('[data-automation-id="' + id + '"]')
     || document.querySelector('[name="' + id + '"]')
+    || document.querySelector('[aria-labelledby^="QuestionId_' + id + '"]')
     || document.querySelector('input[id^="' + id + '"]')
     || document.querySelector('textarea[id^="' + id + '"]');
 }
 function findQuestionRoot(id) {
-  var el = document.getElementById(id) || document.querySelector('[id^="' + id + '"]');
+  var el = document.getElementById(id)
+    || document.querySelector('[name="' + id + '"]')
+    || document.querySelector('[aria-labelledby^="QuestionId_' + id + '"]')
+    || document.querySelector('[id^="' + id + '"]');
   if (!el) return null;
   return el.closest('[data-automation-id="questionItem"]')
     || el.closest('[role="group"]')
@@ -40,11 +63,27 @@ function formatDate(value, el) {
 }
 function fillChoice(answer) {
   var wanted = (Array.isArray(answer.value) ? answer.value : [answer.value]).map(norm);
+  var root = findQuestionRoot(answer.id);
+  var items = root
+    ? Array.prototype.slice.call(
+        root.querySelectorAll('[data-automation-id="choiceItem"]'),
+      )
+    : [];
+  var itemClicks = 0;
+  items.forEach(function (item) {
+    var text = norm(item.innerText || item.textContent);
+    if (wanted.indexOf(text) < 0) return;
+    var input = item.querySelector('input');
+    if (!input) return;
+    if (!input.checked) input.click();
+    itemClicks += 1;
+  });
+  if (itemClicks > 0) return itemClicks;
+
   var labels = Array.prototype.slice.call(
     document.querySelectorAll('label[for^="' + answer.id + '"]'),
   );
   if (labels.length === 0) {
-    var root = findQuestionRoot(answer.id);
     if (root) {
       labels = Array.prototype.slice.call(
         root.querySelectorAll('label, [role="checkbox"], [role="radio"], [role="option"]'),
@@ -74,10 +113,11 @@ function fillChoice(answer) {
 function fillText(answer) {
   var el = findField(answer.id);
   if (!el) return { ok: false, reason: 'field tidak ditemukan' };
-  var value = answer.kind === 'date'
-    ? formatDate(String(answer.value), el)
-    : String(answer.value);
-  setNativeValue(el, value);
+  if (answer.kind === 'date') {
+    setDateValue(el, formatDate(String(answer.value), el));
+    return { ok: true, value: el.value };
+  }
+  setNativeValue(el, String(answer.value));
   return { ok: true, value: el.value };
 }
 function fillAll() {
@@ -108,7 +148,12 @@ function fillAll() {
 }
 `;
 
-export function buildFillScript(answers: FormAnswer[]): string {
-  return `var ANSWERS = ${JSON.stringify(answers)};\n${FILL_FUNCTIONS}\nfillAll();`;
+export function buildFillScript(
+  answers: FormAnswer[],
+  options?: { run?: boolean },
+): string {
+  const body = `var ANSWERS = ${JSON.stringify(answers)};\n${FILL_FUNCTIONS}`;
+  if (options?.run === false) return body;
+  return `${body}\nfillAll();`;
 }
 
