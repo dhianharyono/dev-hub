@@ -16,24 +16,80 @@ function setNativeValue(el, value) {
   el.dispatchEvent(new Event('blur', { bubbles: true }));
   el.blur();
 }
-function setDateValue(el, value) {
+function monthIndex(label) {
+  var names = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  var match = String(label || '').match(/([A-Za-z]+)\\s+(\\d{4})/);
+  if (!match) return null;
+  var index = names.indexOf(match[1]);
+  if (index < 0) return null;
+  return Number(match[2]) * 12 + index;
+}
+function sleep(ms) {
+  return new Promise(function (resolve) { setTimeout(resolve, ms); });
+}
+async function waitFor(getter, timeout) {
+  var waited = 0;
+  while (waited < timeout) {
+    var value = getter();
+    if (value) return value;
+    await sleep(150);
+    waited += 150;
+  }
+  return null;
+}
+async function pickDateFromCalendar(day, monthName, year) {
+  var targetIndex = monthIndex(monthName + ' ' + year);
+  if (targetIndex === null) return 'bulan target tidak valid';
+  for (var step = 0; step < 24; step += 1) {
+    var header = document.querySelector('[class*=monthAndYear]');
+    if (!header) return 'panel kalender tidak ditemukan';
+    var currentIndex = monthIndex(header.innerText || header.textContent);
+    if (currentIndex === null) return 'label bulan tidak dikenali: ' + (header.innerText || '');
+    if (currentIndex === targetIndex) break;
+    var controls = Array.prototype.slice.call(
+      document.querySelectorAll('[class*=monthComponents] button'),
+    );
+    var wantNext = currentIndex < targetIndex;
+    var control = controls.find(function (button) {
+      var title = button.getAttribute('title') || '';
+      return wantNext
+        ? title.indexOf('bulan berikutnya') >= 0
+        : title.indexOf('bulan sebelumnya') >= 0;
+    });
+    if (!control) return 'tombol navigasi bulan tidak ditemukan';
+    control.click();
+    await sleep(250);
+  }
+  var wantedLabel = day + ', ' + monthName + ', ' + year;
+  var dayButton = Array.prototype.slice
+    .call(document.querySelectorAll('button[class*=dayButton]'))
+    .find(function (button) {
+      return (button.getAttribute('aria-label') || '').trim() === wantedLabel;
+    });
+  if (!dayButton) return 'hari ' + day + ' tidak ditemukan di kalender';
+  dayButton.click();
+  await sleep(300);
+  var fieldValue = document.querySelector(
+    '[class*=monthAndYear]',
+  );
+  if (fieldValue) return 'kalender tidak menutup setelah memilih hari';
+  return '';
+}
+async function setDateValue(el, value) {
+  var names = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  var parts = String(value).split('/');
+  if (parts.length !== 3) return 'format tanggal tidak dikenal: ' + value;
+  var monthName = names[Number(parts[1]) - 1];
+  if (!monthName) return 'bulan tidak dikenal: ' + parts[1];
   el.focus();
-  if (el.select) el.select();
-  var inserted = false;
-  try {
-    inserted = document.execCommand('insertText', false, value);
-  } catch (err) {
-    inserted = false;
+  if (el.getAttribute('aria-expanded') !== 'true') {
+    el.click();
   }
-  if (!inserted) {
-    var desc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
-    if (desc && desc.set) desc.set.call(el, value); else el.value = value;
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-  }
-  el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27, bubbles: true }));
-  el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Escape', keyCode: 27, bubbles: true }));
-  el.blur();
+  var header = await waitFor(function () {
+    return document.querySelector('[class*=monthAndYear]');
+  }, 5000);
+  if (!header) return 'kalender tanggal tidak terbuka';
+  return pickDateFromCalendar(String(Number(parts[0])), monthName, parts[2]);
 }
 function findField(id) {
   return document.getElementById(id)
@@ -110,40 +166,49 @@ function fillChoice(answer) {
   });
   return clicked;
 }
-function fillText(answer) {
+async function fillText(answer) {
   var el = findField(answer.id);
   if (!el) return { ok: false, reason: 'field tidak ditemukan' };
   if (answer.kind === 'date') {
-    setDateValue(el, formatDate(String(answer.value), el));
+    var picked = await setDateValue(el, formatDate(String(answer.value), el));
+    if (picked) return { ok: false, reason: picked };
     return { ok: true, value: el.value };
   }
   setNativeValue(el, String(answer.value));
   return { ok: true, value: el.value };
 }
-function fillAll() {
-  var results = ANSWERS.map(function (answer) {
+async function fillAll() {
+  var results = [];
+  for (var index = 0; index < ANSWERS.length; index += 1) {
+    var answer = ANSWERS[index];
     try {
       if (answer.kind === 'choice') {
         var count = fillChoice(answer);
-        return { id: answer.id, title: answer.title, ok: count >= 1, filled: count };
+        results.push({
+          id: answer.id,
+          title: answer.title,
+          ok: count >= 1,
+          filled: count,
+        });
+        continue;
       }
-      var result = fillText(answer);
-      return {
+      var result = await fillText(answer);
+      results.push({
         id: answer.id,
         title: answer.title,
         ok: result.ok,
         value: result.value,
         reason: result.reason,
-      };
+      });
     } catch (err) {
-      return {
+      results.push({
         id: answer.id,
         title: answer.title,
         ok: false,
         reason: err && err.message ? err.message : String(err),
-      };
+      });
     }
-  });
+  }
   return results;
 }
 `;

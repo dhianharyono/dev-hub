@@ -133,9 +133,21 @@ function buildRunnerScript(answers: FormAnswer[], requestId: string): string {
     window[rId] = '';
     ${fillScript}
     function sleep(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); }
-    function pageLabel() {
-      var match = document.body.innerText.match(/Halaman \\d+ dari \\d+/);
-      return match ? match[0] : '';
+    function pageFingerprint() {
+      return Array.prototype.slice
+        .call(document.querySelectorAll('[data-automation-id=questionTitle]'))
+        .map(function (node) { return (node.innerText || '').trim(); })
+        .sort()
+        .join('|');
+    }
+    async function waitForPageChange(before, timeout) {
+      var waited = 0;
+      while (waited < timeout) {
+        await sleep(250);
+        waited += 250;
+        if (pageFingerprint() !== before) return true;
+      }
+      return false;
     }
     function hasQuestions() {
       return document.querySelectorAll('[data-automation-id=questionItem]').length > 0;
@@ -167,7 +179,8 @@ function buildRunnerScript(answers: FormAnswer[], requestId: string): string {
       while (pages < 8) {
         pages += 1;
         await waitReady(8000);
-        fillAll().forEach(function (item) {
+        var results = await fillAll();
+        results.forEach(function (item) {
           if (!merged[item.id]) {
             merged[item.id] = item;
             order.push(item.id);
@@ -177,11 +190,10 @@ function buildRunnerScript(answers: FormAnswer[], requestId: string): string {
         });
         var next = document.querySelector('[data-automation-id=nextButton]');
         if (!next) break;
-        var before = pageLabel();
+        var before = pageFingerprint();
         next.click();
-        await sleep(1000);
-        var after = pageLabel();
-        if (before && after && before === after) break;
+        var moved = await waitForPageChange(before, 8000);
+        if (!moved) break;
       }
       window[rId] = JSON.stringify({
         pages: pages,
