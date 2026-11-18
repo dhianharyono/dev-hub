@@ -132,7 +132,7 @@ export function StoryFormStep({
             />
             <p className='hint'>
               Format: [skuad] (tanggal/bulan release) Deployment Checklist
-              &quot;nama fitur&quot;
+              nama fitur
             </p>
           </div>
 

@@ -22,7 +22,7 @@ describe('release deployment model', () => {
         releaseDate: '2026-11-19',
         featureName: 'Release Tracker',
       }),
-    ).toBe('[Control Tower] (19/11) Deployment Checklist "Release Tracker"');
+    ).toBe('[Control Tower] (19/11) Deployment Checklist Release Tracker');
   });
 
   it('membuang tanda kutip ganda pada nama fitur', () => {
@@ -32,7 +32,7 @@ describe('release deployment model', () => {
         releaseDate: '2026-12-01',
         featureName: '"Filter Status"',
       }),
-    ).toBe('[Core] (01/12) Deployment Checklist "Filter Status"');
+    ).toBe('[Core] (01/12) Deployment Checklist Filter Status');
   });
 
   it('mengembalikan string kosong bila isian belum lengkap', () => {

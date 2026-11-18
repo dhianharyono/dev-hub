@@ -98,7 +98,7 @@ export interface StorySubjectInput {
   featureName: string;
 }
 
-/** Contoh: [Control Tower] (19/11) Deployment Checklist "Release Tracker". */
+/** Contoh: [Control Tower] (19/11) Deployment Checklist Release Tracker. */
 export function buildStorySubject({
   squad,
   releaseDate,
@@ -107,7 +107,7 @@ export function buildStorySubject({
   const dayMonth = formatReleaseDayMonth(releaseDate);
   const feature = featureName.trim().replace(/^["'\s]+|["'\s]+$/g, '');
   if (!squad.trim() || !dayMonth || !feature) return '';
-  return `[${squad.trim()}] (${dayMonth}) Deployment Checklist "${feature}"`;
+  return `[${squad.trim()}] (${dayMonth}) Deployment Checklist ${feature}`;
 }
 
 /** Tanggal hari ini dalam zona WIB untuk nilai awal form. */

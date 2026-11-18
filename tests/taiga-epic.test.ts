@@ -87,7 +87,7 @@ describe('dukungan epic Taiga', () => {
 
     const result = await createItem(269, {
       kind: 'userstory',
-      subject: '[Control Tower] (19/11) Deployment Checklist "Release Tracker"',
+      subject: '[Control Tower] (19/11) Deployment Checklist Release Tracker',
       assignedTo: 693,
       epicRef: 67174,
     });
