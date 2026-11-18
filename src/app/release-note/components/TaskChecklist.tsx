@@ -2,6 +2,7 @@
 
 import { Plus, Trash2 } from 'lucide-react';
 import { Select } from '@/components/Select';
+import { TIME_SLOTS } from '@/app/tasks/smart-task/types';
 import {
   TASK_TEMPLATES,
   type DeploymentTask,
@@ -112,15 +113,23 @@ export function TaskChecklist({
                   >
                     Start Time
                   </label>
-                  <input
+                  <Select
                     id={`task-start-${task.id}`}
-                    type='time'
-                    className='input !h-8 text-[12px]'
+                    aria-label={`Start Time task ${index + 1}`}
+                    size='sm'
                     value={task.startTime}
+                    placeholder='Pilih jam'
                     onChange={(event) =>
                       onChange(task.id, { startTime: event.target.value })
                     }
-                  />
+                  >
+                    <option value=''>Tanpa jam</option>
+                    {TIME_SLOTS.map((time) => (
+                      <option key={time} value={time}>
+                        {time}
+                      </option>
+                    ))}
+                  </Select>
                 </div>
                 <div className='field !gap-1'>
                   <label
@@ -129,18 +138,27 @@ export function TaskChecklist({
                   >
                     Total Time Spent (menit)
                   </label>
-                  <input
-                    id={`task-spent-${task.id}`}
-                    type='number'
-                    min={0}
-                    step={1}
-                    placeholder='0'
-                    className='input !h-8 text-[12px]'
-                    value={task.totalTimeSpent}
-                    onChange={(event) =>
-                      onChange(task.id, { totalTimeSpent: event.target.value })
-                    }
-                  />
+                  <div className='relative flex w-full items-center'>
+                    <input
+                      id={`task-spent-${task.id}`}
+                      type='number'
+                      min={0}
+                      step={15}
+                      placeholder='60'
+                      className='input !h-8 pr-9 text-[12px] font-mono'
+                      value={task.totalTimeSpent}
+                      onChange={(event) =>
+                        onChange(task.id, {
+                          totalTimeSpent: event.target.value,
+                        })
+                      }
+                    />
+                    {task.totalTimeSpent.trim() ? (
+                      <span className='pointer-events-none absolute right-2 text-[11px] font-mono font-semibold text-slate-400'>
+                        {(Number(task.totalTimeSpent) / 60).toFixed(1)}j
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
                 <div className='field !gap-1'>
                   <label
