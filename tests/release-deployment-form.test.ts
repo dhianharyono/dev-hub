@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEPLOYMENT_FORM_URL,
   FORM_FIELDS,
   FORM_SECTION_ORDER,
   FORM_SERVICE_FIELDS,
   buildFormAnswers,
+  isDeploymentFormUrl,
   missingRequiredFields,
+  resolveDeploymentFormUrl,
 } from '../src/lib/release-deployment/form';
 import { buildFillScript } from '../src/lib/release-deployment/fill-script';
 import type { DeploymentFormInput } from '../src/lib/release-deployment/model';
@@ -251,5 +254,34 @@ describe('buildFormAnswers', () => {
     expect(() => new Function(script)).not.toThrow();
     expect(script).toContain(FORM_FIELDS.environment.id);
     expect(script).toContain('Release \\"Tracker\\"');
+  });
+});
+
+describe('link form deployment', () => {
+  it('memakai link bawaan saat setting kosong', () => {
+    expect(resolveDeploymentFormUrl('')).toBe(DEPLOYMENT_FORM_URL);
+    expect(resolveDeploymentFormUrl('   ')).toBe(DEPLOYMENT_FORM_URL);
+  });
+
+  it('memakai nilai setting saat diisi', () => {
+    const custom =
+      'https://forms.cloud.microsoft/pages/responsepage.aspx?id=abc123';
+
+    expect(resolveDeploymentFormUrl(custom)).toBe(custom);
+  });
+
+  it('menerima host form Microsoft dan menolak URL lain', () => {
+    expect(
+      isDeploymentFormUrl(
+        'https://forms.cloud.microsoft/pages/responsepage.aspx?id=abc123',
+      ),
+    ).toBe(true);
+    expect(
+      isDeploymentFormUrl(
+        'https://forms.office.com/pages/responsepage.aspx?id=abc123',
+      ),
+    ).toBe(true);
+    expect(isDeploymentFormUrl('https://example.com/form')).toBe(false);
+    expect(isDeploymentFormUrl('bukan-url')).toBe(false);
   });
 });

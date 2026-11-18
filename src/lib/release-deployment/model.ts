@@ -225,4 +225,6 @@ export interface DeploymentFormInput {
 export interface ReleaseOptions {
   project: { id: number; name: string; slug: string };
   members: ReleaseMember[];
+  /** Link form Deployment dari Pengaturan, atau default bawaan. */
+  formUrl: string;
 }

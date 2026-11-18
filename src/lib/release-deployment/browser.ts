@@ -17,9 +17,17 @@ export interface AutofillResult {
 }
 
 const CHROME_APP = 'Google Chrome';
-const FORM_MARKER =
-  'AUuJHtOwQk6t9xkohyiixwSkjYOhAcFKuJZ6k2T9OEpUQjNLUU5SQzYxRFFXQThTOEg4TjdPWjM5MSQlQCN0PWcu';
 const APPLESCRIPT_TIMEOUT_MS = 120_000;
+
+/** Potongan URL untuk menemukan tab form: utamakan query id, cadangan origin+path. */
+function formTabMarker(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return parsed.searchParams.get('id') || `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return url;
+  }
+}
 
 interface CommandOutcome {
   stdout: string;
@@ -94,7 +102,7 @@ async function ensureChromeRunning(): Promise<void> {
   }
 }
 
-async function findFormTab(): Promise<'FOUND' | 'NO_TAB'> {
+async function findFormTab(marker: string): Promise<'FOUND' | 'NO_TAB'> {
   const outcome = await runCommand(
     'osascript',
     [
@@ -102,7 +110,7 @@ async function findFormTab(): Promise<'FOUND' | 'NO_TAB'> {
       `tell application "${CHROME_APP}"
         repeat with w in windows
           repeat with t in tabs of w
-            if URL of t contains "${FORM_MARKER}" then return "FOUND"
+            if URL of t contains "${escapeForAppleScript(marker)}" then return "FOUND"
           end repeat
         end repeat
         return "NO_TAB"
@@ -116,10 +124,10 @@ async function findFormTab(): Promise<'FOUND' | 'NO_TAB'> {
   return outcome.stdout === 'FOUND' ? 'FOUND' : 'NO_TAB';
 }
 
-async function waitForFormTab(): Promise<void> {
+async function waitForFormTab(marker: string): Promise<void> {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     await new Promise((resolve) => setTimeout(resolve, 1_000));
-    if ((await findFormTab()) === 'FOUND') return;
+    if ((await findFormTab(marker)) === 'FOUND') return;
   }
   throw new Error(
     'Tab form Deployment tidak terbuka di Google Chrome. Pastikan Chrome berjalan dan coba lagi.',
@@ -210,6 +218,7 @@ function buildRunnerScript(answers: FormAnswer[], requestId: string): string {
 
 function buildFillAppleScript(
   url: string,
+  marker: string,
   answers: FormAnswer[],
   requestId: string,
 ): string {
@@ -224,7 +233,7 @@ function buildFillAppleScript(
         set tCount to 0
         repeat with t in tabs of w
           set tCount to tCount + 1
-          if URL of t contains "${FORM_MARKER}" then
+          if URL of t contains "${escapeForAppleScript(marker)}" then
             set winIndex to wCount
             set tabIndex to tCount
             exit repeat
@@ -286,11 +295,12 @@ export async function fillDeploymentFormInChrome(
   }
 
   const cleanUrl = url.replace(/\/+$/, '');
+  const marker = formTabMarker(cleanUrl);
   const requestId = `__rn_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
   await ensureChromeRunning();
 
-  if ((await findFormTab()) === 'NO_TAB') {
+  if ((await findFormTab(marker)) === 'NO_TAB') {
     const opened = await runCommand(
       'open',
       ['-a', CHROME_APP, cleanUrl],
@@ -303,12 +313,12 @@ export async function fillDeploymentFormInChrome(
         }.`,
       );
     }
-    await waitForFormTab();
+    await waitForFormTab(marker);
   }
 
   const outcome = await runCommand(
     'osascript',
-    ['-e', buildFillAppleScript(cleanUrl, answers, requestId)],
+    ['-e', buildFillAppleScript(cleanUrl, marker, answers, requestId)],
     APPLESCRIPT_TIMEOUT_MS,
   );
 

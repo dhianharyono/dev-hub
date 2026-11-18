@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getPublicSettings, isMasked, saveSettings, type Settings } from "@/lib/settings";
 import { invalidateIntegrationCache } from "@/lib/integrations";
 import { errorResponse } from "@/lib/http";
+import { isDeploymentFormUrl } from "@/lib/release-deployment/form";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,11 @@ export async function PUT(req: Request) {
 
     if (patch.gitlabBaseUrl) validateBaseUrl(patch.gitlabBaseUrl, "GitLab Base URL");
     if (patch.taigaBaseUrl) validateBaseUrl(patch.taigaBaseUrl, "Taiga Base URL");
+    if (patch.deploymentFormUrl && !isDeploymentFormUrl(patch.deploymentFormUrl)) {
+      throw new Error(
+        "Link Form Deployment harus URL http(s) dari forms.office.com atau forms.cloud.microsoft.",
+      );
+    }
 
     // Accept the JSON blob copied from the browser console or bookmarklet after SSO login
     if (body.taigaSession) {

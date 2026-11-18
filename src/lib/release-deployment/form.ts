@@ -3,6 +3,24 @@ import type { DeploymentFormInput, ServiceGroup } from './model';
 export const DEPLOYMENT_FORM_URL =
   'https://forms.office.com/pages/responsepage.aspx?id=AUuJHtOwQk6t9xkohyiixwSkjYOhAcFKuJZ6k2T9OEpUQjNLUU5SQzYxRFFXQThTOEg4TjdPWjM5MSQlQCN0PWcu';
 
+/** Nilai setting kosong berarti memakai link form bawaan. */
+export function resolveDeploymentFormUrl(configured: string): string {
+  return configured.trim() || DEPLOYMENT_FORM_URL;
+}
+
+export function isDeploymentFormUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value.trim());
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
+    return (
+      parsed.hostname.includes('forms.office.com') ||
+      parsed.hostname.includes('forms.cloud.microsoft')
+    );
+  } catch {
+    return false;
+  }
+}
+
 export type FormSection =
   | 'Umum'
   | 'Technical Backend'

@@ -29,6 +29,7 @@ export interface PublicSettings {
   aiModelProductivity: string;
   aiModelWorkload: string;
   aiModelReport: string;
+  deploymentFormUrl: string;
 }
 
 export interface TestResult {

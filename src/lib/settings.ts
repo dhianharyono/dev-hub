@@ -28,6 +28,7 @@ export interface Settings {
   aiModelProductivity: string;
   aiModelWorkload: string;
   aiModelReport: string;
+  deploymentFormUrl: string; // kosong = pakai DEPLOYMENT_FORM_URL
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -55,6 +56,7 @@ export const DEFAULT_SETTINGS: Settings = {
   aiModelProductivity: '',
   aiModelWorkload: '',
   aiModelReport: '',
+  deploymentFormUrl: '',
 };
 
 const SECRET_KEYS: (keyof Settings)[] = [

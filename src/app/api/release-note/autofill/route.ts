@@ -3,10 +3,11 @@ import { z } from 'zod';
 import { errorResponse } from '@/lib/http';
 import { fillDeploymentFormInChrome } from '@/lib/release-deployment/browser';
 import {
-  DEPLOYMENT_FORM_URL,
   buildFormAnswers,
   missingRequiredFields,
+  resolveDeploymentFormUrl,
 } from '@/lib/release-deployment/form';
+import { getSettings } from '@/lib/settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
 
     const answers = buildFormAnswers(input);
     const { results } = await fillDeploymentFormInChrome(
-      DEPLOYMENT_FORM_URL,
+      resolveDeploymentFormUrl(getSettings().deploymentFormUrl),
       answers,
     );
 

@@ -1,5 +1,7 @@
 import 'server-only';
 import { taiga, TaigaError, type TaigaMember } from '@/lib/taiga';
+import { getSettings } from '@/lib/settings';
+import { resolveDeploymentFormUrl } from './form';
 import { RELEASE_PROJECT_SLUG, type ReleaseOptions } from './model';
 
 interface ProjectRef {
@@ -55,5 +57,9 @@ export async function getReleaseOptions(): Promise<ReleaseOptions> {
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  return { project, members };
+  return {
+    project,
+    members,
+    formUrl: resolveDeploymentFormUrl(getSettings().deploymentFormUrl),
+  };
 }

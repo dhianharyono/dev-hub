@@ -15,7 +15,6 @@ import {
 import {
   DATABASE_FIELDS,
   DATABASE_TYPE_OPTIONS,
-  DEPLOYMENT_FORM_URL,
   FORM_FIELDS,
   FORM_SECTION_ORDER,
   FORM_SERVICE_FIELDS,
@@ -32,6 +31,7 @@ interface DeploymentFormStepProps {
   form: ReleaseStoryForm;
   created: ReleaseCreation;
   memberName: string;
+  formUrl: string;
   onBack: () => void;
 }
 
@@ -326,6 +326,7 @@ export function DeploymentFormStep({
   form,
   created,
   memberName,
+  formUrl,
   onBack,
 }: DeploymentFormStepProps) {
   const [input, setInput] = useState<DeploymentFormInput>(() =>
@@ -956,7 +957,7 @@ export function DeploymentFormStep({
           </button>
           <div className='flex flex-wrap items-center gap-2'>
             <Link
-              href={DEPLOYMENT_FORM_URL}
+              href={formUrl}
               target='_blank'
               rel='noreferrer'
               className='btn btn-ghost btn-sm'

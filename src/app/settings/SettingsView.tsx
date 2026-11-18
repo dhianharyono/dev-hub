@@ -10,6 +10,7 @@ import { AppSettingsModeSection } from './components/AppSettingsModeSection';
 import { TaigaSettingsSection } from './components/TaigaSettingsSection';
 import { GitlabSettingsSection } from './components/GitlabSettingsSection';
 import { GeminiSettingsSection } from './components/GeminiSettingsSection';
+import { ReleaseNoteSettingsSection } from './components/ReleaseNoteSettingsSection';
 import { Pm2SettingsSection } from './components/Pm2SettingsSection';
 import { SettingsSaveBar } from './components/SettingsSaveBar';
 
@@ -17,6 +18,7 @@ const DEFAULT_MINIMIZED: Record<string, boolean> = {
   taiga: true,
   gitlab: true,
   gemini: true,
+  releaseNote: true,
   pm2: true,
 };
 
@@ -84,6 +86,7 @@ export default function SettingsView() {
       taiga: nextState,
       gitlab: nextState,
       gemini: nextState,
+      releaseNote: nextState,
       pm2: nextState,
     };
     setMinimizedCards(next);
@@ -183,6 +186,13 @@ export default function SettingsView() {
           onTest={() => runTest('ai')}
           minimized={minimizedCards.gemini}
           onToggleMinimize={() => toggleCard('gemini')}
+        />
+
+        <ReleaseNoteSettingsSection
+          form={form}
+          onChange={handleChange}
+          minimized={minimizedCards.releaseNote}
+          onToggleMinimize={() => toggleCard('releaseNote')}
         />
 
         <Pm2SettingsSection

@@ -334,6 +334,7 @@ export function ReleaseNoteWorkspace() {
             options?.members.find((member) => member.id === form.assigneeId)
               ?.name ?? ''
           }
+          formUrl={options?.formUrl ?? ''}
           onBack={() => {
             setError(null);
             setStep(2);
