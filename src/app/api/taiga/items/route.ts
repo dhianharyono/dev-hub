@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     const ins = db().prepare(
       "INSERT INTO task_log(created_at, kind, subject, taiga_id, taiga_ref, url, raw_input) VALUES (?,?,?,?,?,?,?)",
     );
-    const results: { ok: boolean; subject: string; url?: string; ref?: number; error?: string }[] = [];
+    const results: { ok: boolean; id?: number; subject: string; url?: string; ref?: number; error?: string }[] = [];
     // sequential to keep Taiga refs in input order
     for (const it of body.items) {
       const targetProjectId = it.projectId ?? body.projectId;
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
           totalTimeSpentMinutes: it.totalTimeSpentMinutes ?? undefined,
         });
         ins.run(new Date().toISOString(), it.kind, it.subject, r.id, r.ref, r.url, body.rawInput ?? null);
-        results.push({ ok: true, subject: it.subject, url: r.url, ref: r.ref });
+        results.push({ ok: true, id: r.id, subject: it.subject, url: r.url, ref: r.ref });
       } catch (e) {
         results.push({ ok: false, subject: it.subject, error: (e as Error).message });
       }
