@@ -26,6 +26,7 @@ const Body = z.object({
       projectId: z.number().optional(),
       projectSlug: z.string().optional(),
       milestoneId: z.number().nullable().optional(),
+      epicRef: z.number().nullable().optional(),
     }),
   ),
 });
