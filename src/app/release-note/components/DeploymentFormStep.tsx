@@ -31,7 +31,6 @@ import {
 interface DeploymentFormStepProps {
   form: ReleaseStoryForm;
   created: ReleaseCreation;
-  projectSlug: string;
   memberName: string;
   onBack: () => void;
 }
@@ -275,12 +274,11 @@ function DatabaseInputs({
 function initialInput(
   form: ReleaseStoryForm,
   created: ReleaseCreation,
-  projectSlug: string,
   memberName: string,
 ): DeploymentFormInput {
   return {
     judul: form.featureName.trim(),
-    tiket: `${projectSlug.toUpperCase()}-us-${created.story.ref}`,
+    tiket: created.story.url,
     squad: form.squad,
     environment: RELEASE_TARGETS[form.target].environment,
     picDeveloper: PIC_DEVELOPER_OPTIONS.includes(memberName) ? memberName : '',
@@ -327,12 +325,11 @@ function answerLabel(answer: FormAnswer): string {
 export function DeploymentFormStep({
   form,
   created,
-  projectSlug,
   memberName,
   onBack,
 }: DeploymentFormStepProps) {
   const [input, setInput] = useState<DeploymentFormInput>(() =>
-    initialInput(form, created, projectSlug, memberName),
+    initialInput(form, created, memberName),
   );
   const [tab, setTab] = useState<TechTab>('BE');
   const [filling, setFilling] = useState(false);

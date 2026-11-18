@@ -14,7 +14,7 @@ function input(
 ): DeploymentFormInput {
   return {
     judul: 'Release Tracker',
-    tiket: 'SPA-us-4821',
+    tiket: 'https://tree.taiga.io/project/spa/us/4821',
     squad: 'Control Tower',
     environment: 'Staging',
     picDeveloper: 'Dhian Haryono',
@@ -63,7 +63,9 @@ describe('buildFormAnswers', () => {
     expect(answerFor(answers, FORM_FIELDS.squad.id)?.value).toEqual([
       'Control Tower',
     ]);
-    expect(answerFor(answers, FORM_FIELDS.ticket.id)?.value).toBe('SPA-us-4821');
+    expect(answerFor(answers, FORM_FIELDS.ticket.id)?.value).toBe(
+      'https://tree.taiga.io/project/spa/us/4821',
+    );
     expect(answerFor(answers, FORM_FIELDS.releaseTitle.id)?.value).toBe(
       'Release Tracker',
     );

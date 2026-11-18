@@ -330,7 +330,6 @@ export function ReleaseNoteWorkspace() {
         <DeploymentFormStep
           form={form}
           created={created}
-          projectSlug={options?.project.slug ?? 'spa'}
           memberName={
             options?.members.find((member) => member.id === form.assigneeId)
               ?.name ?? ''
