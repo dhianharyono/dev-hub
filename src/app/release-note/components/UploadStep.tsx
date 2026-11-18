@@ -10,6 +10,21 @@ import {
   type ReleaseStoryForm,
 } from '@/lib/release-deployment/model';
 
+function taskMeta(task: DeploymentTask, members: ReleaseMember[]): string {
+  const assignee =
+    task.assigneeId === null
+      ? ''
+      : members.find((member) => member.id === task.assigneeId)?.name ?? '';
+  return [
+    assignee && `Assignee ${assignee}`,
+    task.activityDate.trim() && `Activity ${task.activityDate.trim()}`,
+    task.startTime.trim() && `Mulai ${task.startTime.trim()}`,
+    task.totalTimeSpent.trim() && `${task.totalTimeSpent.trim()} menit`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 interface UploadStepProps {
   form: ReleaseStoryForm;
   tasks: DeploymentTask[];
@@ -85,7 +100,14 @@ export function UploadStep({
                   <span className='flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-[11px] font-bold text-slate-500 ring-1 ring-border'>
                     {index + 1}
                   </span>
-                  <span className='break-words'>{task.subject}</span>
+                  <span className='break-words'>
+                    {task.subject}
+                    {taskMeta(task, members) && (
+                      <span className='mt-0.5 block text-[11px] text-slate-400'>
+                        {taskMeta(task, members)}
+                      </span>
+                    )}
+                  </span>
                   {task.template && (
                     <span className='shrink-0 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700'>
                       TEMPLATE

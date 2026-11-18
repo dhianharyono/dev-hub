@@ -5,6 +5,7 @@ import { Loader2, RefreshCw } from 'lucide-react';
 import {
   RELEASE_TARGETS,
   buildStorySubject,
+  deploymentTaskPayload,
   makeDeploymentTask,
   todayWib,
   type CreatedTask,
@@ -128,12 +129,17 @@ export function ReleaseNoteWorkspace() {
     setTasks((previous) => [...previous, makeDeploymentTask('', false)]);
   }, []);
 
-  const changeTask = useCallback((id: string, subject: string) => {
-    setCreated(null);
-    setTasks((previous) =>
-      previous.map((task) => (task.id === id ? { ...task, subject } : task)),
-    );
-  }, []);
+  const patchTask = useCallback(
+    (id: string, changes: Partial<DeploymentTask>) => {
+      setCreated(null);
+      setTasks((previous) =>
+        previous.map((task) =>
+          task.id === id ? { ...task, ...changes } : task,
+        ),
+      );
+    },
+    [],
+  );
 
   const removeTask = useCallback((id: string) => {
     setCreated(null);
@@ -211,7 +217,7 @@ export function ReleaseNoteWorkspace() {
           projectSlug: options.project.slug,
           items: filledTasks.map((task) => ({
             kind: 'task',
-            subject: task.subject.trim(),
+            ...deploymentTaskPayload(task),
             userStoryId: story.id,
           })),
         }),
@@ -292,7 +298,7 @@ export function ReleaseNoteWorkspace() {
           tasks={tasks}
           onAddTemplate={addTemplate}
           onAddManual={addManual}
-          onTaskChange={changeTask}
+          onTaskChange={patchTask}
           onRemoveTask={removeTask}
           error={error}
           onNext={goToUpload}

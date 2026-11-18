@@ -22,7 +22,7 @@ interface StoryFormStepProps {
   tasks: DeploymentTask[];
   onAddTemplate: (label: string) => void;
   onAddManual: () => void;
-  onTaskChange: (id: string, subject: string) => void;
+  onTaskChange: (id: string, changes: Partial<DeploymentTask>) => void;
   onRemoveTask: (id: string) => void;
   error: string | null;
   onNext: () => void;
@@ -65,11 +65,11 @@ export function StoryFormStep({
               {option.label}
             </button>
           ))}
-          <span className='text-xs text-slate-400'>
-            Epic tujuan: <b className='text-slate-600'>Release {target.label}</b>{' '}
-            (SPA, ref {target.epicRef})
-          </span>
         </div>
+        <span className='text-xs text-slate-400 mt-1'>
+          Epic tujuan: <b className='text-slate-600'>Release {target.label}</b>{' '}
+          (SPA, ref {target.epicRef})
+        </span>
       </section>
 
       <section className='card'>
@@ -101,7 +101,9 @@ export function StoryFormStep({
               type='date'
               className='input'
               value={form.releaseDate}
-              onChange={(event) => onChange({ releaseDate: event.target.value })}
+              onChange={(event) =>
+                onChange({ releaseDate: event.target.value })
+              }
             />
           </div>
 
@@ -189,6 +191,7 @@ export function StoryFormStep({
         <div className='mt-3'>
           <TaskChecklist
             tasks={tasks}
+            members={members}
             onAddTemplate={onAddTemplate}
             onAddManual={onAddManual}
             onChange={onTaskChange}

@@ -61,6 +61,10 @@ export interface DeploymentTask {
   id: string;
   subject: string;
   template: boolean;
+  activityDate: string;
+  startTime: string;
+  totalTimeSpent: string;
+  assigneeId: number | null;
 }
 
 let taskSequence = 0;
@@ -74,6 +78,10 @@ export function makeDeploymentTask(
     id: `task-${Date.now()}-${taskSequence}`,
     subject,
     template,
+    activityDate: '',
+    startTime: '',
+    totalTimeSpent: '',
+    assigneeId: null,
   };
 }
 
@@ -145,6 +153,35 @@ export interface CreatedTask {
 export interface ReleaseCreation {
   story: CreatedStory;
   tasks: CreatedTask[];
+}
+
+/** Payload task Taiga: custom attribute hanya dikirim bila diisi. */
+export interface DeploymentTaskPayload {
+  subject: string;
+  assignedTo?: number;
+  activityDate?: string;
+  startTime?: string;
+  totalTimeSpentMinutes?: number;
+}
+
+export function deploymentTaskPayload(
+  task: DeploymentTask,
+): DeploymentTaskPayload {
+  const payload: DeploymentTaskPayload = { subject: task.subject.trim() };
+  if (task.assigneeId !== null) {
+    payload.assignedTo = task.assigneeId;
+  }
+  if (task.activityDate.trim()) {
+    payload.activityDate = task.activityDate.trim();
+  }
+  if (task.startTime.trim()) {
+    payload.startTime = task.startTime.trim();
+  }
+  const minutes = Number(task.totalTimeSpent);
+  if (task.totalTimeSpent.trim() && Number.isFinite(minutes)) {
+    payload.totalTimeSpentMinutes = minutes;
+  }
+  return payload;
 }
 
 export interface ServiceLink {

@@ -1,18 +1,25 @@
 'use client';
 
 import { Plus, Trash2 } from 'lucide-react';
-import { TASK_TEMPLATES, type DeploymentTask } from '@/lib/release-deployment/model';
+import { Select } from '@/components/Select';
+import {
+  TASK_TEMPLATES,
+  type DeploymentTask,
+  type ReleaseMember,
+} from '@/lib/release-deployment/model';
 
 interface TaskChecklistProps {
   tasks: DeploymentTask[];
+  members: ReleaseMember[];
   onAddTemplate: (label: string) => void;
   onAddManual: () => void;
-  onChange: (id: string, subject: string) => void;
+  onChange: (id: string, changes: Partial<DeploymentTask>) => void;
   onRemove: (id: string) => void;
 }
 
 export function TaskChecklist({
   tasks,
+  members,
   onAddTemplate,
   onAddManual,
   onChange,
@@ -22,7 +29,8 @@ export function TaskChecklist({
     <div>
       <p className='hint mb-2'>
         Klik chip untuk menambah task ke daftar. Task dari chip diberi badge
-        TEMPLATE.
+        TEMPLATE. Assignee, Activity Date, Start Time, dan Total Time Spent
+        opsional; assignee dan waktu dikirim ke task Taiga.
       </p>
 
       <div className='flex flex-wrap gap-2 mb-3'>
@@ -46,31 +54,124 @@ export function TaskChecklist({
       ) : (
         <ul className='space-y-2'>
           {tasks.map((task, index) => (
-            <li key={task.id} className='flex items-center gap-2.5'>
-              <span className='flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-light text-[11px] font-bold text-brand'>
-                {index + 1}
-              </span>
-              <input
-                type='text'
-                value={task.subject}
-                onChange={(event) => onChange(task.id, event.target.value)}
-                placeholder='Nama task deployment...'
-                aria-label={`Task ${index + 1}`}
-                className='input !h-9 flex-1 text-[13px]'
-              />
-              {task.template && (
-                <span className='shrink-0 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700'>
-                  TEMPLATE
+            <li
+              key={task.id}
+              className='rounded-lg border border-border px-3 py-2.5'
+            >
+              <div className='flex items-center gap-2.5'>
+                <span className='flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-light text-[11px] font-bold text-brand'>
+                  {index + 1}
                 </span>
-              )}
-              <button
-                type='button'
-                onClick={() => onRemove(task.id)}
-                aria-label={`Hapus task ${index + 1}`}
-                className='btn btn-ghost btn-icon !h-8 !w-8 shrink-0 text-slate-400 hover:text-rose-600'
-              >
-                <Trash2 size={14} />
-              </button>
+                <input
+                  type='text'
+                  value={task.subject}
+                  onChange={(event) =>
+                    onChange(task.id, { subject: event.target.value })
+                  }
+                  placeholder='Nama task deployment...'
+                  aria-label={`Task ${index + 1}`}
+                  className='input !h-9 flex-1 text-[13px]'
+                />
+                {task.template && (
+                  <span className='shrink-0 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700'>
+                    TEMPLATE
+                  </span>
+                )}
+                <button
+                  type='button'
+                  onClick={() => onRemove(task.id)}
+                  aria-label={`Hapus task ${index + 1}`}
+                  className='btn btn-ghost btn-icon !h-8 !w-8 shrink-0 text-slate-400 hover:text-rose-600'
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+
+              <div className='mt-2 grid grid-cols-1 gap-2 pl-8 sm:grid-cols-2 lg:grid-cols-4'>
+                <div className='field !gap-1'>
+                  <label
+                    htmlFor={`task-date-${task.id}`}
+                    className='!text-[11px]'
+                  >
+                    Activity Date
+                  </label>
+                  <input
+                    id={`task-date-${task.id}`}
+                    type='date'
+                    className='input !h-8 text-[12px]'
+                    value={task.activityDate}
+                    onChange={(event) =>
+                      onChange(task.id, { activityDate: event.target.value })
+                    }
+                  />
+                </div>
+                <div className='field !gap-1'>
+                  <label
+                    htmlFor={`task-start-${task.id}`}
+                    className='!text-[11px]'
+                  >
+                    Start Time
+                  </label>
+                  <input
+                    id={`task-start-${task.id}`}
+                    type='time'
+                    className='input !h-8 text-[12px]'
+                    value={task.startTime}
+                    onChange={(event) =>
+                      onChange(task.id, { startTime: event.target.value })
+                    }
+                  />
+                </div>
+                <div className='field !gap-1'>
+                  <label
+                    htmlFor={`task-spent-${task.id}`}
+                    className='!text-[11px]'
+                  >
+                    Total Time Spent (menit)
+                  </label>
+                  <input
+                    id={`task-spent-${task.id}`}
+                    type='number'
+                    min={0}
+                    step={1}
+                    placeholder='0'
+                    className='input !h-8 text-[12px]'
+                    value={task.totalTimeSpent}
+                    onChange={(event) =>
+                      onChange(task.id, { totalTimeSpent: event.target.value })
+                    }
+                  />
+                </div>
+                <div className='field !gap-1'>
+                  <label
+                    htmlFor={`task-assignee-${task.id}`}
+                    className='!text-[11px]'
+                  >
+                    Assignee
+                  </label>
+                  <Select
+                    id={`task-assignee-${task.id}`}
+                    aria-label={`Assignee task ${index + 1}`}
+                    size='sm'
+                    value={task.assigneeId === null ? '' : String(task.assigneeId)}
+                    placeholder='Tanpa assignee'
+                    onChange={(event) =>
+                      onChange(task.id, {
+                        assigneeId: event.target.value
+                          ? Number(event.target.value)
+                          : null,
+                      })
+                    }
+                    options={[
+                      { value: '', label: 'Tanpa assignee' },
+                      ...members.map((member) => ({
+                        value: String(member.id),
+                        label: member.name,
+                      })),
+                    ]}
+                  />
+                </div>
+              </div>
             </li>
           ))}
         </ul>
