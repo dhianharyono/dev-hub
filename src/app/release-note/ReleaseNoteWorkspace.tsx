@@ -13,6 +13,7 @@ import {
   type ReleaseOptions,
   type ReleaseStoryForm,
 } from '@/lib/release-deployment/model';
+import { DeploymentFormStep } from './components/DeploymentFormStep';
 import { ReleaseStepper } from './components/ReleaseStepper';
 import { StoryFormStep } from './components/StoryFormStep';
 import { UploadStep } from './components/UploadStep';
@@ -319,13 +320,20 @@ export function ReleaseNoteWorkspace() {
         />
       )}
 
-      {step === 3 && (
-        <section className='card'>
-          <h2 className='card-title'>Form Deployment</h2>
-          <p className='text-sm text-slate-500'>
-            Autofill form Deployment disiapkan pada tahap berikutnya.
-          </p>
-        </section>
+      {step === 3 && created && (
+        <DeploymentFormStep
+          form={form}
+          created={created}
+          projectSlug={options?.project.slug ?? 'spa'}
+          memberName={
+            options?.members.find((member) => member.id === form.assigneeId)
+              ?.name ?? ''
+          }
+          onBack={() => {
+            setError(null);
+            setStep(2);
+          }}
+        />
       )}
     </>
   );

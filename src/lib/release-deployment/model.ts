@@ -147,6 +147,39 @@ export interface ReleaseCreation {
   tasks: CreatedTask[];
 }
 
+export interface ServiceLink {
+  id: string;
+  service: string;
+  url: string;
+}
+
+export interface DeploymentFormInput {
+  judul: string;
+  tiket: string;
+  squad: string;
+  environment: string;
+  picDeveloper: string;
+  picQa: string[];
+  picHoe: string;
+  deployDate: string;
+  deployTime: string;
+  deployTimeBe: string;
+  deployTimeFe: string;
+  envVault: string;
+  envVaultBe: string;
+  envVaultFe: string;
+  databaseTypes: string[];
+  databaseName: string;
+  tableName: string;
+  columnName: string;
+  databaseDescription: string;
+  kafkaMessage: string;
+  kafkaConsumer: string;
+  kafkaProducer: string;
+  kafkaTopic: string;
+  services: ServiceLink[];
+}
+
 export interface ReleaseOptions {
   project: { id: number; name: string; slug: string };
   members: ReleaseMember[];

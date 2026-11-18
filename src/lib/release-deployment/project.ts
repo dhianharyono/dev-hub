@@ -25,7 +25,9 @@ export async function resolveReleaseProject(): Promise<ProjectRef> {
     () => [] as ProjectRef[],
   );
   const found =
-    projects.find((item) => item.slug === RELEASE_PROJECT_SLUG) ??
+    projects.find(
+      (item) => item.slug.toLowerCase() === RELEASE_PROJECT_SLUG,
+    ) ??
     projects.find(
       (item) => /padiumkm/i.test(item.name) && /\bspa\b/i.test(item.name),
     );
