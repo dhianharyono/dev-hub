@@ -4,6 +4,11 @@ import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Clock, Settings } from 'lucide-react';
 import type { WorkloadData, WorkloadDaySummary } from '@/lib/workload';
+import {
+  DAILY_TARGET_META,
+  formatDailyTargetPill,
+  resolveDailyTargetStatus,
+} from '@/lib/workload/daily-target';
 import { CalendarSkeletonCard } from './DashboardSkeleton';
 
 interface WorkloadCalendarCardProps {
@@ -31,34 +36,10 @@ interface DayStatusMeta {
 }
 
 const STATUS_CONFIG: Record<ComplianceStatus, DayStatusMeta> = {
-  fit: {
-    color: '#10b981',
-    bgClass: 'bg-emerald-500',
-    pillClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    label: 'Sesuai Target (8h)',
-    badgeClass: 'badge-emerald',
-  },
-  over: {
-    color: '#8b5cf6',
-    bgClass: 'bg-violet-500',
-    pillClass: 'bg-violet-50 text-violet-700 border-violet-200',
-    label: 'Lembur (>8h)',
-    badgeClass: 'badge-violet',
-  },
-  under: {
-    color: '#f59e0b',
-    bgClass: 'bg-amber-500',
-    pillClass: 'bg-amber-50 text-amber-700 border-amber-200',
-    label: 'Kurang Jam',
-    badgeClass: 'badge-amber',
-  },
-  empty: {
-    color: '#ef4444',
-    bgClass: 'bg-red-500',
-    pillClass: 'bg-rose-50 text-rose-700 border-rose-200',
-    label: 'Belum Ada Task (0h)',
-    badgeClass: 'badge-rose',
-  },
+  fit: { ...DAILY_TARGET_META.fit, badgeClass: 'badge-emerald' },
+  over: { ...DAILY_TARGET_META.over, badgeClass: 'badge-violet' },
+  under: { ...DAILY_TARGET_META.under, badgeClass: 'badge-amber' },
+  empty: { ...DAILY_TARGET_META.empty, badgeClass: 'badge-rose' },
   holiday: {
     color: '#60a5fa',
     bgClass: 'bg-blue-400',
@@ -76,7 +57,6 @@ const STATUS_CONFIG: Record<ComplianceStatus, DayStatusMeta> = {
 };
 
 const DAY_HEADERS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-const hourFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 1 });
 
 export function WorkloadCalendarCard({
   workload,
@@ -187,16 +167,9 @@ export function WorkloadCalendarCard({
       } else if (!isWeekday) {
         status = summary && summary.hoursSpent > 0 ? 'over' : 'holiday';
       } else {
-        const hours = summary ? summary.hoursSpent : 0;
-        if (hours >= 7.5 && hours <= 8.5) {
-          status = 'fit';
-        } else if (hours > 8.5) {
-          status = 'over';
-        } else if (hours > 0) {
-          status = 'under';
-        } else {
-          status = 'empty';
-        }
+        status = resolveDailyTargetStatus(
+          summary ? summary.hoursSpent : 0,
+        );
       }
 
       cells.push({
@@ -268,14 +241,8 @@ export function WorkloadCalendarCard({
       status = 'future';
     } else if (!isWeekday) {
       status = hours > 0 ? 'over' : 'holiday';
-    } else if (hours >= 7.5 && hours <= 8.5) {
-      status = 'fit';
-    } else if (hours > 8.5) {
-      status = 'over';
-    } else if (hours > 0) {
-      status = 'under';
     } else {
-      status = 'empty';
+      status = resolveDailyTargetStatus(hours);
     }
 
     return {
@@ -453,9 +420,13 @@ export function WorkloadCalendarCard({
               <span
                 className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${activeDetail.meta.pillClass}`}
               >
-                {activeDetail.status === 'under'
-                  ? `Kurang ${hourFormatter.format(Math.max(0, 8 - activeDetail.hours))} jam`
-                  : activeDetail.meta.label}
+                {activeDetail.status === 'holiday' ||
+                activeDetail.status === 'future'
+                  ? activeDetail.meta.label
+                  : formatDailyTargetPill(
+                      activeDetail.status,
+                      activeDetail.hours,
+                    )}
               </span>
             </div>
           )}
