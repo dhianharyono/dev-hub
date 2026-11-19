@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, RefreshCw } from 'lucide-react';
 import {
   RELEASE_TARGETS,
   buildStorySubject,
@@ -255,30 +254,6 @@ export function ReleaseNoteWorkspace() {
 
   return (
     <>
-      <header className='page-header'>
-        <div>
-          <div className='eyebrow'>Taiga · Deployment</div>
-          <h1>Release Note</h1>
-          <p>
-            Susun user story dan task deployment, buat di Taiga, lalu isi form
-            Deployment.
-          </p>
-        </div>
-        <button
-          type='button'
-          className='btn btn-ghost btn-sm'
-          onClick={() => void loadOptions()}
-          disabled={optionsLoading}
-        >
-          {optionsLoading ? (
-            <Loader2 size={14} className='animate-spin' />
-          ) : (
-            <RefreshCw size={14} />
-          )}
-          Muat ulang data Taiga
-        </button>
-      </header>
-
       <ReleaseStepper
         step={step}
         onSelect={(target) => {
@@ -295,6 +270,7 @@ export function ReleaseNoteWorkspace() {
           members={options?.members ?? []}
           optionsLoading={optionsLoading}
           optionsError={optionsError}
+          onReloadOptions={() => void loadOptions()}
           tasks={tasks}
           onAddTemplate={addTemplate}
           onAddManual={addManual}

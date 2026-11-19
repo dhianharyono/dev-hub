@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRight, UserRound } from 'lucide-react';
+import { ChevronRight, Loader2, RefreshCw, UserRound } from 'lucide-react';
 import { Select } from '@/components/Select';
 import {
   RELEASE_TARGETS,
@@ -19,6 +19,7 @@ interface StoryFormStepProps {
   members: ReleaseMember[];
   optionsLoading: boolean;
   optionsError: string | null;
+  onReloadOptions: () => void;
   tasks: DeploymentTask[];
   onAddTemplate: (label: string) => void;
   onAddManual: () => void;
@@ -35,6 +36,7 @@ export function StoryFormStep({
   members,
   optionsLoading,
   optionsError,
+  onReloadOptions,
   tasks,
   onAddTemplate,
   onAddManual,
@@ -48,7 +50,22 @@ export function StoryFormStep({
   return (
     <div className='space-y-4'>
       <section className='card'>
-        <h2 className='card-title'>Target Rilis</h2>
+        <div className='flex items-start justify-between gap-3'>
+          <h2 className='card-title'>Target Rilis</h2>
+          <button
+            type='button'
+            onClick={onReloadOptions}
+            disabled={optionsLoading}
+            className='inline-flex items-center gap-1.5 rounded-full border border-border-strong bg-white px-4 py-1.5 text-[13px] font-semibold text-slate-500 transition-colors hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-60'
+          >
+            {optionsLoading ? (
+              <Loader2 size={14} className='animate-spin' />
+            ) : (
+              <RefreshCw size={14} />
+            )}
+            Muat ulang
+          </button>
+        </div>
         <div className='flex flex-wrap items-center gap-2 mt-3'>
           {RELEASE_TARGET_LIST.map((option) => (
             <button
