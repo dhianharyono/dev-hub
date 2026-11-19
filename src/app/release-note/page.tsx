@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
-import { ReleaseNoteWorkspace } from './ReleaseNoteWorkspace';
+import { ReleaseNoteHub } from './ReleaseNoteHub';
 
 export const metadata: Metadata = {
   title: 'Release Note',
   description:
-    'Buat user story dan task deployment checklist di Taiga, lalu isi form Deployment lewat browser.',
+    'Daftar release note dari Taiga dan pembuatan user story beserta task deployment checklist.',
 };
 
 export default function Page() {
-  return <ReleaseNoteWorkspace />;
+  return <ReleaseNoteHub />;
 }
