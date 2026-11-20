@@ -63,6 +63,15 @@ CREATE TABLE IF NOT EXISTS gl_mrs (
   PRIMARY KEY (id, role)
 );
 
+CREATE TABLE IF NOT EXISTS gl_mr_reviewers (
+  mr_id      INTEGER NOT NULL,
+  project_id INTEGER NOT NULL,
+  username   TEXT NOT NULL,
+  name       TEXT,
+  PRIMARY KEY (mr_id, username)
+);
+CREATE INDEX IF NOT EXISTS idx_mr_reviewers_username ON gl_mr_reviewers(username);
+
 CREATE TABLE IF NOT EXISTS gl_events (
   id           INTEGER PRIMARY KEY,
   created_at   TEXT NOT NULL,
