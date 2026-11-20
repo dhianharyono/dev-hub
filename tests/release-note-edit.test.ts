@@ -13,6 +13,7 @@ function task(overrides: Partial<ReleaseNoteTask> = {}): ReleaseNoteTask {
     subject: '[FE] Deployment Staging',
     description: '',
     statusId: 11,
+    assignedTo: 693,
     activityDate: '2026-11-18',
     startTime: '09:00',
     totalTimeSpentMinutes: 60,
@@ -30,6 +31,7 @@ describe('edit release note', () => {
         subject: '[FE] Deployment Staging',
         description: '',
         statusId: 11,
+        assignedTo: 693,
         activityDate: '2026-11-18',
         startTime: '09:00',
         totalTimeSpentMinutes: 60,
@@ -124,6 +126,35 @@ describe('edit release note', () => {
     ]);
   });
 
+  it('mengirim assignedTo hanya saat berubah, termasuk mengosongkan', () => {
+    const original = [task()];
+    const drafts = toTaskDrafts(original);
+
+    expect(
+      changedTaskUpdates(original, [{ ...drafts[0], assignedTo: 700 }]),
+    ).toEqual([
+      {
+        taskId: 804338,
+        subject: '[FE] Deployment Staging',
+        description: '',
+        statusId: 11,
+        assignedTo: 700,
+      },
+    ]);
+
+    expect(
+      changedTaskUpdates(original, [{ ...drafts[0], assignedTo: null }]),
+    ).toEqual([
+      {
+        taskId: 804338,
+        subject: '[FE] Deployment Staging',
+        description: '',
+        statusId: 11,
+        assignedTo: null,
+      },
+    ]);
+  });
+
   it('mengabaikan status kosong dan judul kosong', () => {
     const original = [task()];
     const drafts = toTaskDrafts(original);
@@ -142,6 +173,7 @@ describe('tambah task release note', () => {
     subject: '  Deployment Production Baru  ',
     description: '',
     statusId: 0,
+    assignedTo: null,
     activityDate: '',
     startTime: '',
     totalTimeSpentMinutes: null,
@@ -161,6 +193,7 @@ describe('tambah task release note', () => {
         ...empty,
         description: 'cek deploy',
         statusId: 1813,
+        assignedTo: 693,
         activityDate: '2026-11-20',
         startTime: '10:00',
         totalTimeSpentMinutes: 45,
@@ -171,6 +204,7 @@ describe('tambah task release note', () => {
       userStoryId: 768826,
       description: 'cek deploy',
       statusId: 1813,
+      assignedTo: 693,
       activityDate: '2026-11-20',
       startTime: '10:00',
       totalTimeSpentMinutes: 45,

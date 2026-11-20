@@ -194,6 +194,7 @@ export async function updateUserStory(
     body.description = formatTaigaDescription(updates.description);
   }
   if (updates.statusId !== undefined) body.status = updates.statusId;
+  if (updates.assignedTo !== undefined) body.assigned_to = updates.assignedTo;
 
   return taiga<{
     id: number;

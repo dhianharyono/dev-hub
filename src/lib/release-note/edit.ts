@@ -5,6 +5,7 @@ export interface ReleaseTaskDraft {
   subject: string;
   description: string;
   statusId: number;
+  assignedTo: number | null;
   activityDate: string;
   startTime: string;
   totalTimeSpentMinutes: number | null;
@@ -15,6 +16,7 @@ export interface ReleaseTaskUpdate {
   subject: string;
   description: string;
   statusId?: number;
+  assignedTo?: number | null;
   activityDate?: string;
   startTime?: string;
   totalTimeSpentMinutes?: number | null;
@@ -27,6 +29,7 @@ export function toTaskDrafts(tasks: ReleaseNoteTask[]): ReleaseTaskDraft[] {
     subject: task.subject,
     description: task.description ?? '',
     statusId: task.statusId ?? 0,
+    assignedTo: task.assignedTo ?? null,
     activityDate: task.activityDate ?? '',
     startTime: task.startTime ?? '',
     totalTimeSpentMinutes: task.totalTimeSpentMinutes ?? null,
@@ -37,6 +40,7 @@ export interface NewTaskValues {
   subject: string;
   description: string;
   statusId: number;
+  assignedTo: number | null;
   activityDate: string;
   startTime: string;
   totalTimeSpentMinutes: number | null;
@@ -50,6 +54,7 @@ export function buildNewTaskItem(userStoryId: number, values: NewTaskValues) {
     userStoryId,
     ...(values.description ? { description: values.description } : {}),
     ...(values.statusId > 0 ? { statusId: values.statusId } : {}),
+    ...(values.assignedTo != null ? { assignedTo: values.assignedTo } : {}),
     ...(values.activityDate ? { activityDate: values.activityDate } : {}),
     ...(values.startTime ? { startTime: values.startTime } : {}),
     ...(values.totalTimeSpentMinutes != null
@@ -76,6 +81,8 @@ export function changedTaskUpdates(
       draft.statusId > 0 && draft.statusId !== before.statusId;
     const descriptionChanged =
       (draft.description ?? '') !== (before.description ?? '');
+    const assigneeChanged =
+      (draft.assignedTo ?? null) !== (before.assignedTo ?? null);
     const timesheetChanged =
       draft.activityDate !== (before.activityDate ?? '') ||
       draft.startTime !== (before.startTime ?? '') ||
@@ -85,6 +92,7 @@ export function changedTaskUpdates(
       subject === before.subject.trim() &&
       !statusChanged &&
       !descriptionChanged &&
+      !assigneeChanged &&
       !timesheetChanged
     ) {
       continue;
@@ -95,6 +103,7 @@ export function changedTaskUpdates(
       subject,
       description: draft.description ?? '',
       ...(draft.statusId > 0 ? { statusId: draft.statusId } : {}),
+      ...(assigneeChanged ? { assignedTo: draft.assignedTo } : {}),
       ...(timesheetChanged
         ? {
             activityDate: draft.activityDate || undefined,

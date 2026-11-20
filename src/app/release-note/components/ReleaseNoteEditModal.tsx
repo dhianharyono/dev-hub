@@ -9,6 +9,7 @@ import type {
   ReleaseNoteDetail,
   ReleaseNoteTask,
 } from '@/lib/release-note/model';
+import type { ReleaseMember } from '@/lib/release-deployment/model';
 import {
   buildNewTaskItem,
   changedTaskUpdates,
@@ -35,6 +36,7 @@ interface NewTaskForm {
   subject: string;
   description: string;
   statusId: number;
+  assignedTo: number | null;
   activityDate: string;
   startTime: string;
   totalTimeSpentMinutes: number | null;
@@ -44,6 +46,7 @@ const EMPTY_TASK: NewTaskForm = {
   subject: '',
   description: '',
   statusId: 0,
+  assignedTo: null,
   activityDate: '',
   startTime: '',
   totalTimeSpentMinutes: null,
@@ -59,7 +62,9 @@ export function ReleaseNoteEditModal({
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [statusId, setStatusId] = useState(0);
+  const [assignedTo, setAssignedTo] = useState<number | null>(null);
   const [tasks, setTasks] = useState<ReleaseTaskDraft[]>([]);
+  const [members, setMembers] = useState<ReleaseMember[]>([]);
   const [userStoryStatuses, setUserStoryStatuses] = useState<StatusOption[]>([]);
   const [taskStatuses, setTaskStatuses] = useState<StatusOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,16 +94,25 @@ export function ReleaseNoteEditModal({
           return payload as { userStory: StatusOption[]; task: StatusOption[] };
         })
         .catch(() => ({ userStory: [], task: [] })),
+      fetch('/api/release-note/options')
+        .then(async (response) => {
+          const payload = await response.json();
+          if (!response.ok) return [] as ReleaseMember[];
+          return (payload.members ?? []) as ReleaseMember[];
+        })
+        .catch(() => [] as ReleaseMember[]),
     ])
-      .then(([note, statuses]) => {
+      .then(([note, statuses, memberList]) => {
         if (ignore) return;
         setDetail(note);
         setSubject(note.subject);
         setDescription(note.description);
         setStatusId(note.statusId ?? 0);
+        setAssignedTo(note.assignedTo ?? null);
         setTasks(toTaskDrafts(note.tasks));
         setUserStoryStatuses(statuses.userStory);
         setTaskStatuses(statuses.task);
+        setMembers(memberList);
       })
       .catch((err) => {
         if (!ignore) setLoadError(messageOf(err));
@@ -158,6 +172,7 @@ export function ReleaseNoteEditModal({
         subject,
         description: newTask.description,
         statusId: newTask.statusId || undefined,
+        assignedTo: newTask.assignedTo,
         activityDate: newTask.activityDate,
         startTime: newTask.startTime,
         totalTimeSpentMinutes: newTask.totalTimeSpentMinutes,
@@ -183,6 +198,7 @@ export function ReleaseNoteEditModal({
           subject,
           description: newTask.description,
           statusId: created.statusId ?? 0,
+          assignedTo: newTask.assignedTo,
           activityDate: newTask.activityDate,
           startTime: newTask.startTime,
           totalTimeSpentMinutes: newTask.totalTimeSpentMinutes,
@@ -207,10 +223,12 @@ export function ReleaseNoteEditModal({
     setSaving(true);
     setError(null);
     try {
+      const assigneeChanged = (assignedTo ?? null) !== (detail.assignedTo ?? null);
       const storyChanged =
         subject.trim() !== detail.subject.trim() ||
         description !== detail.description ||
-        (statusId > 0 && statusId !== (detail.statusId ?? 0));
+        (statusId > 0 && statusId !== (detail.statusId ?? 0)) ||
+        assigneeChanged;
       const updates = changedTaskUpdates(detail.tasks, tasks);
 
       if (!storyChanged && updates.length === 0) {
@@ -228,6 +246,7 @@ export function ReleaseNoteEditModal({
             subject: subject.trim(),
             description,
             ...(statusId > 0 ? { statusId } : {}),
+            ...(assigneeChanged ? { assignedTo } : {}),
           }),
         });
         const storyData = await storyResponse.json();
@@ -360,6 +379,30 @@ export function ReleaseNoteEditModal({
           </div>
 
           <div className='field'>
+            <label htmlFor='edit-note-assignee' className='text-xs font-bold text-slate-700'>
+              Assign To
+            </label>
+            <Select
+              id='edit-note-assignee'
+              aria-label='Assignee user story'
+              value={assignedTo === null ? '' : String(assignedTo)}
+              onChange={(event) =>
+                setAssignedTo(
+                  event.target.value ? Number(event.target.value) : null,
+                )
+              }
+              disabled={saving || members.length === 0}
+            >
+              <option value=''>Tanpa assignee</option>
+              {members.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          <div className='field'>
             <label htmlFor='edit-note-description' className='text-xs font-bold text-slate-700'>
               Deskripsi
             </label>
@@ -397,22 +440,48 @@ export function ReleaseNoteEditModal({
                   <span className='text-xs font-bold text-slate-500 uppercase tracking-wide'>
                     Task baru
                   </span>
-                  <Select
-                    aria-label='Status task baru'
-                    value={newTask.statusId || ''}
-                    onChange={(event) =>
-                      patchNewTask({ statusId: Number(event.target.value) })
-                    }
-                    disabled={creatingTask || taskStatuses.length === 0}
-                    className='!h-9 w-[190px] text-xs'
-                  >
-                    <option value=''>Default task status</option>
-                    {taskStatuses.map((status) => (
-                      <option key={status.id} value={status.id}>
-                        {status.name}
-                      </option>
-                    ))}
-                  </Select>
+                  <div className='flex items-center gap-2'>
+                    <Select
+                      aria-label='Assignee task baru'
+                      value={
+                        newTask.assignedTo === null
+                          ? ''
+                          : String(newTask.assignedTo)
+                      }
+                      onChange={(event) =>
+                        patchNewTask({
+                          assignedTo: event.target.value
+                            ? Number(event.target.value)
+                            : null,
+                        })
+                      }
+                      disabled={creatingTask || members.length === 0}
+                      className='!h-9 w-[190px] text-xs'
+                    >
+                      <option value=''>Tanpa assignee</option>
+                      {members.map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.name}
+                        </option>
+                      ))}
+                    </Select>
+                    <Select
+                      aria-label='Status task baru'
+                      value={newTask.statusId || ''}
+                      onChange={(event) =>
+                        patchNewTask({ statusId: Number(event.target.value) })
+                      }
+                      disabled={creatingTask || taskStatuses.length === 0}
+                      className='!h-9 w-[190px] text-xs'
+                    >
+                      <option value=''>Default task status</option>
+                      {taskStatuses.map((status) => (
+                        <option key={status.id} value={status.id}>
+                          {status.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
                 </div>
                 <input
                   className='input h-10'
@@ -490,31 +559,57 @@ export function ReleaseNoteEditModal({
                     key={task.id}
                     className='rounded-xl border border-border p-3 space-y-2.5'
                   >
-                    <div className='flex items-center justify-between gap-2'>
+                    <div className='flex items-center justify-between gap-2 flex-wrap'>
                       <span className='font-mono text-[12px] text-slate-500'>
                         #{detail.tasks.find((item) => item.id === task.id)?.ref}
                       </span>
-                      <Select
-                        aria-label={`Status task ${task.id}`}
-                        value={task.statusId}
-                        onChange={(event) =>
-                          patchTask(task.id, { statusId: Number(event.target.value) })
-                        }
-                        disabled={saving || taskStatuses.length === 0}
-                        className='!h-9 w-[190px] text-xs'
-                      >
-                        {!taskStatuses.some((status) => status.id === task.statusId) && (
-                          <option value={task.statusId}>
-                            {detail.tasks.find((item) => item.id === task.id)?.status.name ??
-                              'Status saat ini'}
-                          </option>
-                        )}
-                        {taskStatuses.map((status) => (
-                          <option key={status.id} value={status.id}>
-                            {status.name}
-                          </option>
-                        ))}
-                      </Select>
+                      <div className='flex items-center gap-2'>
+                        <Select
+                          aria-label={`Assignee task ${task.id}`}
+                          value={
+                            task.assignedTo === null
+                              ? ''
+                              : String(task.assignedTo)
+                          }
+                          onChange={(event) =>
+                            patchTask(task.id, {
+                              assignedTo: event.target.value
+                                ? Number(event.target.value)
+                                : null,
+                            })
+                          }
+                          disabled={saving || members.length === 0}
+                          className='!h-9 w-[190px] text-xs'
+                        >
+                          <option value=''>Tanpa assignee</option>
+                          {members.map((member) => (
+                            <option key={member.id} value={member.id}>
+                              {member.name}
+                            </option>
+                          ))}
+                        </Select>
+                        <Select
+                          aria-label={`Status task ${task.id}`}
+                          value={task.statusId}
+                          onChange={(event) =>
+                            patchTask(task.id, { statusId: Number(event.target.value) })
+                          }
+                          disabled={saving || taskStatuses.length === 0}
+                          className='!h-9 w-[190px] text-xs'
+                        >
+                          {!taskStatuses.some((status) => status.id === task.statusId) && (
+                            <option value={task.statusId}>
+                              {detail.tasks.find((item) => item.id === task.id)?.status.name ??
+                                'Status saat ini'}
+                            </option>
+                          )}
+                          {taskStatuses.map((status) => (
+                            <option key={status.id} value={status.id}>
+                              {status.name}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
                     </div>
                     <input
                       className='input h-10'

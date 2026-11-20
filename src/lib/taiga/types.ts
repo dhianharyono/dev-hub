@@ -123,6 +123,7 @@ export interface UpdateUserStoryPayload {
   subject?: string;
   description?: string;
   statusId?: number | null;
+  assignedTo?: number | null;
 }
 
 export interface UpdateTaskPayload {

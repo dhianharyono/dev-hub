@@ -30,6 +30,7 @@ interface RawTask {
   subject: string;
   description?: string;
   status: number;
+  assigned_to?: number | null;
   status_extra_info?: { name: string; color: string; is_closed?: boolean };
   is_closed: boolean;
 }
@@ -136,6 +137,7 @@ export async function getReleaseNote(
     ...toReleaseNoteSummary(story, ctx, source),
     statusId: story.status,
     projectId: project.id,
+    assignedTo: story.assigned_to ?? null,
     description: story.description ?? '',
     tasks: tasks
       .map((task, index) => ({
@@ -144,6 +146,7 @@ export async function getReleaseNote(
         subject: task.subject,
         description: task.description ?? '',
         statusId: task.status,
+        assignedTo: task.assigned_to ?? null,
         ...timesheets[index],
         status: {
           name: task.status_extra_info?.name ?? 'Unknown',

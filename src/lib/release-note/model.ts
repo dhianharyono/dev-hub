@@ -18,6 +18,7 @@ export interface ReleaseNoteTask {
   subject: string;
   description?: string;
   statusId?: number;
+  assignedTo?: number | null;
   activityDate?: string;
   startTime?: string;
   totalTimeSpentMinutes?: number | null;
@@ -28,6 +29,7 @@ export interface ReleaseNoteTask {
 export interface ReleaseNoteDetail extends ReleaseNoteSummary {
   statusId?: number;
   projectId: number;
+  assignedTo: number | null;
   description: string;
   tasks: ReleaseNoteTask[];
 }

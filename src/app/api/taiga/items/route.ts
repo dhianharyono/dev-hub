@@ -50,6 +50,7 @@ const UpdateUserStoryBody = z.object({
   subject: z.string().min(1).optional(),
   description: z.string().optional(),
   statusId: z.number().nullable().optional(),
+  assignedTo: z.number().nullable().optional(),
 });
 
 export async function POST(req: Request) {

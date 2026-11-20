@@ -16,6 +16,7 @@ function note(overrides: Partial<ReleaseNoteDetail> = {}): ReleaseNoteDetail {
     status: { name: 'Done', color: '#A8E440', isClosed: true },
     milestone: null,
     projectId: 269,
+    assignedTo: 693,
     createdDate: '2026-11-18T06:21:18.203Z',
     modifiedDate: '2026-11-18T06:34:20.092Z',
     url: 'https://taiga.example.com/project/SPA/us/74560',
