@@ -1,12 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertCircle, Loader2, Save } from 'lucide-react';
+import { AlertCircle, Loader2, Plus, Save } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Select } from '@/components/Select';
 import { SmartTaskTimesheetLog } from '@/app/tasks/smart-task/SmartTaskTimesheetLog';
-import type { ReleaseNoteDetail } from '@/lib/release-note/model';
+import type {
+  ReleaseNoteDetail,
+  ReleaseNoteTask,
+} from '@/lib/release-note/model';
 import {
+  buildNewTaskItem,
   changedTaskUpdates,
   toTaskDrafts,
   type ReleaseTaskDraft,
@@ -27,6 +31,24 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+interface NewTaskForm {
+  subject: string;
+  description: string;
+  statusId: number;
+  activityDate: string;
+  startTime: string;
+  totalTimeSpentMinutes: number | null;
+}
+
+const EMPTY_TASK: NewTaskForm = {
+  subject: '',
+  description: '',
+  statusId: 0,
+  activityDate: '',
+  startTime: '',
+  totalTimeSpentMinutes: null,
+};
+
 /** Edit judul, status, dan deskripsi release note beserta task deployment-nya. */
 export function ReleaseNoteEditModal({
   noteRef,
@@ -44,6 +66,10 @@ export function ReleaseNoteEditModal({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [addingTask, setAddingTask] = useState(false);
+  const [newTask, setNewTask] = useState<NewTaskForm>(EMPTY_TASK);
+  const [creatingTask, setCreatingTask] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -90,6 +116,85 @@ export function ReleaseNoteEditModal({
     setTasks((previous) =>
       previous.map((task) => (task.id === id ? { ...task, ...changes } : task)),
     );
+  }
+
+  function patchNewTask(changes: Partial<NewTaskForm>) {
+    setNewTask((previous) => ({ ...previous, ...changes }));
+  }
+
+  async function createTask() {
+    if (creatingTask || !detail) return;
+    const subject = newTask.subject.trim();
+    if (!subject) {
+      setCreateError('Judul task tidak boleh kosong.');
+      return;
+    }
+
+    setCreatingTask(true);
+    setCreateError(null);
+    try {
+      const response = await fetch('/api/taiga/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: detail.projectId,
+          items: [buildNewTaskItem(detail.id, { ...newTask, subject })],
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error ?? 'Gagal menambah task');
+      }
+      const result = data.results?.[0] as
+        | { ok: boolean; id?: number; ref?: number; url?: string; error?: string }
+        | undefined;
+      if (!result?.ok || !result.id || !result.ref) {
+        throw new Error(result?.error ?? 'Gagal menambah task');
+      }
+
+      const created: ReleaseNoteTask = {
+        id: result.id,
+        ref: result.ref,
+        subject,
+        description: newTask.description,
+        statusId: newTask.statusId || undefined,
+        activityDate: newTask.activityDate,
+        startTime: newTask.startTime,
+        totalTimeSpentMinutes: newTask.totalTimeSpentMinutes,
+        status: {
+          name:
+            taskStatuses.find((status) => status.id === newTask.statusId)
+              ?.name ?? 'Baru',
+          color: '#94a3b8',
+          isClosed: false,
+        },
+        url: result.url ?? detail.url,
+      };
+
+      setDetail((previous) =>
+        previous
+          ? { ...previous, tasks: [...previous.tasks, created] }
+          : previous,
+      );
+      setTasks((previous) => [
+        ...previous,
+        {
+          id: created.id,
+          subject,
+          description: newTask.description,
+          statusId: created.statusId ?? 0,
+          activityDate: newTask.activityDate,
+          startTime: newTask.startTime,
+          totalTimeSpentMinutes: newTask.totalTimeSpentMinutes,
+        },
+      ]);
+      setNewTask(EMPTY_TASK);
+      setAddingTask(false);
+    } catch (err) {
+      setCreateError(messageOf(err));
+    } finally {
+      setCreatingTask(false);
+    }
   }
 
   async function save() {
@@ -268,9 +373,112 @@ export function ReleaseNoteEditModal({
           </div>
 
           <section>
-            <h2 className='card-title mb-2'>
-              Task deployment ({tasks.length})
-            </h2>
+            <div className='flex items-center justify-between gap-2 mb-2'>
+              <h2 className='card-title'>Task deployment ({tasks.length})</h2>
+              {!addingTask && (
+                <button
+                  type='button'
+                  className='btn btn-ghost btn-sm'
+                  onClick={() => {
+                    setCreateError(null);
+                    setNewTask(EMPTY_TASK);
+                    setAddingTask(true);
+                  }}
+                  disabled={saving}
+                >
+                  <Plus size={14} />
+                  Tambah Task
+                </button>
+              )}
+            </div>
+            {addingTask && (
+              <div className='rounded-xl border border-brand/40 bg-surface-subtle/60 p-3 space-y-2.5 mb-3'>
+                <div className='flex items-center justify-between gap-2'>
+                  <span className='text-xs font-bold text-slate-500 uppercase tracking-wide'>
+                    Task baru
+                  </span>
+                  <Select
+                    aria-label='Status task baru'
+                    value={newTask.statusId || ''}
+                    onChange={(event) =>
+                      patchNewTask({ statusId: Number(event.target.value) })
+                    }
+                    disabled={creatingTask || taskStatuses.length === 0}
+                    className='!h-9 w-[190px] text-xs'
+                  >
+                    <option value=''>Default task status</option>
+                    {taskStatuses.map((status) => (
+                      <option key={status.id} value={status.id}>
+                        {status.name}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <input
+                  className='input h-10'
+                  aria-label='Judul task baru'
+                  placeholder='Judul task (wajib)'
+                  value={newTask.subject}
+                  onChange={(event) =>
+                    patchNewTask({ subject: event.target.value })
+                  }
+                  disabled={creatingTask}
+                />
+                <textarea
+                  className='input min-h-[64px] py-2 text-[13px]'
+                  aria-label='Deskripsi task baru'
+                  placeholder='Deskripsi task (opsional)'
+                  value={newTask.description}
+                  onChange={(event) =>
+                    patchNewTask({ description: event.target.value })
+                  }
+                  disabled={creatingTask}
+                />
+                <SmartTaskTimesheetLog
+                  activityDate={newTask.activityDate}
+                  startTime={newTask.startTime}
+                  totalTimeSpentMinutes={newTask.totalTimeSpentMinutes}
+                  onUpdateDate={(date) => patchNewTask({ activityDate: date })}
+                  onUpdateStartTime={(time) => patchNewTask({ startTime: time })}
+                  onUpdateDuration={(mins) =>
+                    patchNewTask({ totalTimeSpentMinutes: mins })
+                  }
+                />
+                {createError && (
+                  <div className='alert alert-error flex items-start gap-2'>
+                    <AlertCircle size={16} className='mt-0.5 shrink-0' />
+                    <span>{createError}</span>
+                  </div>
+                )}
+                <div className='flex items-center justify-end gap-2'>
+                  <button
+                    type='button'
+                    className='btn btn-ghost btn-sm'
+                    onClick={() => {
+                      setAddingTask(false);
+                      setCreateError(null);
+                      setNewTask(EMPTY_TASK);
+                    }}
+                    disabled={creatingTask}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type='button'
+                    className='btn btn-primary btn-sm'
+                    onClick={() => void createTask()}
+                    disabled={creatingTask}
+                  >
+                    {creatingTask ? (
+                      <Loader2 size={14} className='animate-spin' />
+                    ) : (
+                      <Plus size={14} />
+                    )}
+                    {creatingTask ? 'Menyimpan...' : 'Simpan Task'}
+                  </button>
+                </div>
+              </div>
+            )}
             {tasks.length === 0 ? (
               <p className='muted text-[13px]'>
                 Belum ada task di bawah user story ini.

@@ -135,6 +135,7 @@ export async function getReleaseNote(
   return {
     ...toReleaseNoteSummary(story, ctx, source),
     statusId: story.status,
+    projectId: project.id,
     description: story.description ?? '',
     tasks: tasks
       .map((task, index) => ({

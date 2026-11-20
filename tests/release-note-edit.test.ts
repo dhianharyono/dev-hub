@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildNewTaskItem,
   changedTaskUpdates,
   toTaskDrafts,
 } from '../src/lib/release-note/edit';
@@ -133,5 +134,57 @@ describe('edit release note', () => {
     expect(
       changedTaskUpdates(original, [{ ...drafts[0], subject: '   ' }]),
     ).toEqual([]);
+  });
+});
+
+describe('tambah task release note', () => {
+  const empty = {
+    subject: '  Deployment Production Baru  ',
+    description: '',
+    statusId: 0,
+    activityDate: '',
+    startTime: '',
+    totalTimeSpentMinutes: null,
+  };
+
+  it('mengirim subject terpotong dan terhubung ke user story', () => {
+    expect(buildNewTaskItem(768826, empty)).toEqual({
+      kind: 'task',
+      subject: 'Deployment Production Baru',
+      userStoryId: 768826,
+    });
+  });
+
+  it('mengirim status, deskripsi, dan timesheet bila diisi', () => {
+    expect(
+      buildNewTaskItem(768826, {
+        ...empty,
+        description: 'cek deploy',
+        statusId: 1813,
+        activityDate: '2026-11-20',
+        startTime: '10:00',
+        totalTimeSpentMinutes: 45,
+      }),
+    ).toEqual({
+      kind: 'task',
+      subject: 'Deployment Production Baru',
+      userStoryId: 768826,
+      description: 'cek deploy',
+      statusId: 1813,
+      activityDate: '2026-11-20',
+      startTime: '10:00',
+      totalTimeSpentMinutes: 45,
+    });
+  });
+
+  it('mengirim durasi nol bila diisi eksplisit', () => {
+    expect(
+      buildNewTaskItem(768826, { ...empty, totalTimeSpentMinutes: 0 }),
+    ).toEqual({
+      kind: 'task',
+      subject: 'Deployment Production Baru',
+      userStoryId: 768826,
+      totalTimeSpentMinutes: 0,
+    });
   });
 });

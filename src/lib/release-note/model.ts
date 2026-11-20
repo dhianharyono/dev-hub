@@ -27,6 +27,7 @@ export interface ReleaseNoteTask {
 
 export interface ReleaseNoteDetail extends ReleaseNoteSummary {
   statusId?: number;
+  projectId: number;
   description: string;
   tasks: ReleaseNoteTask[];
 }

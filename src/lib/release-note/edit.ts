@@ -33,6 +33,31 @@ export function toTaskDrafts(tasks: ReleaseNoteTask[]): ReleaseTaskDraft[] {
   }));
 }
 
+export interface NewTaskValues {
+  subject: string;
+  description: string;
+  statusId: number;
+  activityDate: string;
+  startTime: string;
+  totalTimeSpentMinutes: number | null;
+}
+
+/** Payload task baru untuk POST /api/taiga/items; field kosong tidak dikirim. */
+export function buildNewTaskItem(userStoryId: number, values: NewTaskValues) {
+  return {
+    kind: 'task' as const,
+    subject: values.subject.trim(),
+    userStoryId,
+    ...(values.description ? { description: values.description } : {}),
+    ...(values.statusId > 0 ? { statusId: values.statusId } : {}),
+    ...(values.activityDate ? { activityDate: values.activityDate } : {}),
+    ...(values.startTime ? { startTime: values.startTime } : {}),
+    ...(values.totalTimeSpentMinutes != null
+      ? { totalTimeSpentMinutes: values.totalTimeSpentMinutes }
+      : {}),
+  };
+}
+
 /** Hanya task yang benar-benar berubah yang dikirim ke Taiga. */
 export function changedTaskUpdates(
   original: ReleaseNoteTask[],
