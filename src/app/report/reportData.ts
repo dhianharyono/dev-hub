@@ -25,8 +25,94 @@ export interface MonthlyContribution {
   commits: number;
   activeDays: number | string;
   linesChanged: string;
-  mrsMerged: number | string;
-  reviews: number | string;
+  branches: number | string;
+  mrDevelop: number | string;
+  mrRelease: number | string;
+  mrMaster: number | string;
+  fix: number | string;
+  repeatFix: number | string;
+  points: number | string;
+}
+
+export interface ReleaseFlowView {
+  branches: number;
+  totalPoints: number;
+  pointsPerMonth: number;
+  hasOtherBranch: boolean;
+  stages: {
+    key: string;
+    label: string;
+    created: number;
+    merged: number;
+    carried: number;
+    pointsPerMr: number;
+    points: number;
+  }[];
+  funnel: {
+    master: number;
+    release: number;
+    develop: number;
+    none: number;
+    total: number;
+    masterPct: number;
+    releasePct: number;
+    developPct: number;
+  };
+  monthly: {
+    ym: string;
+    label: string;
+    branches: number;
+    develop: number;
+    release: number;
+    master: number;
+    other: number;
+    points: number;
+  }[];
+  firstMasterMonth: string | null;
+}
+
+export interface RepeatedIssuesView {
+  fixCommitCount: number;
+  repeatedFiles: {
+    file: string;
+    fixCount: number;
+    avgLines: number;
+    rangeDays: number;
+    medianGapDays: number;
+    kind: string;
+  }[];
+  fixOnFix: {
+    count: number;
+    lines: number;
+    examples: { file: string; first: string; second: string; lines: number; gapDays: number }[];
+  };
+  backAndForth: {
+    lines: number;
+    commits: number;
+    files: { file: string; lines: number; commits: number; lastCommit: string }[];
+  };
+}
+
+export interface AreasView {
+  primaryRole: string;
+  roleLabel: string;
+  areas: { key: string; label: string; lines: number; pct: number }[];
+  languages: { language: string; lines: number; commits: number; intensity: string }[];
+}
+
+export interface TalentIdentityView {
+  role: string;
+  roleLabel: string;
+  rank: number;
+  rankTotal: number;
+  roleRank: number;
+  roleTotal: number;
+}
+
+export interface TalentNarrative {
+  movement: string[];
+  strengths: string[];
+  focus: string[];
 }
 
 export interface ProjectContribution {
@@ -92,6 +178,7 @@ export interface FullReportData {
     quality: number;
     collaboration: number;
     consistency: number;
+    releaseFlow: number;
     months: number;
     commitsPerMonth: string;
     selfRework: string;
@@ -121,7 +208,8 @@ export interface FullReportData {
       lines: { title: string; value: string };
       projects: { title: string; value: string; detail: string };
       mergeRequests: { title: string; value: string; detail: string };
-      reviews: { title: string; value: string; detail: string };
+      releasePoints: { title: string; value: string; detail: string };
+      masterReach: { title: string; value: string; detail: string };
       codeSurvival: { title: string; value: string; detail: string };
     };
     componentScores: ComponentScore[];
@@ -129,6 +217,11 @@ export interface FullReportData {
     weeklyCommits: { week: string; count: number }[];
     monthlyContributions: MonthlyContribution[];
     monthlySummary: string;
+    releaseFlow?: ReleaseFlowView;
+    repeatedIssues?: RepeatedIssuesView;
+    areas?: AreasView;
+    identity?: TalentIdentityView;
+    narrative?: TalentNarrative;
     commitHeatmap: {
       days: string[];
       slots: string[];
@@ -182,6 +275,7 @@ export const referenceReportData: FullReportData = {
     quality: 45,
     collaboration: 44,
     consistency: 92,
+    releaseFlow: 100,
     months: 3,
     commitsPerMonth: '146,2',
     selfRework: '21,1%',
@@ -194,19 +288,19 @@ export const referenceReportData: FullReportData = {
     components: [
       {
         name: 'Produktivitas',
-        weight: '30%',
+        weight: '25%',
         calculation:
           'Peringkat relatif dalam tim untuk rata-rata per bulan masa penugasan: commit (non-merge), volume perubahan baris (skala log), MR yang di-merge, serta rasio hari aktif terhadap hari kerja masa penugasan. Talent yang baru bergabung tidak dirugikan oleh total yang lebih kecil.',
       },
       {
         name: 'Kualitas Kode',
-        weight: '35%',
+        weight: '20%',
         calculation:
           '100 dikurangi penalti: self-rework (baris kode sendiri yang diubah lagi dalam 21 hari), kode yang diubah orang lain dalam window yang sama, rasio commit bug-fix atas kode sendiri, dan revert.',
       },
       {
         name: 'Kolaborasi',
-        weight: '20%',
+        weight: '15%',
         calculation:
           'Peringkat relatif untuk MR yang dibuat, komentar review yang diberikan, MR orang lain yang direview/di-merge.',
       },
@@ -215,6 +309,12 @@ export const referenceReportData: FullReportData = {
         weight: '15%',
         calculation:
           'Dihitung dalam masa penugasan masing-masing: 35% hari aktif dibanding hari kerja (target ≥60%), 35% minggu yang memiliki commit, 15% kestabilan jumlah commit antar bulan (bila ≥ 2 bulan penuh), 15% kualitas pesan commit.',
+      },
+      {
+        name: 'Alur Rilis',
+        weight: '25%',
+        calculation:
+          '60% volume poin alur kerja per bulan (target 200 poin) dan 40% jangkauan commit sampai master/production (target 25%). Poin berasal dari MR merged: develop 2, release 3, master 5, branch baru 1. Pekerjaan yang terbawa MR rekan dihitung setengah poin.',
       },
     ],
     assignmentTenure:
@@ -270,10 +370,15 @@ export const referenceReportData: FullReportData = {
         value: '105 / 112',
         detail: 'merged / dibuat · median 0 jam',
       },
-      reviews: {
-        title: 'REVIEW',
-        value: '1',
-        detail: 'komentar di 1 MR orang lain',
+      releasePoints: {
+        title: 'POIN ALUR KERJA',
+        value: '1.564',
+        detail: '146,9 poin/bulan',
+      },
+      masterReach: {
+        title: 'MR KE MASTER',
+        value: '27,9%',
+        detail: 'commit sampai production',
       },
       codeSurvival: {
         title: 'KODE BERTAHAN',
@@ -286,6 +391,7 @@ export const referenceReportData: FullReportData = {
       { name: 'Kualitas Kode', score: 45 },
       { name: 'Kolaborasi', score: 44 },
       { name: 'Konsistensi', score: 92 },
+      { name: 'Alur Rilis', score: 100 },
     ],
     qualityIndicators: [
       {
@@ -347,40 +453,65 @@ export const referenceReportData: FullReportData = {
         commits: 28,
         activeDays: 11,
         linesChanged: '8.687',
-        mrsMerged: 17,
-        reviews: 0,
+        branches: 41,
+        mrDevelop: 35,
+        mrRelease: 35,
+        mrMaster: 3,
+        fix: 0,
+        repeatFix: 0,
+        points: 231,
       },
       {
         month: 'Agustus 2026',
         commits: 208,
         activeDays: 22,
         linesChanged: '117.367',
-        mrsMerged: 49,
-        reviews: 1,
+        branches: 65,
+        mrDevelop: 53,
+        mrRelease: 54,
+        mrMaster: 5,
+        fix: 4,
+        repeatFix: 1,
+        points: 358,
       },
       {
         month: 'September 2026',
         commits: 197,
         activeDays: 26,
         linesChanged: '130.297',
-        mrsMerged: 37,
-        reviews: 0,
+        branches: 51,
+        mrDevelop: 33,
+        mrRelease: 38,
+        mrMaster: 13,
+        fix: 2,
+        repeatFix: 0,
+        points: 296,
       },
       {
         month: 'Oktober 2026 (sebagian)',
         commits: 4,
         activeDays: 1,
         linesChanged: '1.982',
-        mrsMerged: 2,
-        reviews: 0,
+        branches: 68,
+        mrDevelop: 33,
+        mrRelease: 27,
+        mrMaster: 24,
+        fix: 12,
+        repeatFix: 11,
+        points: 335,
       },
       {
         month: 'Rata-rata / bulan',
         commits: 146.2,
         activeDays: '92,3% hari kerja',
         linesChanged: '86.407',
-        mrsMerged: '35,1',
-        reviews: '0,3',
+        branches: 46.1,
+        mrDevelop: '36,4',
+        mrRelease: '42,1',
+        mrMaster: '9,0',
+        fix: '4,5',
+        repeatFix: '1,4',
+        points: '221,3',
       },
     ],
     monthlySummary: 'Minggu dengan commit: 92,9% · Kestabilan bulanan: 62,5%',

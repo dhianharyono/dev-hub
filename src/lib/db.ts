@@ -58,6 +58,8 @@ CREATE TABLE IF NOT EXISTS gl_mrs (
   merged_at   TEXT,
   web_url     TEXT,
   author      TEXT,
+  source_branch TEXT,
+  target_branch TEXT,
   PRIMARY KEY (id, role)
 );
 
@@ -67,7 +69,9 @@ CREATE TABLE IF NOT EXISTS gl_events (
   action       TEXT NOT NULL,
   target_type  TEXT,
   project_id   INTEGER,
-  noteable_type TEXT
+  noteable_type TEXT,
+  ref          TEXT,
+  commit_count INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_events_date ON gl_events(created_at);
 
@@ -86,6 +90,23 @@ CREATE TABLE IF NOT EXISTS gl_commit_diffs (
   files_json TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS gl_commit_files (
+  sha        TEXT NOT NULL,
+  project_id INTEGER NOT NULL,
+  path       TEXT NOT NULL,
+  added      INTEGER NOT NULL DEFAULT 0,
+  deleted    INTEGER NOT NULL DEFAULT 0,
+  added_hashes   TEXT,
+  deleted_hashes TEXT,
+  PRIMARY KEY (sha, path)
+);
+CREATE INDEX IF NOT EXISTS idx_commit_files_path ON gl_commit_files(path);
+
+CREATE TABLE IF NOT EXISTS gl_commit_reach (
+  sha   TEXT NOT NULL,
+  stage TEXT NOT NULL,               -- 'develop' | 'release' | 'master'
+  PRIMARY KEY (sha, stage)
+);
 `;
 
 const globalForDb = globalThis as unknown as { __devhubDb?: DatabaseSync };
@@ -108,6 +129,18 @@ export function db(): DatabaseSync {
     } catch {}
     try {
       d.exec("CREATE INDEX IF NOT EXISTS idx_commits_author ON gl_commits(author_email, author_name);");
+    } catch {}
+    try {
+      d.exec("ALTER TABLE gl_mrs ADD COLUMN source_branch TEXT;");
+    } catch {}
+    try {
+      d.exec("ALTER TABLE gl_mrs ADD COLUMN target_branch TEXT;");
+    } catch {}
+    try {
+      d.exec("ALTER TABLE gl_events ADD COLUMN ref TEXT;");
+    } catch {}
+    try {
+      d.exec("ALTER TABLE gl_events ADD COLUMN commit_count INTEGER;");
     } catch {}
     globalForDb.__devhubDb = d;
   }

@@ -890,6 +890,13 @@ body::before {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+  html,
+  body {
+    width: 190mm !important;
+    max-width: 190mm !important;
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+  }
   body::before,
   .no-print,
   .noPrint {
@@ -897,6 +904,7 @@ body::before {
   }
   .app {
     display: block !important;
+    min-height: 0 !important;
   }
   .main {
     padding: 0 !important;
@@ -908,12 +916,11 @@ body::before {
     border-radius: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
-    width: 100% !important;
-    height: 280mm !important;
-    max-height: 280mm !important;
-    min-height: 280mm !important;
-    page-break-after: always !important;
-    break-after: page !important;
+    width: 190mm !important;
+    max-width: 190mm !important;
+    height: 268mm !important;
+    min-height: 268mm !important;
+    max-height: 268mm !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
     overflow: hidden !important;
@@ -922,9 +929,33 @@ body::before {
     flex-direction: column !important;
     justify-content: space-between !important;
   }
-  .report-sheet:last-child {
-    page-break-after: auto !important;
-    break-after: auto !important;
+  .report-sheet + .report-sheet {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+  .report-root > article.report-sheet:last-of-type {
+    min-height: 268mm !important;
+  }
+  .report-sheet table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+  }
+  .report-sheet > div,
+  .report-sheet section,
+  .report-sheet .overflow-x-auto {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+  .report-sheet th,
+  .report-sheet td {
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
+  .report-root {
+    padding: 0 !important;
+    margin: 0 0 0 -16px !important;
   }
 }
 

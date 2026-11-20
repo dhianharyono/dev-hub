@@ -30,11 +30,18 @@ export function ReportProjectScopePages({
       {/* PAGE 1: Executive Summary & Project Scope Start */}
       <article className='report-sheet bg-white text-slate-900 border border-slate-200 rounded-lg p-[34px_38px_24px] mb-8 shadow-sm flex flex-col justify-between min-h-[1100px] box-border'>
         <div className='flex-1 print:overflow-hidden'>
-          <div className='text-[9.5px] font-extrabold tracking-widest text-slate-500 uppercase mb-1 print:text-[9px] print:mb-0.5'>GITLAB TALENT TRACER</div>
+          <div className='text-[9.5px] font-extrabold tracking-widest text-slate-500 uppercase mb-1 print:text-[9px] print:mb-0.5'>RAPOR TALENT</div>
           <h1 className='text-2xl font-extrabold text-slate-900 tracking-tight mb-1 print:text-[18px] print:mb-0.5'>{meta.title}</h1>
-          <div className='text-xs text-slate-500 mb-3 print:text-[9px] print:mb-2'>
+          <div className='text-xs text-slate-500 mb-1 print:text-[9px]'>
             {meta.periodText} · {meta.createdText} · {meta.totalProjectsCount} proyek
           </div>
+          {data.talentProfile.identity ? (
+            <div className='text-[11px] text-slate-600 mb-3 print:text-[8.5px] print:mb-2'>
+              {data.talentProfile.identity.role} · Peringkat #{data.talentProfile.identity.rank} dari {data.talentProfile.identity.rankTotal} · #{data.talentProfile.identity.roleRank} dari {data.talentProfile.identity.roleTotal} {data.talentProfile.identity.role}
+            </div>
+          ) : (
+            <div className='mb-2' />
+          )}
 
           {/* 4 Summary KPIs */}
           <div className='grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3.5 print:gap-1.5 print:mb-2'>
@@ -71,7 +78,7 @@ export function ReportProjectScopePages({
           <div className='my-4 print:my-2'>
             <div className='text-[10.5px] font-extrabold tracking-widest uppercase text-slate-600 mb-2 print:text-[8.5px] print:mb-1'>SKOR KESELURUHAN</div>
             <div className='flex items-center gap-3.5'>
-              <span className='w-[130px] shrink-0 font-bold text-sm text-slate-900 print:text-[11px] print:w-[110px]'>{overallScore.name}</span>
+              <span className='w-[130px] shrink-0 font-bold text-sm text-slate-900 print:text-[11px] print:w-[90px]'>{overallScore.name}</span>
               <div className='flex-1 flex flex-col gap-1'>
                 <div className='w-full h-[18px] rounded bg-slate-100 border border-slate-300 overflow-hidden print:h-3.5'>
                   {(() => {
@@ -94,7 +101,7 @@ export function ReportProjectScopePages({
                   <span>100</span>
                 </div>
               </div>
-              <span className='font-mono font-extrabold text-sm text-slate-900 min-w-[72px] shrink-0 text-right whitespace-nowrap print:text-xs'>
+              <span className='font-mono font-extrabold text-sm text-slate-900 min-w-[72px] shrink-0 text-right whitespace-nowrap print:text-[10px] print:min-w-0 print:mr-1'>
                 {overallScore.score} · {overallScore.grade}
               </span>
             </div>
@@ -105,19 +112,34 @@ export function ReportProjectScopePages({
             <div className='text-[10.5px] font-extrabold tracking-widest uppercase text-slate-600 mb-2 print:text-[8.5px] print:mb-1'>PERINGKAT</div>
             <div className='overflow-x-auto'>
               <table className='w-full table-fixed border-collapse text-[11px] print:text-[8px]'>
+                <colgroup>
+                  <col style={{ width: '4%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '8%' }} />
+                </colgroup>
                 <thead>
                   <tr className='bg-slate-50 border-b-[1.5px] border-slate-300 text-slate-500 font-extrabold text-[9.5px] tracking-wider uppercase'>
-                    <th className='py-2 px-2 text-left w-7'>#</th>
-                    <th className='py-2 px-2.5 text-left w-36'>NAMA</th>
-                    <th className='py-2 px-2 text-center w-20'>NILAI</th>
-                    <th className='py-2 px-2 text-right font-mono tabular-nums w-14'>SKOR</th>
-                    <th className='py-2 px-2 text-right font-mono tabular-nums w-14'>PROD.</th>
-                    <th className='py-2 px-2 text-right font-mono tabular-nums w-14'>KUAL.</th>
-                    <th className='py-2 px-2 text-right font-mono tabular-nums w-14'>KOLAB.</th>
-                    <th className='py-2 px-2 text-right font-mono tabular-nums w-16'>KONSIST.</th>
-                    <th className='py-2 px-2 text-right font-mono tabular-nums w-14'>BULAN</th>
-                    <th className='py-2 px-2 text-right font-mono tabular-nums w-24'>COMMIT/BLN</th>
-                    <th className='py-2 px-2 text-right font-mono tabular-nums w-24'>SELF-REWORK</th>
+                    <th className='py-2 px-2 text-left'>#</th>
+                    <th className='py-2 px-2.5 text-left'>NAMA</th>
+                    <th className='py-2 px-2 text-center'>NILAI</th>
+                    <th className='py-2 px-2 text-right font-mono tabular-nums'>SKOR</th>
+                    <th className='py-2 px-2 text-right font-mono tabular-nums'>PROD.</th>
+                    <th className='py-2 px-2 text-right font-mono tabular-nums'>KUAL.</th>
+                    <th className='py-2 px-2 text-right font-mono tabular-nums'>KOLAB.</th>
+                    <th className='py-2 px-2 text-right font-mono tabular-nums'>KONSIST.</th>
+                    <th className='py-2 px-2 text-right font-mono tabular-nums'>ALUR</th>
+                    <th className='py-2 px-2 text-right font-mono tabular-nums'>BULAN</th>
+                    <th className='py-2 px-2 text-right font-mono tabular-nums'>COMMIT</th>
+                    <th className='py-2 px-2 text-right font-mono tabular-nums'>REWORK</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -134,6 +156,7 @@ export function ReportProjectScopePages({
                     <td className='py-2 px-2 text-right font-mono tabular-nums'>{rankingTable.quality}</td>
                     <td className='py-2 px-2 text-right font-mono tabular-nums'>{rankingTable.collaboration}</td>
                     <td className='py-2 px-2 text-right font-mono tabular-nums'>{rankingTable.consistency}</td>
+                    <td className='py-2 px-2 text-right font-mono tabular-nums'>{rankingTable.releaseFlow}</td>
                     <td className='py-2 px-2 text-right font-mono tabular-nums'>{rankingTable.months}</td>
                     <td className='py-2 px-2 text-right font-mono tabular-nums'>{rankingTable.commitsPerMonth}</td>
                     <td className='py-2 px-2 text-right font-mono tabular-nums'>{rankingTable.selfRework}</td>
