@@ -2,7 +2,7 @@ import "server-only";
 import { getSettings } from "../settings";
 import { taiga } from "./client";
 import { TaigaError } from "./types";
-import type { CreateItem, TaigaCustomAttribute, UpdateTaskPayload } from "./types";
+import type { CreateItem, CreateItemResult, TaigaCustomAttribute, UpdateTaskPayload } from "./types";
 
 export function formatTaigaDescription(rawDesc?: string | null): string {
   if (!rawDesc) return "";
@@ -41,7 +41,48 @@ export function formatTaigaDescription(rawDesc?: string | null): string {
 }
 
 
-export async function createItem(projectId: number, item: CreateItem) {
+/**
+ * Mencari id epic dari ref-nya. Endpoint by_ref dipakai lebih dulu;
+ * bila tidak tersedia, daftar epic project diambil sebagai cadangan.
+ */
+export async function resolveEpicId(
+  projectId: number,
+  epicRef: number,
+): Promise<number> {
+  try {
+    const epic = await taiga<{ id: number }>(
+      `/epics/by_ref?ref=${epicRef}&project=${projectId}`,
+    );
+    if (epic?.id) return epic.id;
+  } catch {
+    // by_ref tidak ada di sebagian versi Taiga; lanjut ke daftar epic.
+  }
+
+  const epics = await taiga<Array<{ id: number; ref: number }>>(
+    `/epics?project=${projectId}`,
+  ).catch(() => [] as Array<{ id: number; ref: number }>);
+  const epic = epics.find((item) => item.ref === epicRef);
+  if (!epic) {
+    throw new TaigaError(`Epic ref ${epicRef} tidak ditemukan di project ini.`, 404);
+  }
+  return epic.id;
+}
+
+/** Menautkan user story ke epic lewat endpoint related_userstories. */
+export async function linkUserStoryToEpic(
+  userStoryId: number,
+  epicId: number,
+): Promise<void> {
+  await taiga(`/epics/${epicId}/related_userstories`, {
+    method: "POST",
+    body: JSON.stringify({ epic: epicId, user_story: userStoryId }),
+  });
+}
+
+export async function createItem(
+  projectId: number,
+  item: CreateItem,
+): Promise<CreateItemResult> {
   const s = getSettings();
   const slug = item.projectSlug || s.taigaProjectSlug;
   const body: Record<string, unknown> = {
@@ -114,8 +155,20 @@ export async function createItem(projectId: number, item: CreateItem) {
     method: "POST",
     body: JSON.stringify(body),
   });
+
+  let epic: { id: number; ref: number } | null = null;
+  if (item.epicRef) {
+    const epicId = await resolveEpicId(projectId, item.epicRef);
+    await linkUserStoryToEpic(us.id, epicId);
+    epic = { id: epicId, ref: item.epicRef };
+  }
+
   const targetSlug = us.project_extra_info?.slug || slug || "project";
-  return { ...us, url: `${s.taigaBaseUrl}/project/${targetSlug}/us/${us.ref}` };
+  return {
+    ...us,
+    epic,
+    url: `${s.taigaBaseUrl}/project/${targetSlug}/us/${us.ref}`,
+  };
 }
 
 export async function deleteTask(taskId: number): Promise<void> {

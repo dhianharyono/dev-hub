@@ -6,15 +6,13 @@ export type AiFeature =
   | 'smartTask'
   | 'productivity'
   | 'workload'
-  | 'report'
-  | 'release-note';
+  | 'report';
 
 export type AiFeatureModelKey =
   | 'aiModelSmartTask'
   | 'aiModelProductivity'
   | 'aiModelWorkload'
-  | 'aiModelReport'
-  | 'aiModelReleaseNote';
+  | 'aiModelReport';
 
 export interface AiFeatureInfo {
   feature: AiFeature;
@@ -47,14 +45,7 @@ export const AI_FEATURES: AiFeatureInfo[] = [
     settingKey: 'aiModelReport',
     label: 'Report',
     usage: 'Bagian Analisis AI di laporan performa',
-  },
-  {
-    feature: 'release-note',
-    settingKey: 'aiModelReleaseNote',
-    label: 'Release Note',
-    usage: 'Deskripsi perubahan database pada Release Note Generator',
-  },
-];
+  },];
 
 export const DEFAULT_MODEL_BY_PROVIDER: Record<AiProvider, string> = {
   gemini: 'gemini-3.8-flash',

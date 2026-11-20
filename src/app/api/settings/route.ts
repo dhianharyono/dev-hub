@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getPublicSettings, isMasked, saveSettings, type Settings } from "@/lib/settings";
 import { invalidateIntegrationCache } from "@/lib/integrations";
 import { errorResponse } from "@/lib/http";
+import { deploymentFormUrlError } from "@/lib/release-deployment/form";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,10 @@ export async function PUT(req: Request) {
 
     if (patch.gitlabBaseUrl) validateBaseUrl(patch.gitlabBaseUrl, "GitLab Base URL");
     if (patch.taigaBaseUrl) validateBaseUrl(patch.taigaBaseUrl, "Taiga Base URL");
+    if (patch.deploymentFormUrl) {
+      const formUrlError = deploymentFormUrlError(patch.deploymentFormUrl);
+      if (formUrlError) throw new Error(formUrlError);
+    }
 
     // Accept the JSON blob copied from the browser console or bookmarklet after SSO login
     if (body.taigaSession) {

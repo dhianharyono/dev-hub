@@ -9,6 +9,7 @@ import AssignedTasksBoard from './AssignedTasksBoard';
 import { SmartTaskDraftsSection } from './smart-task/SmartTaskDraftsSection';
 import { SmartTaskInputArea } from './smart-task/SmartTaskInputArea';
 import { SmartTaskSkeleton } from './smart-task/SmartTaskSkeleton';
+import { SmartTaskTodayCoveragePill } from './smart-task/SmartTaskTodayCoverage';
 import { useSmartTask } from './smart-task/useSmartTask';
 
 export default function SmartTask() {
@@ -54,13 +55,9 @@ export default function SmartTask() {
             taskState.source === 'gemini' && (
               <span className='badge badge-violet'>Gemini AI</span>
             )}
-          {isTaigaConnected &&
-            mainTab === 'my_tasks' &&
-            taskState.assignedTasks.length > 0 && (
-              <span className='badge badge-cyan'>
-                {taskState.assignedTasks.length} Task Ditugaskan
-              </span>
-            )}
+          {isTaigaConnected && mainTab === 'my_tasks' && (
+            <SmartTaskTodayCoveragePill />
+          )}
         </div>
       </header>
 

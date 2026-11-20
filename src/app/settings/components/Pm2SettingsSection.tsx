@@ -69,18 +69,13 @@ export function Pm2SettingsSection({
           title={isMinimized ? 'Klik untuk memperluas' : 'Klik untuk meminimalkan'}
         >
           <span className='w-6.5 h-6.5 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-xs font-extrabold text-slate-muted group-hover:border-brand/40 group-hover:text-brand shrink-0 mt-0.5 transition-colors'>
-            4
+            5
           </span>
           <div className='flex-1 min-w-0'>
             <div className='flex items-center gap-2 flex-wrap'>
               <span className='text-[15px] font-bold text-slate-text tracking-tight group-hover:text-brand transition-colors'>
                 Background Process Service (PM2)
               </span>
-              {isMinimized && (
-                <span className='inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200'>
-                  Diminimalkan
-                </span>
-              )}
             </div>
             <div className='xs dim mt-0.5'>
               Kontrol proses server DEV HUB di layar belakang agar tetap aktif

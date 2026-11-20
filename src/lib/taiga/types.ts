@@ -100,6 +100,23 @@ export interface CreateItem {
   activityDate?: string;
   startTime?: string;
   totalTimeSpentMinutes?: number;
+  /** Ref epic tujuan; user story otomatis ditautkan ke epic setelah dibuat. */
+  epicRef?: number | null;
+}
+
+export interface TaigaEpicRef {
+  id: number;
+  ref: number;
+  subject?: string;
+}
+
+export interface CreateItemResult {
+  id: number;
+  ref: number;
+  subject: string;
+  project_extra_info?: { slug: string };
+  url: string;
+  epic?: { id: number; ref: number } | null;
 }
 
 export interface UpdateTaskPayload {

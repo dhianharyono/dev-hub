@@ -16,4 +16,4 @@ export {
 
 export { taiga } from "./taiga/client";
 export { getMeta } from "./taiga/meta";
-export { createItem, updateTask, deleteTask } from "./taiga/mutations";
+export { createItem, updateTask, deleteTask, resolveEpicId, linkUserStoryToEpic } from "./taiga/mutations";
