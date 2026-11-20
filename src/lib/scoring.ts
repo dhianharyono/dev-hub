@@ -278,23 +278,8 @@ export interface ScoreAction {
   points: number;
 }
 
-export interface RelativeInfo {
-  applied: boolean;
-  talents: number;
-  peers: number;
-  meLimited: boolean;
-  reason: string | null;
-}
-
-export interface TalentRanks {
-  overall: string | null;
-  perRole: string | null;
-}
-
 export interface Scorecard {
   scores: Record<ComponentKey, number | null>;
-  /** Nilai komponen sebelum dibulatkan; dipakai peringkat persentil tim. */
-  rawScores: Record<ComponentKey, number | null>;
   overall: number;
   grade: Grade;
   gradeLabel: string;
@@ -312,8 +297,6 @@ export interface Scorecard {
   repeatedFixFiles: RepeatedFixFile[];
   hotspots: HotspotFile[];
   actions: ScoreAction[];
-  relativeInfo: RelativeInfo;
-  ranks: TalentRanks;
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -608,7 +591,7 @@ function shortPath(path: string): string {
   return path.replace(/^src\//, "");
 }
 
-export function buildActions(
+function buildActions(
   components: ScoreComponent[],
   evidence: ScoreEvidence,
   repeatedFiles: RepeatedFixFile[],
@@ -1203,7 +1186,6 @@ export function computeScorecard(input: ScoreInput): Scorecard {
 
   return {
     scores,
-    rawScores,
     overall,
     grade: gradeInfo.grade,
     gradeLabel: gradeInfo.label,
@@ -1235,98 +1217,5 @@ export function computeScorecard(input: ScoreInput): Scorecard {
     repeatedFixFiles: diffReady ? rework.repeatedFixFiles.slice(0, 10) : [],
     hotspots: diffReady ? rework.hotspots.slice(0, 8) : [],
     actions: buildActions(components, evidence, rework.repeatedFixFiles, rework.hotspots, skillDetail),
-    relativeInfo: {
-      applied: false,
-      talents: 0,
-      peers: 0,
-      meLimited: false,
-      reason: null,
-    },
-    ranks: { overall: null, perRole: null },
-  };
-}
-
-/**
- * Ganti tiga komponen dengan nilai persentil tim (bila tersedia), lalu hitung
- * ulang bobot efektif, skor akhir, grade, potensi, dan prioritas aksi. Komponen
- * lain (Kualitas, Konsistensi, Skill) tetap absolut.
- */
-export function applyRelativeScores(
-  card: Scorecard,
-  overrides: Partial<Record<ComponentKey, number>>,
-  info: RelativeInfo,
-  rankOverall: string | null,
-): Scorecard {
-  const rawScores: Record<ComponentKey, number | null> = { ...card.rawScores };
-  for (const key of COMPONENT_KEYS) {
-    const value = overrides[key];
-    if (value !== undefined && value !== null) rawScores[key] = value;
-  }
-
-  const availableKeys = COMPONENT_KEYS.filter((key) => rawScores[key] !== null);
-  const availableWeight = availableKeys.reduce((sum, key) => sum + COMPONENT_WEIGHTS[key], 0);
-
-  const scores = {} as Record<ComponentKey, number | null>;
-  const effectiveWeights = {} as Record<ComponentKey, number>;
-  for (const key of COMPONENT_KEYS) {
-    const value = rawScores[key];
-    scores[key] = value === null ? null : Math.round(value);
-    effectiveWeights[key] =
-      value === null || availableWeight === 0
-        ? 0
-        : round1((COMPONENT_WEIGHTS[key] / availableWeight) * 100);
-  }
-
-  const overall =
-    availableWeight === 0
-      ? 0
-      : Math.round(
-          availableKeys.reduce(
-            (sum, key) => sum + (scores[key] as number) * (effectiveWeights[key] / 100),
-            0,
-          ),
-        );
-  const gradeInfo = gradeOfScore(overall);
-
-  const components: ScoreComponent[] = COMPONENT_KEYS.map((key) => {
-    const score = scores[key];
-    const weight = effectiveWeights[key];
-    return {
-      key,
-      label: COMPONENT_LABELS[key],
-      weight: COMPONENT_WEIGHTS[key],
-      effectiveWeight: weight,
-      score,
-      grade: score === null ? null : gradeOfScore(score).grade,
-      available: score !== null,
-      potentialToTarget:
-        score === null ? 0 : round1(Math.max(0, TARGET_SCORE - score) * (weight / 100)),
-      potentialToMax: score === null ? 0 : round1((100 - score) * (weight / 100)),
-    };
-  });
-
-  return {
-    ...card,
-    scores,
-    rawScores,
-    overall,
-    grade: gradeInfo.grade,
-    gradeLabel: gradeInfo.label,
-    effectiveWeights,
-    components,
-    potential: {
-      target: TARGET_SCORE,
-      toTarget: round1(components.reduce((sum, c) => sum + c.potentialToTarget, 0)),
-      toMax: round1(components.reduce((sum, c) => sum + c.potentialToMax, 0)),
-    },
-    actions: buildActions(
-      components,
-      card.evidence,
-      card.repeatedFixFiles,
-      card.hotspots,
-      card.skill,
-    ),
-    relativeInfo: info,
-    ranks: { overall: rankOverall, perRole: null },
   };
 }

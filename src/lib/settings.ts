@@ -15,9 +15,6 @@ export interface Settings {
   gitlabUsername: string;
   identityEmails: string; // comma separated
   identityNames: string; // comma separated
-  talentAliases: string; // JSON {"Nama Kanonik": ["email/nama/username", ...]}
-  teamRoster: string; // comma/newline separated nama talent pembanding
-  gitlabGroups: string; // comma/newline separated group GitLab
   excludePatterns: string; // comma separated globs
   geminiApiKey: string;
   geminiModel: string;
@@ -46,9 +43,6 @@ export const DEFAULT_SETTINGS: Settings = {
   gitlabUsername: '',
   identityEmails: '',
   identityNames: '',
-  talentAliases: '',
-  teamRoster: '',
-  gitlabGroups: 'telkom-digital/smb',
   excludePatterns:
     '*.lock, package-lock.json, yarn.lock, pnpm-lock.yaml, go.sum, composer.lock, *.min.js, *.min.css, *.map, dist/*, build/*, vendor/*, node_modules/*, *.snap, *.svg, *.pb.go, *_generated.*, *.generated.*',
   geminiApiKey: '',
@@ -189,12 +183,5 @@ export function isMasked(v: unknown) {
 export const splitList = (v: string) =>
   v
     .split(',')
-    .map((x) => x.trim())
-    .filter(Boolean);
-
-/** Pisahkan daftar yang boleh memakai koma atau baris baru. */
-export const splitMulti = (v: string) =>
-  v
-    .split(/[\n,]+/)
     .map((x) => x.trim())
     .filter(Boolean);

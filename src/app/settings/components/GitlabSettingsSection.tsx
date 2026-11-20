@@ -228,49 +228,6 @@ export function GitlabSettingsSection({
           </div>
         </div>
 
-        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-          <div className='field'>
-            <label>Roster Talent Pembanding</label>
-            <textarea
-              className='input min-h-[92px] font-mono text-xs'
-              value={form.teamRoster || ''}
-              placeholder={'Naufal Herwandi\nDika Brenda Angkasa\nYogi Prasetya'}
-              onChange={(e) => onChange('teamRoster', e.target.value)}
-            />
-            <span className='hint'>
-              Nama talent pool untuk skor relatif. Pisahkan dengan koma atau
-              baris baru. Kosong = semua komponen memakai skor absolut.
-            </span>
-          </div>
-          <div className='field'>
-            <label>Alias Talent (JSON)</label>
-            <textarea
-              className='input min-h-[92px] font-mono text-xs'
-              value={form.talentAliases || ''}
-              placeholder={'{\n  "Naufal Herwandi": ["naufalherwandi", "naufal@telkom.co.id"]\n}'}
-              onChange={(e) => onChange('talentAliases', e.target.value)}
-            />
-            <span className='hint'>
-              Variasi email, nama git, atau username per nama kanonik di roster.
-              Huruf besar/kecil dan spasi diabaikan.
-            </span>
-          </div>
-        </div>
-
-        <div className='field'>
-          <label>Group GitLab yang Disinkron</label>
-          <input
-            className='input font-mono text-xs'
-            value={form.gitlabGroups || ''}
-            placeholder='telkom-digital/smb'
-            onChange={(e) => onChange('gitlabGroups', e.target.value)}
-          />
-          <span className='hint'>
-            Proyek dari group ini (termasuk subgroup) ikut disinkron agar data
-            talent pembanding tersedia. Pisahkan dengan koma.
-          </span>
-        </div>
-
         <div className='field'>
           <label>Pola File yang Diabaikan (Exclude)</label>
           <input
