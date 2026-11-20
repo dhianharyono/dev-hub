@@ -109,6 +109,17 @@ CREATE TABLE IF NOT EXISTS gl_commit_reach (
   PRIMARY KEY (sha, stage)
 );
 
+CREATE TABLE IF NOT EXISTS gl_commit_reviews (
+  sha         TEXT PRIMARY KEY,
+  status      TEXT NOT NULL,          -- 'reviewed' | 'failed' | 'skipped'
+  score       INTEGER,
+  summary     TEXT,
+  notes_json  TEXT,
+  model       TEXT,
+  error       TEXT,
+  reviewed_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_commit_reviews_status ON gl_commit_reviews(status);
 `;
 
 const globalForDb = globalThis as unknown as { __devhubDb?: DatabaseSync };
@@ -122,6 +133,9 @@ export function db(): DatabaseSync {
     d.exec(SCHEMA);
     try {
       d.exec("CREATE TABLE IF NOT EXISTS gl_commit_diffs (sha TEXT PRIMARY KEY, files_json TEXT NOT NULL);");
+    } catch {}
+    try {
+      d.exec("ALTER TABLE gl_commit_diffs ADD COLUMN added_json TEXT;");
     } catch {}
     try {
       d.exec("ALTER TABLE gl_commit_files ADD COLUMN issues_json TEXT;");

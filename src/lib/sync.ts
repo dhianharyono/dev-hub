@@ -4,6 +4,8 @@ import { db } from "./db";
 import { getSettings, saveSettings, splitList } from "./settings";
 import { countDiff, gl, glAll, globToRegex, isExcluded, pool } from "./gitlab";
 import { scanAddedLines, serializeIssues } from "./code-issues";
+import { REVIEW_MAX_PER_CYCLE } from "./commit-review";
+import { runReviewBatch } from "./review-runner";
 
 export interface SyncStatus {
   running: boolean;
@@ -410,6 +412,19 @@ async function runSync(days: number, full: boolean) {
   d.prepare("INSERT INTO settings(key,value) VALUES('glUser',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(
     JSON.stringify({ id: me.id, username: me.username, name: me.name }),
   );
+
+  // 5. Review kode AI (kuota aman: hanya commit baru yang belum pernah dinilai).
+  st.phase = "Review kode";
+  try {
+    const review = await runReviewBatch({ limit: REVIEW_MAX_PER_CYCLE, days: 365 });
+    log(
+      review.configured
+        ? `Review kode: ${review.reviewed} dari ${review.total} commit`
+        : "Review kode: API key Gemini belum diatur",
+    );
+  } catch (e) {
+    log(`⚠️ Review kode dilewati: ${(e as Error).message}`);
+  }
 
   st.summary = { projects: projects.length, commits: commitCount, mrs: authored.length + reviewing.length, events: events.length, pipelines: pipeCount, projectErrors };
   log("✅ Sinkronisasi selesai");
