@@ -3,12 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  GitBranch,
   GitPullRequest,
   ShieldCheck,
   MessageSquareCode,
   Settings,
-  RefreshCw,
   AlertCircle,
 } from 'lucide-react';
 import { useSync, useMetrics, useIntegrations } from '@/components/hooks';
@@ -25,12 +23,11 @@ import {
   type GitlabActiveView,
 } from './productivity/GitlabHeaderTabs';
 import { GitlabSyncPanel } from './productivity/GitlabSyncPanel';
-import { GitlabSkeletonGrid } from './productivity/GitlabSkeletonGrid';
 import { ProductivityDashboard } from './productivity/ProductivityDashboard';
 
 export default function GitlabDashboard() {
   const { isMonitoring } = useAppMode();
-  const [days, setDays] = useState(90);
+  const [days, setDays] = useState(0);
   const [activeView, setActiveView] = useState<GitlabActiveView>(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -41,7 +38,7 @@ export default function GitlabDashboard() {
     }
     return 'productivity';
   });
-  const { data, loading, error, reload } = useMetrics(days);
+  const { data, error, reload } = useMetrics(days);
   const {
     integrations,
     loading: loadingIntegrations,
@@ -56,7 +53,6 @@ export default function GitlabDashboard() {
   const { restoreTarget, minimizeAllRunning } = useAiTask();
 
   const isGitlabConnected = Boolean(integrations?.gitlab?.connected);
-  const gitlabError = integrations?.gitlab?.error;
   const { notify } = useNotification();
 
   // Reset to initial tab ('productivity') when navigating to Productivity Monitor menu
@@ -92,12 +88,6 @@ export default function GitlabDashboard() {
       notify.error(error, 'GitLab Productivity');
     }
   }, [error, isGitlabConnected, notify]);
-
-  const empty =
-    data &&
-    data.kpis.commits === 0 &&
-    data.kpis.mrsCreated === 0 &&
-    !data.lastSync;
 
   return (
     <>
@@ -194,71 +184,7 @@ export default function GitlabDashboard() {
           <IncomingReviewsCard />
         ))}
 
-      {activeView === 'productivity' && (
-        <>
-          {(loadingIntegrations || (loading && !data)) && (
-            <GitlabSkeletonGrid />
-          )}
-
-          {!loadingIntegrations && !isGitlabConnected && (
-            <EmptyState
-              tone='rose'
-              icon={<GitBranch size={26} strokeWidth={2.2} />}
-              title='Layanan GitLab Tidak Terhubung'
-              description={
-                gitlabError
-                  ? `${gitlabError}. Hubungkan Personal Access Token (PAT) GitLab di menu Pengaturan untuk melacak produktivitas, sinkronisasi commit, merge request, dan evaluasi kualitas rekayasa kode.`
-                  : 'Hubungkan Personal Access Token (PAT) GitLab di menu Pengaturan untuk melacak produktivitas, sinkronisasi commit, merge request, dan evaluasi kualitas rekayasa kode.'
-              }
-              action={
-                <div className='flex items-center gap-2.5 flex-wrap'>
-                  <Link
-                    href='/settings'
-                    className='btn btn-primary no-underline'
-                    id='btn-gl-settings'
-                  >
-                    <Settings size={15} />
-                    <span>Konfigurasi GitLab di Pengaturan</span>
-                  </Link>
-                  <button
-                    type='button'
-                    className='btn btn-ghost border border-border gap-1.5'
-                    onClick={() => refreshIntegrations(true)}
-                  >
-                    <RefreshCw size={14} />
-                    <span>Periksa Ulang Status</span>
-                  </button>
-                </div>
-              }
-            />
-          )}
-
-          {!loadingIntegrations && isGitlabConnected && empty && (
-            <EmptyState
-              tone='blue'
-              icon={<GitBranch size={26} strokeWidth={2.2} />}
-              title='Belum Ada Data Sinkronisasi GitLab'
-              description='Layanan GitLab telah terhubung, namun data commit dan merge request untuk rentang waktu ini belum pernah disinkronkan ke database lokal.'
-              action={
-                <button
-                  type='button'
-                  className='btn btn-primary'
-                  onClick={() => start(days > 180 ? days : 180)}
-                  disabled={status?.running}
-                >
-                  {status?.running
-                    ? 'Sedang Sinkron...'
-                    : 'Mulai Sinkronkan Sekarang'}
-                </button>
-              }
-            />
-          )}
-
-          {!loadingIntegrations && isGitlabConnected && data && !empty && (
-            <ProductivityDashboard data={data} />
-          )}
-        </>
-      )}
+      {activeView === 'productivity' && <ProductivityDashboard days={days} />}
     </>
   );
 }
