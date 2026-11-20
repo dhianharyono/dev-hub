@@ -20,7 +20,7 @@ export function GitlabSyncPanel({ status }: GitlabSyncPanelProps) {
       if (lastFinished.current !== key) {
         lastFinished.current = key;
         notify.success(
-          `${status.summary.projects} proyek disinkronkan (${fmt(status.summary.commits)} commit, ${status.summary.mrs} MR)`,
+          `${status.summary.projects} proyek disinkronkan (${fmt(status.summary.commits)} commit, ${status.summary.mrs} MR, ${status.summary.talents} talent terdeteksi)`,
           'Sinkronisasi GitLab Selesai',
         );
       }

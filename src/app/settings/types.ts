@@ -14,6 +14,9 @@ export interface PublicSettings {
   gitlabUsername: string;
   identityEmails: string;
   identityNames: string;
+  talentAliases: string;
+  teamRoster: string;
+  gitlabGroups: string;
   excludePatterns: string;
   geminiApiKey: string;
   geminiApiKeySet: boolean;

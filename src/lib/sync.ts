@@ -1,7 +1,8 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { db } from "./db";
-import { getSettings, saveSettings, splitList } from "./settings";
+import { getSettings, saveSettings, splitList, splitMulti } from "./settings";
+import { buildTalentIndex, resolveTalent } from "./relative";
 import { countDiff, gl, glAll, globToRegex, isExcluded, pool } from "./gitlab";
 import { scanAddedLines, serializeIssues } from "./code-issues";
 import { REVIEW_MAX_PER_CYCLE } from "./commit-review";
@@ -16,11 +17,27 @@ export interface SyncStatus {
   finishedAt?: string;
   error?: string;
   log: string[];
-  summary?: { projects: number; commits: number; mrs: number; events: number; pipelines: number; projectErrors: number };
+  summary?: { projects: number; commits: number; mrs: number; events: number; pipelines: number; projectErrors: number; talents: number };
 }
 
 const g = globalThis as unknown as { __syncStatus?: SyncStatus };
 export const syncStatus = (): SyncStatus => (g.__syncStatus ??= { running: false, phase: "idle", done: 0, total: 0, log: [] });
+
+/** Talent roster yang punya minimal satu commit tersinkron (alias digabung). */
+export function countDetectedTalents(): number {
+  const s = getSettings();
+  const index = buildTalentIndex(s.teamRoster, s.talentAliases);
+  if (index.roster.length === 0) return 0;
+  const rows = db()
+    .prepare("SELECT DISTINCT author_name, author_email FROM gl_commits WHERE is_merge = 0")
+    .all() as { author_name: string; author_email: string }[];
+  const names = new Set<string>();
+  for (const row of rows) {
+    const name = resolveTalent(index, row.author_name, row.author_email);
+    if (name) names.add(name);
+  }
+  return names.size;
+}
 
 function log(msg: string) {
   const st = syncStatus();
@@ -222,7 +239,7 @@ async function runRetroScan(days: number) {
     }
   });
 
-  st.summary = { projects: 0, commits: scanned, mrs: 0, events: 0, pipelines: 0, projectErrors: failed };
+  st.summary = { projects: 0, commits: scanned, mrs: 0, events: 0, pipelines: 0, projectErrors: failed, talents: countDetectedTalents() };
   log(`✅ Pindai selesai: ${scanned} commit, ${failed} gagal (tetap netral)`);
 }
 
@@ -272,10 +289,29 @@ async function runSync(days: number, full: boolean) {
       /* no access - skip silently */
     }
   }
+  // 2b. Group yang diatur di Settings: proyeknya ikut disinkron agar data
+  // talent pembanding tersedia untuk skor relatif tim.
+  const groups = splitMulti(s.gitlabGroups);
+  let groupProjectCount = 0;
+  for (const group of groups) {
+    try {
+      const list = await glAll<GLProject>(
+        `/groups/${encodeURIComponent(group)}/projects?include_subgroups=true&simple=true&archived=false`,
+        100,
+      );
+      groupProjectCount += list.length;
+      for (const p of list) if (!projMap.has(p.id)) projMap.set(p.id, p);
+    } catch (e) {
+      log(`⚠️ Grup ${group} dilewati: ${(e as Error).message}`);
+    }
+  }
+
   const projects = [...projMap.values()];
   const insProj = d.prepare("INSERT OR REPLACE INTO gl_projects(id, path, web_url, last_error) VALUES (?,?,?,?)");
   for (const p of projects) insProj.run(p.id, p.path_with_namespace, p.web_url, null);
-  log(`${projects.length} proyek relevan (member: ${memberProjects.length}, dari event: ${eventProjectIds.length})`);
+  log(
+    `${projects.length} proyek relevan (member: ${memberProjects.length}, dari event: ${eventProjectIds.length}, grup: ${groupProjectCount})`,
+  );
 
   // 3. Commits + pipelines per project
   st.phase = "Commit & pipeline";
@@ -426,6 +462,6 @@ async function runSync(days: number, full: boolean) {
     log(`⚠️ Review kode dilewati: ${(e as Error).message}`);
   }
 
-  st.summary = { projects: projects.length, commits: commitCount, mrs: authored.length + reviewing.length, events: events.length, pipelines: pipeCount, projectErrors };
+  st.summary = { projects: projects.length, commits: commitCount, mrs: authored.length + reviewing.length, events: events.length, pipelines: pipeCount, projectErrors, talents: countDetectedTalents() };
   log("✅ Sinkronisasi selesai");
 }

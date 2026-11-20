@@ -1,3 +1,4 @@
+import { Users } from 'lucide-react';
 import type { Scorecard } from '@/lib/scoring';
 
 interface ScoreHeaderCardProps {
@@ -87,6 +88,11 @@ export function ScoreHeaderCard({ card, userName }: ScoreHeaderCardProps) {
             <span className='badge'>
               {card.period.ytd ? 'YTD' : `${card.period.days} hari`}
             </span>
+            {card.ranks.overall && (
+              <span className='badge badge-cyan'>
+                Peringkat {card.ranks.overall}
+              </span>
+            )}
           </div>
 
           <p className='text-[12.5px] text-slate-muted mt-1.5 leading-relaxed'>
@@ -121,6 +127,17 @@ export function ScoreHeaderCard({ card, userName }: ScoreHeaderCardProps) {
           </div>
         </div>
       </div>
+
+      {(card.relativeInfo.applied || card.relativeInfo.reason) && (
+        <p className='mt-4 flex items-start gap-2 rounded-lg border border-border bg-surface-subtle px-3 py-2 text-[11.5px] text-slate-muted'>
+          <Users className='h-3.5 w-3.5 mt-0.5 shrink-0' aria-hidden />
+          <span>
+            {card.relativeInfo.applied
+              ? `Produktivitas, Kolaborasi & Alur Rilis dinormalisasi relatif terhadap ${card.relativeInfo.talents} talent tim.`
+              : card.relativeInfo.reason}
+          </span>
+        </p>
+      )}
     </section>
   );
 }

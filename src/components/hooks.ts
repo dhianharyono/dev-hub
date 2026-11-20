@@ -18,7 +18,7 @@ export interface SyncStatus {
   finishedAt?: string;
   error?: string;
   log: string[];
-  summary?: { projects: number; commits: number; mrs: number; events: number; pipelines: number; projectErrors: number };
+  summary?: { projects: number; commits: number; mrs: number; events: number; pipelines: number; projectErrors: number; talents: number };
 }
 
 export function useMetrics(days: number) {

@@ -13,12 +13,22 @@ import { computeMetrics, localDay, type CommitRow, type EventRow, type MrRow, ty
 import {
   computeScorecard,
   analyzeRework,
+  applyRelativeScores,
   type ScoreCommit,
   type ScoreEvent,
   type ScoreFile,
   type ScoreReview,
 } from "./scoring";
-import type { FlowMr, ReachRow } from "./talent-report";
+import { computeReleaseFlow, type FlowCommit, type FlowMr, type ReachRow } from "./talent-report";
+import {
+  buildTalentIndex,
+  computeRelativeScores,
+  isLimitedTalent,
+  resolveTalent,
+  talentCollaboration,
+  talentProductivity,
+  type TalentRelativeMetric,
+} from "./relative";
 
 export function loadMetrics(days: number, endDate = new Date()) {
   const end = endDate;
@@ -119,6 +129,219 @@ export function loadMetrics(days: number, endDate = new Date()) {
 }
 
 export type LoadedMetrics = ReturnType<typeof loadMetrics>;
+
+const DAY_MS_TEAM = 864e5;
+const MONTH_MS_TEAM = 30.44 * DAY_MS_TEAM;
+
+function weekdayCount(start: Date, end: Date): number {
+  let count = 0;
+  const cursor = new Date(`${localDay(start)}T12:00:00Z`);
+  const last = new Date(`${localDay(end)}T12:00:00Z`);
+  while (cursor.getTime() <= last.getTime()) {
+    const dow = cursor.getUTCDay();
+    if (dow !== 0 && dow !== 6) count += 1;
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return Math.max(1, count);
+}
+
+interface TeamCommitRow {
+  sha: string;
+  project_id: number;
+  authored_at: string;
+  author_name: string;
+  author_email: string;
+  is_fix: number;
+  adj_additions: number;
+  adj_deletions: number;
+}
+
+interface TeamMrRow {
+  project_id: number;
+  role: string;
+  author: string | null;
+  created_at: string;
+  merged_at: string | null;
+  source_branch: string | null;
+  target_branch: string | null;
+}
+
+/**
+ * Agregasi datum bulanan seluruh roster dari tabel yang sudah tersinkron.
+ * Identitas digabung lewat alias; MR diatribusikan ke penulisnya, sedangkan
+ * aksi review (baris role='reviewer' + event) hanya milik pengguna aktif karena
+ * tabel belum menyimpan reviewer per orang lain.
+ */
+export function loadTeamTalents(
+  start: Date,
+  end: Date,
+  events: ScoreEvent[],
+  user: { username: string; name: string } | null,
+) {
+  const d = db();
+  const s = getSettings();
+  const index = buildTalentIndex(s.teamRoster, s.talentAliases);
+  const months = Math.max(1, (end.getTime() - start.getTime()) / MONTH_MS_TEAM);
+  const workdays = weekdayCount(start, end);
+  const meName =
+    resolveTalent(index, user?.username, splitList(s.identityEmails)[0] ?? null) ??
+    resolveTalent(index, user?.name, null) ??
+    resolveTalent(index, splitList(s.identityNames)[0] ?? null, null);
+
+  if (index.roster.length === 0) {
+    return { meName, rosterSize: 0, months, talents: [] as TalentRelativeMetric[] };
+  }
+
+  const startIso = start.toISOString();
+  const endIso = end.toISOString();
+  const commits = d
+    .prepare(
+      `SELECT sha, project_id, authored_at, author_name, author_email, is_fix, adj_additions, adj_deletions
+       FROM gl_commits
+       WHERE is_merge = 0 AND authored_at BETWEEN ? AND ?`,
+    )
+    .all(startIso, endIso) as unknown as TeamCommitRow[];
+  const mrs = d
+    .prepare(
+      `SELECT project_id, role, author, created_at, merged_at, source_branch, target_branch
+       FROM gl_mrs
+       WHERE (created_at BETWEEN ? AND ?) OR (merged_at BETWEEN ? AND ?)`,
+    )
+    .all(startIso, endIso, startIso, endIso) as unknown as TeamMrRow[];
+  const reachRows = d
+    .prepare(
+      `SELECT r.sha, r.stage FROM gl_commit_reach r JOIN gl_commits c ON c.sha = r.sha
+       WHERE c.is_merge = 0 AND c.authored_at BETWEEN ? AND ?`,
+    )
+    .all(startIso, endIso) as unknown as ReachRow[];
+
+  type Bucket = {
+    commits: TeamCommitRow[];
+    mrs: TeamMrRow[];
+    reviews: number;
+  };
+  const buckets = new Map<string, Bucket>();
+  const bucketOf = (name: string): Bucket => {
+    let bucket = buckets.get(name);
+    if (!bucket) {
+      bucket = { commits: [], mrs: [], reviews: 0 };
+      buckets.set(name, bucket);
+    }
+    return bucket;
+  };
+
+  const commitTalent = new Map<string, string>();
+  for (const commit of commits) {
+    const name = resolveTalent(index, commit.author_name, commit.author_email);
+    if (!name) continue;
+    commitTalent.set(commit.sha, name);
+    bucketOf(name).commits.push(commit);
+  }
+
+  const reviewActions = events.filter(
+    (event) =>
+      (event.action.startsWith("commented") && event.noteable_type === "MergeRequest") ||
+      event.action === "approved",
+  ).length;
+  const reviewerRows = mrs.filter((mr) => mr.role === "reviewer").length;
+  if (meName) {
+    bucketOf(meName).reviews = reviewActions + reviewerRows;
+  }
+
+  for (const mr of mrs) {
+    if (!mr.author) continue;
+    const name = resolveTalent(index, mr.author, null);
+    if (!name) continue;
+    bucketOf(name).mrs.push(mr);
+  }
+
+  const reachesByTalent = new Map<string, ReachRow[]>();
+  for (const row of reachRows) {
+    const name = commitTalent.get(row.sha);
+    if (!name) continue;
+    const list = reachesByTalent.get(name) ?? [];
+    list.push(row);
+    reachesByTalent.set(name, list);
+  }
+
+  const flowEvents = events.map((event) => ({
+    created_at: event.created_at,
+    action: event.action,
+    project_id: event.project_id,
+    ref: event.ref,
+  }));
+
+  const talents: TalentRelativeMetric[] = [];
+  for (const [name, bucket] of buckets.entries()) {
+    const authored = bucket.mrs;
+    const created = authored.filter((mr) => {
+      const t = new Date(mr.created_at).getTime();
+      return t >= start.getTime() && t <= end.getTime();
+    });
+    const merged = authored.filter((mr) => {
+      if (!mr.merged_at) return false;
+      const t = new Date(mr.merged_at).getTime();
+      return t >= start.getTime() && t <= end.getTime();
+    });
+    const activeDays = new Set(
+      bucket.commits.filter((commit) => {
+        const dow = new Date(`${localDay(commit.authored_at)}T12:00:00Z`).getUTCDay();
+        return dow !== 0 && dow !== 6;
+      }).map((commit) => localDay(commit.authored_at)),
+    ).size;
+    const lines = bucket.commits.reduce(
+      (sum, commit) => sum + commit.adj_additions + commit.adj_deletions,
+      0,
+    );
+
+    const flowCommits: FlowCommit[] = bucket.commits.map((commit) => ({
+      sha: commit.sha,
+      project_id: commit.project_id,
+      authored_at: commit.authored_at,
+      is_fix: commit.is_fix,
+      adj_additions: commit.adj_additions,
+      adj_deletions: commit.adj_deletions,
+    }));
+    const flowMrs: FlowMr[] = authored.map((mr) => ({
+      project_id: mr.project_id,
+      role: "author",
+      created_at: mr.created_at,
+      merged_at: mr.merged_at,
+      source_branch: mr.source_branch,
+      target_branch: mr.target_branch,
+    }));
+    const flow = computeReleaseFlow({
+      commits: flowCommits,
+      mrs: flowMrs,
+      events: name === meName ? flowEvents : [],
+      reaches: reachesByTalent.get(name) ?? [],
+      start,
+      end,
+    });
+
+    const datum = {
+      name,
+      commits: bucket.commits.length,
+      lines,
+      mrsCreated: created.length,
+      mrsMerged: merged.length,
+      activeDays,
+      reviews: bucket.reviews,
+      reviewKnown: name === meName,
+      releaseScore: flow.score,
+    };
+
+    talents.push({
+      name,
+      limited: isLimitedTalent({ commits: datum.commits, lines: datum.lines, months }),
+      productivity: talentProductivity(datum, months, workdays),
+      collaboration: talentCollaboration(datum, months),
+      releaseFlow: datum.releaseScore,
+    });
+  }
+
+  return { meName, rosterSize: index.roster.length, months, talents };
+}
 
 /**
  * Skor 6 komponen untuk periode aktif, sudah difilter ke identitas pengguna.
@@ -249,10 +472,27 @@ export function loadScorecard(days: number, endDate = new Date()) {
     };
   });
 
-  return {
-    ...computeScorecard({ start, end, commits, mrs, events, files, reaches, reviews }),
-    user,
+  const base = computeScorecard({ start, end, commits, mrs, events, files, reaches, reviews });
+  const team = loadTeamTalents(start, end, events, user);
+  const relative = computeRelativeScores(
+    team.meName ?? "",
+    team.talents,
+    team.rosterSize,
+    team.months,
+  );
+  const relativeInfo = {
+    applied: relative.applied && !relative.meLimited,
+    talents: team.talents.length,
+    peers: relative.peers,
+    meLimited: relative.meLimited,
+    reason: relative.reason,
   };
+
+  const card = relativeInfo.applied
+    ? applyRelativeScores(base, relative.overrides, relativeInfo, relative.rankOverall)
+    : { ...base, relativeInfo, ranks: { overall: relative.rankOverall, perRole: null } };
+
+  return { ...card, user };
 }
 
 export type LoadedScorecard = ReturnType<typeof loadScorecard>;
