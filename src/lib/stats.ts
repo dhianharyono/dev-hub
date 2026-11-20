@@ -1,10 +1,32 @@
 import "server-only";
 import { db } from "./db";
+import { getSettings, splitList } from "./settings";
+import { collectIssueLocations, type IssueKey } from "./code-issues";
+import {
+  buildHotspotDetail,
+  buildLanguageDetail,
+  buildRecurringDetail,
+  type RecurringKey,
+} from "./card-detail";
+
 import { computeMetrics, localDay, type CommitRow, type EventRow, type MrRow, type PipelineRow } from "./metrics";
+import {
+  computeScorecard,
+  analyzeRework,
+  type ScoreCommit,
+  type ScoreEvent,
+  type ScoreFile,
+  type ScoreReview,
+} from "./scoring";
+import type { FlowMr, ReachRow } from "./talent-report";
 
 export function loadMetrics(days: number, endDate = new Date()) {
   const end = endDate;
-  const start = new Date(end.getTime() - days * 864e5);
+  // days = 0 berarti YTD: 1 Januari tahun berjalan (Asia/Jakarta) sampai hari ini.
+  const start =
+    days > 0
+      ? new Date(end.getTime() - days * 864e5)
+      : new Date(`${localDay(end).slice(0, 4)}-01-01T00:00:00+07:00`);
   const s = start.toISOString();
   const d = db();
   const commits = d
@@ -97,3 +119,315 @@ export function loadMetrics(days: number, endDate = new Date()) {
 }
 
 export type LoadedMetrics = ReturnType<typeof loadMetrics>;
+
+/**
+ * Skor 6 komponen untuk periode aktif, sudah difilter ke identitas pengguna.
+ * Query berat (commit files + hash) hanya dijalankan saat tab skor dibuka.
+ */
+export function loadScorecard(days: number, endDate = new Date()) {
+  const end = endDate;
+  const start =
+    days > 0
+      ? new Date(end.getTime() - days * 864e5)
+      : new Date(`${localDay(end).slice(0, 4)}-01-01T00:00:00+07:00`);
+  const startIso = start.toISOString();
+  const endIso = end.toISOString();
+
+  const d = db();
+  const s = getSettings();
+  const userRow = d.prepare("SELECT value FROM settings WHERE key = 'glUser'").get() as
+    | { value: string }
+    | undefined;
+  const user = userRow?.value
+    ? (JSON.parse(userRow.value) as { id: number; username: string; name: string })
+    : null;
+
+  const emails = new Set(
+    splitList(s.identityEmails)
+      .map((value) => value.toLowerCase())
+      .filter(Boolean),
+  );
+  const names = new Set(
+    [...splitList(s.identityNames), user?.username ?? "", user?.name ?? ""]
+      .map((value) => value.toLowerCase())
+      .filter(Boolean),
+  );
+
+  const identityClauses: string[] = [];
+  const identityParams: string[] = [];
+  if (emails.size) {
+    identityClauses.push(`lower(c.author_email) IN (${[...emails].map(() => "?").join(",")})`);
+    identityParams.push(...emails);
+  }
+  if (names.size) {
+    identityClauses.push(`lower(c.author_name) IN (${[...names].map(() => "?").join(",")})`);
+    identityParams.push(...names);
+  }
+  const identity = identityClauses.length ? `(${identityClauses.join(" OR ")})` : "0";
+
+  const mrIdentityClauses: string[] = [];
+  const mrIdentityParams: string[] = [];
+  if (names.size) {
+    mrIdentityClauses.push(`lower(m.author) IN (${[...names].map(() => "?").join(",")})`);
+    mrIdentityParams.push(...names);
+  }
+  const mrIdentity = mrIdentityClauses.length ? `(${mrIdentityClauses.join(" OR ")})` : "0";
+
+  const commits = d
+    .prepare(
+      `SELECT c.sha, c.project_id, c.authored_at, c.title, c.is_fix, c.adj_additions, c.adj_deletions
+       FROM gl_commits c
+       WHERE c.is_merge = 0 AND c.authored_at BETWEEN ? AND ? AND ${identity}
+       ORDER BY c.authored_at`,
+    )
+    .all(startIso, endIso, ...identityParams) as unknown as ScoreCommit[];
+
+  const mrs = d
+    .prepare(
+      `SELECT m.project_id, m.role, m.created_at, m.merged_at, m.source_branch, m.target_branch
+       FROM gl_mrs m
+       WHERE m.role = 'author' AND ${mrIdentity}
+         AND (m.created_at BETWEEN ? AND ? OR m.merged_at BETWEEN ? AND ?)`,
+    )
+    .all(...mrIdentityParams, startIso, endIso, startIso, endIso) as unknown as FlowMr[];
+
+  const events = d
+    .prepare(
+      `SELECT created_at, action, project_id, ref, noteable_type
+       FROM gl_events WHERE created_at BETWEEN ? AND ?`,
+    )
+    .all(startIso, endIso) as unknown as ScoreEvent[];
+
+  const files = d
+    .prepare(
+      `SELECT f.sha, f.project_id, f.path, f.added, f.deleted, f.added_hashes, f.deleted_hashes, f.issues_json
+       FROM gl_commit_files f JOIN gl_commits c ON c.sha = f.sha
+       WHERE c.is_merge = 0 AND c.authored_at BETWEEN ? AND ? AND ${identity}`,
+    )
+    .all(startIso, endIso, ...identityParams) as unknown as ScoreFile[];
+
+  const reaches = d
+    .prepare(
+      `SELECT r.sha, r.stage FROM gl_commit_reach r JOIN gl_commits c ON c.sha = r.sha
+       WHERE c.is_merge = 0 AND c.authored_at BETWEEN ? AND ? AND ${identity}`,
+    )
+    .all(startIso, endIso, ...identityParams) as unknown as ReachRow[];
+
+  const reviewRows = d
+    .prepare(
+      `SELECT r.sha, c.title, c.authored_at, r.score, r.summary, r.notes_json
+       FROM gl_commit_reviews r JOIN gl_commits c ON c.sha = r.sha
+       WHERE r.status = 'reviewed' AND r.score IS NOT NULL
+         AND c.is_merge = 0 AND datetime(c.authored_at) BETWEEN datetime(?) AND datetime(?) AND ${identity}`,
+    )
+    .all(startIso, endIso, ...identityParams) as unknown as {
+    sha: string;
+    title: string;
+    authored_at: string;
+    score: number;
+    summary: string | null;
+    notes_json: string | null;
+  }[];
+
+  const reviews: ScoreReview[] = reviewRows.map((row) => {
+    let notes: string[] = [];
+    try {
+      const parsed = row.notes_json ? (JSON.parse(row.notes_json) as unknown) : [];
+      if (Array.isArray(parsed)) {
+        notes = parsed.filter((note): note is string => typeof note === "string");
+      }
+    } catch {
+      notes = [];
+    }
+    return {
+      sha: row.sha,
+      title: row.title,
+      authored_at: row.authored_at,
+      score: row.score,
+      summary: row.summary ?? "",
+      notes,
+    };
+  });
+
+  return {
+    ...computeScorecard({ start, end, commits, mrs, events, files, reaches, reviews }),
+    user,
+  };
+}
+
+export type LoadedScorecard = ReturnType<typeof loadScorecard>;
+
+/** Periode + filter identitas yang sama dengan scorecard, untuk loader detail. */
+function detailContext(days: number, endDate = new Date()) {
+  const end = endDate;
+  const start =
+    days > 0
+      ? new Date(end.getTime() - days * 864e5)
+      : new Date(`${localDay(end).slice(0, 4)}-01-01T00:00:00+07:00`);
+
+  const d = db();
+  const s = getSettings();
+  const userRow = d.prepare("SELECT value FROM settings WHERE key = 'glUser'").get() as
+    | { value: string }
+    | undefined;
+  const user = userRow?.value
+    ? (JSON.parse(userRow.value) as { id: number; username: string; name: string })
+    : null;
+
+  const emails = new Set(
+    splitList(s.identityEmails)
+      .map((value) => value.toLowerCase())
+      .filter(Boolean),
+  );
+  const names = new Set(
+    [...splitList(s.identityNames), user?.username ?? "", user?.name ?? ""]
+      .map((value) => value.toLowerCase())
+      .filter(Boolean),
+  );
+
+  const clauses: string[] = [];
+  const params: string[] = [];
+  if (emails.size) {
+    clauses.push(`lower(c.author_email) IN (${[...emails].map(() => "?").join(",")})`);
+    params.push(...emails);
+  }
+  if (names.size) {
+    clauses.push(`lower(c.author_name) IN (${[...names].map(() => "?").join(",")})`);
+    params.push(...names);
+  }
+
+  return {
+    d,
+    startIso: start.toISOString(),
+    endIso: end.toISOString(),
+    identity: clauses.length ? `(${clauses.join(" OR ")})` : "0",
+    params,
+  };
+}
+
+/** Temuan statis satu bahasa + lokasi file terparah untuk popup kartu bahasa. */
+export function loadLanguageDetail(language: string, days: number, endDate = new Date()) {
+  const { d, startIso, endIso, identity, params } = detailContext(days, endDate);
+  const rows = d
+    .prepare(
+      `SELECT f.sha, f.path, c.authored_at AS authoredAt, f.issues_json AS issuesJson
+       FROM gl_commit_files f JOIN gl_commits c ON c.sha = f.sha
+       WHERE c.is_merge = 0 AND c.authored_at BETWEEN ? AND ? AND ${identity}
+       ORDER BY c.authored_at DESC`,
+    )
+    .all(startIso, endIso, ...params) as unknown as {
+    sha: string;
+    path: string;
+    authoredAt: string;
+    issuesJson: string | null;
+  }[];
+  return buildLanguageDetail(language, rows);
+}
+
+/** File + contoh commit untuk satu isu berulang. */
+export function loadRecurringDetail(
+  key: RecurringKey,
+  days: number,
+  endDate = new Date(),
+) {
+  const { d, startIso, endIso, identity, params } = detailContext(days, endDate);
+  const commits = d
+    .prepare(
+      `SELECT c.sha, c.project_id, c.authored_at, c.title, c.is_fix, c.adj_additions, c.adj_deletions
+       FROM gl_commits c
+       WHERE c.is_merge = 0 AND c.authored_at BETWEEN ? AND ? AND ${identity}
+       ORDER BY c.authored_at`,
+    )
+    .all(startIso, endIso, ...params) as unknown as ScoreCommit[];
+
+  const files = d
+    .prepare(
+      `SELECT f.sha, f.project_id, f.path, f.added, f.deleted, f.added_hashes, f.deleted_hashes, f.issues_json
+       FROM gl_commit_files f JOIN gl_commits c ON c.sha = f.sha
+       WHERE c.is_merge = 0 AND c.authored_at BETWEEN ? AND ? AND ${identity}`,
+    )
+    .all(startIso, endIso, ...params) as unknown as ScoreFile[];
+
+  return buildRecurringDetail(key, analyzeRework(files, commits), commits);
+}
+
+/** Contoh commit yang menyentuh satu file hotspot. */
+export function loadHotspotDetail(path: string, days: number, endDate = new Date()) {
+  const { d, startIso, endIso, identity, params } = detailContext(days, endDate);
+  const rows = d
+    .prepare(
+      `SELECT c.sha, c.title, c.authored_at, c.is_fix
+       FROM gl_commit_files f JOIN gl_commits c ON c.sha = f.sha
+       WHERE f.path = ? AND c.is_merge = 0 AND c.authored_at BETWEEN ? AND ? AND ${identity}
+       ORDER BY c.authored_at DESC`,
+    )
+    .all(path, startIso, endIso, ...params) as unknown as {
+    sha: string;
+    title: string;
+    authored_at: string;
+    is_fix: number;
+  }[];
+  return buildHotspotDetail(path, rows);
+}
+
+/**
+ * Lokasi temuan satu kategori isu untuk periode yang sama dengan scorecard.
+ * File lama tanpa `loc` dilewati; UI menampilkan catatan "menunggu pemindaian ulang".
+ */
+export function loadIssueLocations(key: IssueKey, days: number, endDate = new Date()) {
+  const end = endDate;
+  const start =
+    days > 0
+      ? new Date(end.getTime() - days * 864e5)
+      : new Date(`${localDay(end).slice(0, 4)}-01-01T00:00:00+07:00`);
+
+  const d = db();
+  const s = getSettings();
+  const userRow = d.prepare("SELECT value FROM settings WHERE key = 'glUser'").get() as
+    | { value: string }
+    | undefined;
+  const user = userRow?.value
+    ? (JSON.parse(userRow.value) as { id: number; username: string; name: string })
+    : null;
+
+  const emails = new Set(
+    splitList(s.identityEmails)
+      .map((value) => value.toLowerCase())
+      .filter(Boolean),
+  );
+  const names = new Set(
+    [...splitList(s.identityNames), user?.username ?? "", user?.name ?? ""]
+      .map((value) => value.toLowerCase())
+      .filter(Boolean),
+  );
+
+  const identityClauses: string[] = [];
+  const identityParams: string[] = [];
+  if (emails.size) {
+    identityClauses.push(`lower(c.author_email) IN (${[...emails].map(() => "?").join(",")})`);
+    identityParams.push(...emails);
+  }
+  if (names.size) {
+    identityClauses.push(`lower(c.author_name) IN (${[...names].map(() => "?").join(",")})`);
+    identityParams.push(...names);
+  }
+  const identity = identityClauses.length ? `(${identityClauses.join(" OR ")})` : "0";
+
+  const rows = d
+    .prepare(
+      `SELECT f.sha, f.project_id AS projectId, f.path, c.authored_at AS authoredAt, f.issues_json AS issuesJson
+       FROM gl_commit_files f JOIN gl_commits c ON c.sha = f.sha
+       WHERE c.is_merge = 0 AND c.authored_at BETWEEN ? AND ? AND ${identity}
+       ORDER BY c.authored_at DESC`,
+    )
+    .all(start.toISOString(), end.toISOString(), ...identityParams) as unknown as {
+    sha: string;
+    projectId: number;
+    path: string;
+    authoredAt: string;
+    issuesJson: string | null;
+  }[];
+
+  const locations = collectIssueLocations(key, rows, 50);
+  return { key, locations };
+}

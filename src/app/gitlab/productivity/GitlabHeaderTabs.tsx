@@ -29,6 +29,7 @@ const RANGES = [
   [30, '30 hari'],
   [90, '90 hari'],
   [180, '6 bulan'],
+  [0, 'YTD'],
 ] as const;
 
 export function GitlabHeaderTabs({
