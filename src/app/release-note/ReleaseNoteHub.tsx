@@ -1,19 +1,27 @@
 'use client';
 
 import { useState } from 'react';
-import { FilePlus2, ListChecks } from 'lucide-react';
+import { ClipboardList, FilePlus2, ListChecks } from 'lucide-react';
+import { ReleaseDeploymentTab } from './components/ReleaseDeploymentTab';
 import { ReleaseNoteList } from './components/ReleaseNoteList';
 import { ReleaseNoteWorkspace } from './ReleaseNoteWorkspace';
 
-type ReleaseNoteTab = 'list' | 'create';
+type ReleaseNoteTab = 'list' | 'create' | 'deploy';
 
 const TABS: { key: ReleaseNoteTab; label: string; icon: typeof ListChecks }[] = [
   { key: 'list', label: 'Daftar Release Note', icon: ListChecks },
   { key: 'create', label: 'Buat Release Note', icon: FilePlus2 },
+  { key: 'deploy', label: 'Buat Form Deployment', icon: ClipboardList },
 ];
 
 export function ReleaseNoteHub() {
   const [tab, setTab] = useState<ReleaseNoteTab>('list');
+  const [deployOpened, setDeployOpened] = useState(false);
+
+  function selectTab(next: ReleaseNoteTab) {
+    if (next === 'deploy') setDeployOpened(true);
+    setTab(next);
+  }
 
   return (
     <>
@@ -22,8 +30,9 @@ export function ReleaseNoteHub() {
           <div className='eyebrow'>Taiga · Deployment</div>
           <h1>Release Note</h1>
           <p>
-            Lihat release note dari epic Staging dan Production di Taiga, atau
-            susun user story dan task deployment baru.
+            Lihat release note dari epic Staging dan Production di Taiga, susun
+            user story dan task deployment baru, atau buat form deployment dari
+            release note yang sudah ada.
           </p>
         </div>
       </header>
@@ -40,7 +49,7 @@ export function ReleaseNoteHub() {
             role='tab'
             id={`tab-release-note-${key}`}
             aria-selected={tab === key}
-            onClick={() => setTab(key)}
+            onClick={() => selectTab(key)}
             className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-[13px] transition-all whitespace-nowrap cursor-pointer ${
               tab === key
                 ? 'bg-brand text-white shadow-sm border border-brand font-bold'
@@ -59,6 +68,11 @@ export function ReleaseNoteHub() {
       <div hidden={tab !== 'create'}>
         <ReleaseNoteWorkspace />
       </div>
+      {deployOpened && (
+        <div hidden={tab !== 'deploy'}>
+          <ReleaseDeploymentTab />
+        </div>
+      )}
     </>
   );
 }

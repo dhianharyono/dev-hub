@@ -12,6 +12,15 @@ import { ReleaseNoteDetailModal } from './ReleaseNoteDetailModal';
 
 const PAGE_SIZE = 15;
 
+interface ReleaseNoteListProps {
+  title?: string;
+  hint?: string;
+  /** Label tombol aksi di tiap baris; default 'Lihat'. */
+  actionLabel?: string;
+  /** Bila diisi, tombol aksi memanggil ini alih-alih membuka detail. */
+  onAction?: (note: ReleaseNoteSummary) => void;
+}
+
 async function fetchNotes(): Promise<ReleaseNoteListData> {
   const response = await fetch('/api/release-note/list');
   const payload = await response.json();
@@ -31,7 +40,12 @@ function matches(note: ReleaseNoteSummary, query: string): boolean {
   );
 }
 
-export function ReleaseNoteList() {
+export function ReleaseNoteList({
+  title = 'Release note yang sudah dibuat',
+  hint,
+  actionLabel = 'Lihat',
+  onAction,
+}: ReleaseNoteListProps = {}) {
   const [data, setData] = useState<ReleaseNoteListData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -101,15 +115,16 @@ export function ReleaseNoteList() {
     <section className='card animate-fade-up'>
       <div className='row wrap items-start justify-between gap-3 mb-4'>
         <div>
-          <h2 className='card-title mb-1'>Release note yang sudah dibuat</h2>
+          <h2 className='card-title mb-1'>{title}</h2>
           <p className='muted text-[13px]'>
-            {data?.needsLogin
-              ? 'Epic Staging dan Production di Taiga.'
-              : data
-                ? `${notes.length} tiket untuk ${data.assignee?.name ?? 'akun Taiga aktif'} · ${data.epics
-                    .map((epic) => `${epic.source} ${epic.count}`)
-                    .join(' · ')}`
-                : 'Diambil dari epic Staging dan Production di Taiga.'}
+            {hint ??
+              (data?.needsLogin
+                ? 'Epic Staging dan Production di Taiga.'
+                : data
+                  ? `${notes.length} tiket untuk ${data.assignee?.name ?? 'akun Taiga aktif'} · ${data.epics
+                      .map((epic) => `${epic.source} ${epic.count}`)
+                      .join(' · ')}`
+                  : 'Diambil dari epic Staging dan Production di Taiga.')}
           </p>
         </div>
         <button
@@ -214,7 +229,7 @@ export function ReleaseNoteList() {
                     <th>Judul</th>
                     <th className='w-28'>Sumber</th>
                     <th className='w-32'>Status</th>
-                    <th className='w-24 text-right'>Aksi</th>
+                    <th className='w-28 text-right'>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -242,10 +257,14 @@ export function ReleaseNoteList() {
                           className='btn btn-ghost btn-sm'
                           onClick={(event) => {
                             event.stopPropagation();
-                            setSelectedRef(note.ref);
+                            if (onAction) {
+                              onAction(note);
+                            } else {
+                              setSelectedRef(note.ref);
+                            }
                           }}
                         >
-                          Lihat
+                          {onAction ? actionLabel : 'Lihat'}
                         </button>
                       </td>
                     </tr>
