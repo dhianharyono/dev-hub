@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { db } from "./db";
 import { getSettings, saveSettings, splitList } from "./settings";
 import { countDiff, gl, glAll, globToRegex, isExcluded, pool } from "./gitlab";
@@ -45,7 +46,7 @@ interface GLEvent {
   target_type: string | null;
   project_id: number | null;
   note?: { noteable_type?: string };
-  push_data?: unknown;
+  push_data?: { ref?: string; commit_count?: number };
 }
 interface GLMR {
   id: number;
@@ -57,6 +58,8 @@ interface GLMR {
   merged_at: string | null;
   web_url: string;
   author: { username: string };
+  source_branch: string;
+  target_branch: string;
 }
 interface GLPipeline {
   id: number;
@@ -67,7 +70,19 @@ interface GLPipeline {
 }
 
 const FIX_RE = /\b(fix(e[sd])?|hotfix|bugfix|revert|perbaik\w*|patch)\b/i;
-const DIFF_THRESHOLD = 300;
+
+/** Normalized hashes of changed lines, used to detect code that is deleted then restored. */
+function lineHashes(diff: string, prefix: "+" | "-"): string[] {
+  const out: string[] = [];
+  for (const line of diff.split("\n")) {
+    if (!line.startsWith(prefix) || line.startsWith(prefix.repeat(3))) continue;
+    const text = line.slice(1).trim().replace(/\s+/g, " ");
+    if (text.length < 6) continue;
+    out.push(createHash("sha1").update(text).digest("hex").slice(0, 16));
+    if (out.length >= 500) break;
+  }
+  return out;
+}
 
 export function startSync(days = 180, full = false) {
   const st = syncStatus();
@@ -110,9 +125,10 @@ async function runSync(days: number, full: boolean) {
   st.phase = "Aktivitas (events)";
   const events = await glAll<GLEvent>(`/users/${me.id}/events?after=${since.slice(0, 10)}&sort=asc`, 100);
   const insEvent = d.prepare(
-    "INSERT OR REPLACE INTO gl_events(id, created_at, action, target_type, project_id, noteable_type) VALUES (?,?,?,?,?,?)",
+    "INSERT OR REPLACE INTO gl_events(id, created_at, action, target_type, project_id, noteable_type, ref, commit_count) VALUES (?,?,?,?,?,?,?,?)",
   );
-  for (const e of events) insEvent.run(e.id, e.created_at, e.action_name, e.target_type, e.project_id, e.note?.noteable_type ?? null);
+  for (const e of events)
+    insEvent.run(e.id, e.created_at, e.action_name, e.target_type, e.project_id, e.note?.noteable_type ?? null, e.push_data?.ref ?? null, e.push_data?.commit_count ?? null);
   log(`${events.length} event`);
 
   // 2. Projects - only ones I'm a member of with activity + ones from my events (avoids 403 spam)
@@ -145,22 +161,48 @@ async function runSync(days: number, full: boolean) {
      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
   );
   const insPipe = d.prepare("INSERT OR REPLACE INTO gl_pipelines(id, project_id, status, ref, created_at, web_url) VALUES (?,?,?,?,?,?)");
+  const insFile = d.prepare(
+    "INSERT OR REPLACE INTO gl_commit_files(sha, project_id, path, added, deleted, added_hashes, deleted_hashes) VALUES (?,?,?,?,?,?,?)",
+  );
+  const insReach = d.prepare("INSERT OR REPLACE INTO gl_commit_reach(sha, stage) VALUES (?,?)");
+  const DELAYED_STAGES: { stage: string; refs: string[] }[] = [
+    { stage: "develop", refs: ["develop", "development", "dev"] },
+    { stage: "release", refs: ["release", "staging", "stage", "preprod"] },
+    { stage: "master", refs: ["master", "main", "production", "prod"] },
+  ];
   const setErr = d.prepare("UPDATE gl_projects SET last_error=? WHERE id=?");
   let commitCount = 0,
     pipeCount = 0,
     projectErrors = 0;
-  const authorQueries = [...new Set([...splitList(s.identityEmails), me.username, me.name])];
+  // GitLab ignores `page` when `all=true` is used, so commits are fetched per
+  // branch the talent pushed to. Events only cover branches pushed in the window.
+  const pushRefs = new Map<number, Set<string>>();
+  for (const e of events) {
+    const ref = e.push_data?.ref;
+    if (!e.project_id || !ref) continue;
+    if (e.action_name !== "pushed new" && e.action_name !== "pushed to") continue;
+    const set = pushRefs.get(e.project_id) ?? new Set<string>();
+    set.add(ref);
+    pushRefs.set(e.project_id, set);
+  }
+  const shaHasFiles = d.prepare("SELECT 1 FROM gl_commit_files WHERE sha = ? LIMIT 1");
 
   await pool(projects, 4, async (p) => {
     try {
       const seen = new Map<string, GLCommit>();
-      for (const a of authorQueries) {
-        const list = await glAll<GLCommit>(
-          `/projects/${p.id}/repository/commits?since=${since}&all=true&with_stats=true&author=${encodeURIComponent(a)}`,
-          30,
-        );
-        for (const c of list) seen.set(c.id, c);
+      const queries = [`/projects/${p.id}/repository/commits?since=${since}&with_stats=true`];
+      for (const ref of pushRefs.get(p.id) ?? []) {
+        queries.push(`/projects/${p.id}/repository/commits?since=${since}&with_stats=true&ref_name=${encodeURIComponent(ref)}`);
       }
+      for (const query of queries) {
+        try {
+          const list = await glAll<GLCommit>(query, 30);
+          for (const c of list) seen.set(c.id, c);
+        } catch {
+          /* branch was deleted or is not readable */
+        }
+      }
+      log(`${p.path_with_namespace}: ${seen.size} commit terlihat`);
       for (const c of seen.values()) {
         const mine = emails.includes(c.author_email.toLowerCase()) || names.includes(c.author_name.toLowerCase());
         if (!mine) continue;
@@ -169,16 +211,19 @@ async function runSync(days: number, full: boolean) {
         const del = c.stats?.deletions ?? 0;
         let adjAdd = add,
           adjDel = del;
-        if (!isMerge && add + del > DIFF_THRESHOLD) {
+        if (!isMerge && !shaHasFiles.get(c.id)) {
           try {
-            const diffs = await glAll<{ new_path: string; diff: string }>(`/projects/${p.id}/repository/commits/${c.id}/diff?`, 5);
+            const diffs = await glAll<{ new_path: string; path?: string; diff: string }>(`/projects/${p.id}/repository/commits/${c.id}/diff?`, 5);
             adjAdd = 0;
             adjDel = 0;
             for (const f of diffs) {
-              if (isExcluded(f.new_path, excludes)) continue;
+              const filePath = f.new_path || f.path || "";
+              if (!filePath) continue;
               const cnt = countDiff(f.diff);
+              if (isExcluded(filePath, excludes)) continue;
               adjAdd += cnt.add;
               adjDel += cnt.del;
+              insFile.run(c.id, p.id, filePath, cnt.add, cnt.del, JSON.stringify(lineHashes(f.diff, "+")), JSON.stringify(lineHashes(f.diff, "-")));
             }
             const diffFiles = diffs.map((df) => df.new_path).filter(Boolean);
             if (diffFiles.length > 0) {
@@ -197,6 +242,18 @@ async function runSync(days: number, full: boolean) {
         insCommit.run(c.id, p.id, c.authored_date, c.title, c.author_name, c.author_email, add, del, adjAdd, adjDel, isMerge ? 1 : 0, FIX_RE.test(c.title) ? 1 : 0, c.web_url);
         commitCount++;
       }
+      const myShas = new Set(seen.keys());
+      for (const { stage, refs } of DELAYED_STAGES) {
+        for (const ref of refs) {
+          try {
+            const list = await glAll<{ id: string }>(`/projects/${p.id}/repository/commits?ref_name=${encodeURIComponent(ref)}&since=${since}`, 20);
+            for (const c of list) if (myShas.has(c.id)) insReach.run(c.id, stage);
+            break;
+          } catch {
+            /* branch not present in this project */
+          }
+        }
+      }
       const pipes = await glAll<GLPipeline>(`/projects/${p.id}/pipelines?username=${encodeURIComponent(me.username)}&updated_after=${since}`, 10);
       for (const pl of pipes) insPipe.run(pl.id, p.id, pl.status, pl.ref, pl.created_at, pl.web_url);
       pipeCount += pipes.length;
@@ -213,13 +270,15 @@ async function runSync(days: number, full: boolean) {
   // 4. Merge requests (authored + reviewing)
   st.phase = "Merge request";
   const insMr = d.prepare(
-    `INSERT OR REPLACE INTO gl_mrs(id, role, iid, project_id, title, state, created_at, merged_at, web_url, author) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+    `INSERT OR REPLACE INTO gl_mrs(id, role, iid, project_id, title, state, created_at, merged_at, web_url, author, source_branch, target_branch) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
   );
   const authored = await glAll<GLMR>(`/merge_requests?scope=all&state=all&author_id=${me.id}&updated_after=${since}`, 30);
   const reviewing = await glAll<GLMR>(`/merge_requests?scope=all&state=all&reviewer_id=${me.id}&updated_after=${since}`, 30);
-  for (const m of authored) insMr.run(m.id, "author", m.iid, m.project_id, m.title, m.state, m.created_at, m.merged_at, m.web_url, m.author.username);
+  for (const m of authored)
+    insMr.run(m.id, "author", m.iid, m.project_id, m.title, m.state, m.created_at, m.merged_at, m.web_url, m.author.username, m.source_branch, m.target_branch);
   for (const m of reviewing)
-    if (m.author.username !== me.username) insMr.run(m.id, "reviewer", m.iid, m.project_id, m.title, m.state, m.created_at, m.merged_at, m.web_url, m.author.username);
+    if (m.author.username !== me.username)
+      insMr.run(m.id, "reviewer", m.iid, m.project_id, m.title, m.state, m.created_at, m.merged_at, m.web_url, m.author.username, m.source_branch, m.target_branch);
   log(`${authored.length} MR dibuat, ${reviewing.length} MR direview`);
 
   saveSettings({});
