@@ -8,8 +8,8 @@ interface ReportScoreTableProps {
 export function ReportScoreTable({ data, userName }: ReportScoreTableProps) {
   return (
     <>
-      <div className='text-[10.5px] font-extrabold tracking-widest uppercase text-slate-600 mb-2 print:text-[8.5px] print:mb-1'>PERINGKAT &amp; DETAIL SKOR</div>
-      <table className='w-full border-collapse text-[11px] print:text-[8px] [&_th]:text-left [&_th]:text-[9.5px] [&_th]:font-extrabold [&_th]:tracking-wider [&_th]:uppercase [&_th]:text-slate-500 [&_th]:py-3 [&_th]:px-3.5 [&_th]:border-b-[1.5px] [&_th]:border-slate-300 [&_th]:bg-slate-50 print:[&_th]:p-1 print:[&_th]:text-[8px] [&_td]:py-3.5 [&_td]:px-3.5 [&_td]:border-b [&_td]:border-slate-200 [&_td]:text-slate-900 print:[&_td]:p-1 print:[&_td]:text-[8px]'>
+      <div className='text-[13.7px] font-extrabold tracking-widest uppercase text-slate-600 mb-2 print:text-[10.6px] print:mb-1'>PERINGKAT &amp; DETAIL SKOR</div>
+      <table className='w-full border-collapse text-[14.3px] print:text-[10.0px] [&_th]:text-left [&_th]:text-[9.5px] [&_th]:font-extrabold [&_th]:tracking-wider [&_th]:uppercase [&_th]:text-slate-500 [&_th]:py-3 [&_th]:px-3.5 [&_th]:border-b-[1.5px] [&_th]:border-slate-300 [&_th]:bg-slate-50 print:[&_th]:p-1 print:[&_th]:text-[8px] [&_td]:py-3.5 [&_td]:px-3.5 [&_td]:border-b [&_td]:border-slate-200 [&_td]:text-slate-900 print:[&_td]:p-1 print:[&_td]:text-[8px]'>
         <thead>
           <tr>
             <th className='w-[30px]'>#</th>

@@ -145,6 +145,8 @@ export function GitlabHeaderTabs({
               className={`btn ${!connected ? 'disabled' : ''}`}
               id='btn-report'
               aria-disabled={!connected}
+              target='_blank'
+              rel='noopener'
               style={
                 !connected ? { opacity: 0.6, pointerEvents: 'none' } : undefined
               }

@@ -206,6 +206,9 @@ export default function Sidebar() {
     };
   }, []);
 
+  // Halaman laporan PDF berdiri sendiri, tanpa sidebar
+  if (path.startsWith('/report')) return null;
+
   return (
     <>
       {/* 1. Mobile Top Bar with Hamburger Trigger (Visible on mobile/tablet < 1024px) */}

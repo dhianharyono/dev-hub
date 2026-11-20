@@ -1,33 +1,33 @@
 import 'server-only';
 import { db } from './db';
 import { getSettings } from './settings';
-import { loadMetrics } from './stats';
-import { gradeOf } from './metrics';
+import { loadMetrics, loadScorecard } from './stats';
 import { runAiCompletion, extractJsonFromAiResponse } from './ai/client';
 import { resolveAiModel } from './ai/models';
 import {
   computeAreas,
-  computeOverallScore,
   computeReleaseFlow,
-  computeRepeatedIssues,
   monthKey,
   monthLabel,
   monthsBetween,
-  type CommitFileRow,
+  stageOfTarget,
+  STAGE_POINTS,
   type FlowCommit,
   type FlowEvent,
   type FlowMr,
-  type LineHashRow,
   type ReachRow,
 } from './talent-report';
+import { analyzeRework, isFixLikeCommit, type ScoreFile } from './scoring';
 import {
   referenceReportData,
   type FullReportData,
-  type ProjectScopeItem,
   type MonthlyContribution,
-  type ProjectContribution,
-  type FileTypeContribution,
   type ReworkExample,
+  type WorkAreaRow,
+  type FileExtRow,
+  type HotspotRow,
+  type CommitCheckRow,
+  type QualityIndicator,
 } from '@/app/report/reportData';
 
 export interface ReportAiAnalysisCache {
@@ -70,14 +70,14 @@ const WEEKDAY_FMT = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jakarta',
 const HOUR_FMT = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', hourCycle: 'h23' });
 const WEEKDAYS = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 const DAY_INDEX: Record<string, number> = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
-const HEATMAP_SLOTS = ['00', '03', '06', '09', '12', '15', '18', '21'];
+const HEATMAP_SLOTS = Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0'));
 
 function buildHeatmap(authoredAt: string[]) {
   const matrix = Array.from({ length: 7 }, () => new Array(HEATMAP_SLOTS.length).fill(0) as number[]);
   for (const iso of authoredAt) {
     const day = DAY_INDEX[WEEKDAY_FMT.format(new Date(iso))] ?? 0;
     const hour = parseInt(HOUR_FMT.format(new Date(iso)), 10);
-    const slot = Math.min(HEATMAP_SLOTS.length - 1, Math.floor(hour / 3));
+    const slot = Math.min(HEATMAP_SLOTS.length - 1, hour);
     matrix[day][slot]++;
   }
   const max = Math.max(1, ...matrix.flat());
@@ -214,111 +214,104 @@ Tuliskan analisis performa teknis dengan gaya objektif, solutif, dan bebas bias.
 export function getLiveReportData(): FullReportData {
   const d = db();
   const s = getSettings();
-
-  // Masa penugasan: from the first synced contribution until today.
-  const firstRow = d.prepare('SELECT min(authored_at) AS first FROM gl_commits WHERE is_merge = 0').get() as {
-    first: string | null;
-  };
-  const now = new Date();
-  const firstAt = firstRow?.first ? new Date(firstRow.first) : new Date(now.getTime() - 90 * 864e5);
-  const days = Math.max(30, Math.ceil((now.getTime() - firstAt.getTime()) / 864e5));
-  const metrics = loadMetrics(days);
-  const start = new Date(metrics.period.start);
-  const end = new Date(metrics.period.end);
+  const score = loadScorecard(0);
+  const start = new Date(score.period.start);
+  const end = new Date(score.period.end);
   const sIso = start.toISOString();
+  const eIso = end.toISOString();
+  const months = Math.max(1, score.period.months);
+  const monthsExact = Math.max(1, score.period.days / 30.4375);
 
-  const activeModel = resolveAiModel(s, 'report');
-  const glUser = metrics.user || {
-    id: 835,
-    username: s.gitlabUsername || 'telkomdev-dhianharyono',
-    name: 'dhian haryono',
-  };
+  const userRow = d.prepare("SELECT value FROM settings WHERE key = 'glUser'").get() as
+    | { value: string }
+    | undefined;
+  const glUser = (() => {
+    try {
+      if (userRow?.value) return JSON.parse(userRow.value) as { id: number; username: string; name: string };
+    } catch {
+      // abaikan, pakai fallback di bawah
+    }
+    return {
+      id: 0,
+      username: s.gitlabUsername || 'talent',
+      name: s.gitlabUsername || 'talent',
+    };
+  })();
+
+  const splitValues = (value: string | null | undefined) =>
+    (value || '')
+      .split(',')
+      .map((v) => v.trim().toLowerCase())
+      .filter(Boolean);
+  const emails = [...new Set(splitValues(s.identityEmails))];
+  const names = [...new Set([...splitValues(s.identityNames), glUser.username.toLowerCase(), glUser.name.toLowerCase()])];
+
+  const commitClauses: string[] = [];
+  const commitParams: string[] = [];
+  if (emails.length) {
+    commitClauses.push(`lower(c.author_email) IN (${emails.map(() => '?').join(',')})`);
+    commitParams.push(...emails);
+  }
+  if (names.length) {
+    commitClauses.push(`lower(c.author_name) IN (${names.map(() => '?').join(',')})`);
+    commitParams.push(...names);
+  }
+  const commitIdentity = commitClauses.length ? `(${commitClauses.join(' OR ')})` : '0';
+  const mrIdentity = names.length ? `lower(m.author) IN (${names.map(() => '?').join(',')})` : '0';
 
   const flowCommits = d
     .prepare(
-      'SELECT sha, project_id, authored_at, is_fix, adj_additions, adj_deletions FROM gl_commits WHERE is_merge = 0 AND authored_at >= ?',
+      `SELECT c.sha, c.project_id, c.authored_at, c.title, c.is_fix, c.adj_additions, c.adj_deletions
+       FROM gl_commits c
+       WHERE c.is_merge = 0 AND c.authored_at BETWEEN ? AND ? AND ${commitIdentity}
+       ORDER BY c.authored_at`,
     )
-    .all(sIso) as unknown as FlowCommit[];
+    .all(sIso, eIso, ...commitParams) as unknown as (FlowCommit & { title: string })[];
+
   const flowMrs = d
     .prepare(
-      'SELECT project_id, role, created_at, merged_at, source_branch, target_branch FROM gl_mrs WHERE created_at >= ? OR merged_at >= ?',
+      `SELECT m.project_id, m.role, m.created_at, m.merged_at, m.source_branch, m.target_branch
+       FROM gl_mrs m
+       WHERE m.role = 'author' AND ${mrIdentity}
+         AND (m.created_at BETWEEN ? AND ? OR m.merged_at BETWEEN ? AND ?)`,
     )
-    .all(sIso, sIso) as unknown as FlowMr[];
+    .all(...names, sIso, eIso, sIso, eIso) as unknown as FlowMr[];
+
   const flowEvents = d
-    .prepare('SELECT created_at, action, project_id, ref FROM gl_events WHERE created_at >= ?')
-    .all(sIso) as unknown as FlowEvent[];
+    .prepare('SELECT created_at, action, project_id, ref FROM gl_events WHERE created_at BETWEEN ? AND ?')
+    .all(sIso, eIso) as unknown as FlowEvent[];
   const reaches = d
     .prepare(
-      'SELECT r.sha, r.stage FROM gl_commit_reach r JOIN gl_commits c ON c.sha = r.sha WHERE c.is_merge = 0 AND c.authored_at >= ?',
+      `SELECT r.sha, r.stage FROM gl_commit_reach r JOIN gl_commits c ON c.sha = r.sha
+       WHERE c.is_merge = 0 AND c.authored_at BETWEEN ? AND ? AND ${commitIdentity}`,
     )
-    .all(sIso) as unknown as ReachRow[];
+    .all(sIso, eIso, ...commitParams) as unknown as ReachRow[];
   const files = d
     .prepare(
-      'SELECT f.sha, f.project_id, f.path, f.added, f.deleted FROM gl_commit_files f JOIN gl_commits c ON c.sha = f.sha WHERE c.is_merge = 0 AND c.authored_at >= ?',
+      `SELECT f.sha, f.project_id, f.path, f.added, f.deleted, f.added_hashes, f.deleted_hashes, f.issues_json
+       FROM gl_commit_files f JOIN gl_commits c ON c.sha = f.sha
+       WHERE c.is_merge = 0 AND c.authored_at BETWEEN ? AND ? AND ${commitIdentity}`,
     )
-    .all(sIso) as unknown as CommitFileRow[];
-  const lineRows = d
-    .prepare(
-      'SELECT f.sha, f.path, f.added_hashes, f.deleted_hashes FROM gl_commit_files f JOIN gl_commits c ON c.sha = f.sha WHERE c.is_merge = 0 AND c.authored_at >= ?',
-    )
-    .all(sIso) as unknown as LineHashRow[];
+    .all(sIso, eIso, ...commitParams) as unknown as ScoreFile[];
 
-  const releaseFlow = computeReleaseFlow({
-    commits: flowCommits,
-    mrs: flowMrs,
-    events: flowEvents,
-    reaches,
-    start,
-    end,
-  });
-  const repeated = computeRepeatedIssues({ commits: flowCommits, files, lines: lineRows });
+  const releaseFlow = computeReleaseFlow({ commits: flowCommits, mrs: flowMrs, events: flowEvents, reaches, start, end });
+  const pointsPerMonth = Math.round(score.evidence.releasePointsPerMonth * 10) / 10;
+  const analysis = analyzeRework(files, flowCommits);
   const areasView = computeAreas(files);
+  const commitBySha = new Map(flowCommits.map((c) => [c.sha, c]));
 
-  const overall = computeOverallScore({
-    productivity: metrics.scores.productivity,
-    quality: metrics.scores.quality,
-    collaboration: metrics.scores.collaboration,
-    consistency: metrics.scores.consistency,
-    releaseFlow: releaseFlow.score,
-  });
-  const grade = gradeOf(overall);
-  const monthsCount = Math.max(1, monthsBetween(start, end).length);
+  const linesAdded = flowCommits.reduce((sum, c) => sum + c.adj_additions, 0);
+  const linesDeleted = flowCommits.reduce((sum, c) => sum + c.adj_deletions, 0);
+  const totalActiveDays = new Set(flowCommits.map((c) => DAY_FMT.format(new Date(c.authored_at)))).size;
+  const avgCommitSize = flowCommits.length ? Math.round((linesAdded + linesDeleted) / flowCommits.length) : 0;
 
-  const startDate = new Date(metrics.period.start);
-  const startFmt = `${String(startDate.getDate()).padStart(2, '0')} ${MONTH_NAMES_ID[startDate.getMonth()]} ${startDate.getFullYear()}`;
-  const today = new Date();
-  const todayFmt = `${String(today.getDate()).padStart(2, '0')} ${MONTH_NAMES_ID[today.getMonth()]} ${today.getFullYear()}`;
-  const periodText = `${startFmt} - ${todayFmt} (masa penugasan ${monthsCount} bulan)`;
+  const fmtNum = (n: number) => n.toLocaleString('id-ID');
+  const fmt1 = (n: number) => n.toLocaleString('id-ID', { maximumFractionDigits: 1 });
+  const startFmt = `${String(start.getDate()).padStart(2, '0')} ${MONTH_NAMES_ID[start.getMonth()]} ${start.getFullYear()}`;
+  const endFmt = `${String(end.getDate()).padStart(2, '0')} ${MONTH_NAMES_ID[end.getMonth()]} ${end.getFullYear()}`;
+  const monthsLabel = fmt1(months);
 
-  // 1. Only projects where commits > 0 OR mrs > 0 within the assignment window
-  const activeProjectRows = d
-    .prepare(
-      `SELECT p.id, p.path,
-        COALESCE(c.commits, 0) as commits, COALESCE(m.mrs, 0) as mrs,
-        COALESCE(c.added, 0) as added, COALESCE(c.deleted, 0) as deleted
-      FROM gl_projects p
-      LEFT JOIN (
-        SELECT project_id, count(*) as commits, sum(adj_additions) as added, sum(adj_deletions) as deleted
-        FROM gl_commits WHERE is_merge = 0 AND authored_at >= ? GROUP BY project_id
-      ) c ON c.project_id = p.id
-      LEFT JOIN (
-        SELECT project_id, count(*) as mrs FROM gl_mrs
-        WHERE role = 'author' AND (created_at >= ? OR merged_at >= ?) GROUP BY project_id
-      ) m ON m.project_id = p.id
-      WHERE COALESCE(c.commits, 0) > 0 OR COALESCE(m.mrs, 0) > 0
-      ORDER BY commits DESC, mrs DESC`,
-    )
-    .all(sIso, sIso, sIso) as { id: number; path: string; commits: number; mrs: number; added: number; deleted: number }[];
-
-  const projects: ProjectScopeItem[] = activeProjectRows.map((row, idx) => {
-    let page = 1;
-    if (idx >= 12) page = 2 + Math.floor((idx - 12) / 26);
-    return { name: row.path, commits: row.commits, mrs: row.mrs, note: '', page };
-  });
-  const projectPagesCount = projects.length > 0 ? Math.max(...projects.map((p) => p.page)) : 1;
-  const totalPages = projectPagesCount + 5;
-
-  // Monthly commit aggregates from the same commits used for the flow.
+  // ---- Pergerakan bulanan ----
   const monthAgg = new Map<string, { commits: number; days: Set<string>; added: number; deleted: number }>();
   for (const c of flowCommits) {
     const ym = monthKey(c.authored_at);
@@ -329,151 +322,309 @@ export function getLiveReportData(): FullReportData {
     cur.deleted += c.adj_deletions;
     monthAgg.set(ym, cur);
   }
-
   const monthKeys = monthsBetween(start, end);
   const flowByMonth = new Map(releaseFlow.monthly.map((m) => [m.ym, m]));
-  const firstYm = monthKeys[0];
-  const lastYm = monthKeys[monthKeys.length - 1];
-  const firstDay = DAY_FMT.format(firstAt);
-  const lastDay = DAY_FMT.format(today);
-  const monthlyContributions: MonthlyContribution[] = monthKeys.map((ym) => {
+  const monthlyRows = monthKeys.map((ym) => {
     const agg = monthAgg.get(ym) ?? { commits: 0, days: new Set<string>(), added: 0, deleted: 0 };
     const flow = flowByMonth.get(ym);
-    const rep = repeated.monthly[ym] ?? { fix: 0, repeat: 0 };
-    const isPartial = (ym === firstYm && !firstDay.endsWith('-01')) || (ym === lastYm && lastDay.slice(-2) !== '01');
     return {
-      month: `${monthLabel(ym)}${isPartial ? ' (sebagian)' : ''}`,
+      month: monthLabel(ym),
       commits: agg.commits,
       activeDays: agg.days.size,
-      linesChanged: `+${agg.added.toLocaleString('id-ID')} / -${agg.deleted.toLocaleString('id-ID')}`,
+      linesChanged: `+${fmtNum(agg.added)} / -${fmtNum(agg.deleted)}`,
       branches: flow?.branches ?? 0,
       mrDevelop: flow?.develop ?? 0,
       mrRelease: flow?.release ?? 0,
       mrMaster: flow?.master ?? 0,
-      fix: rep.fix,
-      repeatFix: rep.repeat,
       points: Math.round((flow?.points ?? 0) * 10) / 10,
     };
   });
-
-  const avg = (n: number) => Math.round((n / monthsCount) * 10) / 10;
-  const totalBranches = releaseFlow.branches;
-  const totalDev = releaseFlow.stages.find((x) => x.key === 'develop')?.merged ?? 0;
-  const totalRel = releaseFlow.stages.find((x) => x.key === 'release')?.merged ?? 0;
-  const totalMaster = releaseFlow.stages.find((x) => x.key === 'master')?.merged ?? 0;
-  const totalFix = repeated.fixCommitCount;
-  const totalRepeat = repeated.fixOnFix.count;
-  const totalActiveDays = new Set(flowCommits.map((c) => DAY_FMT.format(new Date(c.authored_at)))).size;
-  const activePct = Math.round((metrics.kpis.activeWorkdays / Math.max(1, metrics.period.workdays)) * 1000) / 10;
+  const monthlyContributions: MonthlyContribution[] = monthlyRows.filter(
+    (m, i) => i > 0 || m.commits > 0 || Number(m.points) > 0,
+  );
   monthlyContributions.push({
     month: 'Rata-rata / bulan',
-    commits: avg(flowCommits.length),
-    activeDays: `${activePct}% hari kerja`,
-    linesChanged: `+${Math.round(metrics.kpis.linesAdded / monthsCount).toLocaleString('id-ID')} / -${Math.round(metrics.kpis.linesDeleted / monthsCount).toLocaleString('id-ID')}`,
-    branches: avg(totalBranches),
-    mrDevelop: avg(totalDev),
-    mrRelease: avg(totalRel),
-    mrMaster: avg(totalMaster),
-    fix: avg(totalFix),
-    repeatFix: avg(totalRepeat),
-    points: avg(releaseFlow.totalPoints),
+    commits: Math.round((flowCommits.length / monthsExact) * 10) / 10,
+    activeDays: `${fmt1(score.evidence.activeWorkdayRatio)}% hari kerja`,
+    linesChanged: `+${fmtNum(Math.round(linesAdded / monthsExact))} / -${fmtNum(Math.round(linesDeleted / monthsExact))}`,
+    branches: Math.round((releaseFlow.branches / monthsExact) * 10) / 10,
+    mrDevelop: Math.round(((releaseFlow.stages.find((x) => x.key === 'develop')?.merged ?? 0) / monthsExact) * 10) / 10,
+    mrRelease: Math.round(((releaseFlow.stages.find((x) => x.key === 'release')?.merged ?? 0) / monthsExact) * 10) / 10,
+    mrMaster: Math.round(((releaseFlow.stages.find((x) => x.key === 'master')?.merged ?? 0) / monthsExact) * 10) / 10,
+    points: pointsPerMonth,
   });
 
-  // Project contributions for the AI page
-  const projectContributions: ProjectContribution[] = activeProjectRows.slice(0, 8).map((p) => ({
-    project: p.path,
-    commits: p.commits,
-    lines: `+${p.added.toLocaleString('id-ID')} / -${p.deleted.toLocaleString('id-ID')}`,
-  }));
+  // ---- Isu berulang ----
+  const repeatedFiles = analysis.repeatedFixFiles;
+  const backAndForthCommits = new Set(analysis.backAndForthFiles.flatMap((f) => f.shas)).size;
 
-  const fileTypes: FileTypeContribution[] = areasView.languages.slice(0, 8).map((l) => ({
-    ext: l.language,
-    linesAdded: `+${l.lines.toLocaleString('id-ID')}`,
-  }));
-
-  const hotspotMap = new Map<string, { project: string; commits: number; reworkLines: number }>();
-  const projectNameById = new Map(activeProjectRows.map((p) => [p.id, p.path]));
+  const fixLikeByPath = new Map<string, { sha: string; at: number; lines: number }[]>();
   for (const f of files) {
-    const cur = hotspotMap.get(f.path) ?? {
-      project: projectNameById.get(f.project_id) ?? `#${f.project_id}`,
-      commits: 0,
-      reworkLines: 0,
-    };
-    cur.commits++;
-    cur.reworkLines += f.added + f.deleted;
-    hotspotMap.set(f.path, cur);
+    const commit = commitBySha.get(f.sha);
+    if (!commit || !isFixLikeCommit(commit)) continue;
+    const list = fixLikeByPath.get(f.path) ?? [];
+    list.push({ sha: f.sha, at: new Date(commit.authored_at).getTime(), lines: f.added + f.deleted });
+    fixLikeByPath.set(f.path, list);
   }
-  const hotspots = [...hotspotMap.entries()]
-    .map(([file, v]) => ({ file, ...v }))
-    .sort((a, b) => b.reworkLines - a.reworkLines)
-    .slice(0, 8)
-    .map((h) => ({ file: h.file, project: h.project, commits: h.commits, reworkLines: `${h.reworkLines.toLocaleString('id-ID')} baris` }));
+  const fixOnFixExamples: ReworkExample[] = [];
+  for (const [path, list] of fixLikeByPath) {
+    list.sort((a, b) => a.at - b.at);
+    for (let i = 1; i < list.length; i++) {
+      const gapDays = Math.round(((list[i].at - list[i - 1].at) / 864e5) * 10) / 10;
+      if (gapDays > 45) continue;
+      fixOnFixExamples.push({
+        file: path,
+        initialCommit: list[i - 1].sha.slice(0, 8),
+        modifyingCommit: list[i].sha.slice(0, 8),
+        lines: list[i].lines,
+        gap: `${gapDays.toLocaleString('id-ID', { maximumFractionDigits: 1 })} hari`,
+      });
+    }
+  }
+  fixOnFixExamples.sort((a, b) => b.lines - a.lines);
+  const reworkExamples: ReworkExample[] = fixOnFixExamples.slice(0, 6);
 
-  const reworkExamples: ReworkExample[] = repeated.fixOnFix.examples.map((e) => ({
-    file: e.file,
-    project: projectNameById.get(flowCommits.find((c) => c.sha === e.second)?.project_id ?? 0) ?? '',
-    initialCommit: e.first.slice(0, 8),
-    modifyingCommit: `${e.second.slice(0, 8)} · ${e.gapDays} hari`,
-    lines: e.lines,
-    gap: `${e.gapDays} hari`,
+  const hotspots: HotspotRow[] = analysis.hotspots.slice(0, 10).map((h) => ({
+    file: h.path,
+    commits: h.commits,
+    lines: h.lines,
+    selfReworkLines: h.selfReworkLines,
+    selfReworkPct: h.selfReworkPct,
+    fixCommits: h.fixCommits,
   }));
 
-  const commitsPerMonth = Math.round((metrics.kpis.commits / monthsCount) * 10) / 10;
-  const pointsPerMonth = Math.round(releaseFlow.pointsPerMonth * 10) / 10;
-  const fixPct = Math.round(metrics.kpis.fixRatio * 1000) / 10;
-  const areaText = areasView.areas
-    .filter((a) => a.lines > 0)
-    .map((a) => `${a.label} ${a.pct}%`)
-    .join(', ');
-  const topRepeated = repeated.repeatedFiles[0];
-  const half = Math.max(1, Math.ceil(releaseFlow.monthly.length / 2));
-  const firstAvg = releaseFlow.monthly.slice(0, half).reduce((sum, m) => sum + m.points, 0) / half;
-  const lastAvg =
-    releaseFlow.monthly.slice(-half).reduce((sum, m) => sum + m.points, 0) / Math.max(1, releaseFlow.monthly.slice(-half).length);
-  const trend = lastAvg >= firstAvg ? 'meningkat' : 'melandai';
+  // ---- Area kerja per repository ----
+  const projectRows = d
+    .prepare(
+      `SELECT p.id, p.path, COALESCE(c.commits, 0) AS commits, COALESCE(c.added, 0) AS added,
+              COALESCE(c.deleted, 0) AS deleted, COALESCE(m.mrs, 0) AS mrs
+       FROM gl_projects p
+       LEFT JOIN (
+         SELECT c.project_id, count(*) AS commits, sum(c.adj_additions) AS added, sum(c.adj_deletions) AS deleted
+         FROM gl_commits c
+         WHERE c.is_merge = 0 AND c.authored_at BETWEEN ? AND ? AND ${commitIdentity}
+         GROUP BY c.project_id
+       ) c ON c.project_id = p.id
+       LEFT JOIN (
+         SELECT m.project_id, count(*) AS mrs
+         FROM gl_mrs m
+         WHERE m.role = 'author' AND ${mrIdentity} AND m.merged_at BETWEEN ? AND ?
+         GROUP BY m.project_id
+       ) m ON m.project_id = p.id
+       WHERE COALESCE(c.commits, 0) > 0 OR COALESCE(m.mrs, 0) > 0`,
+    )
+    .all(sIso, eIso, ...commitParams, ...names, sIso, eIso) as unknown as {
+    id: number;
+    path: string;
+    commits: number;
+    added: number;
+    deleted: number;
+    mrs: number;
+  }[];
 
-  const movement: string[] = [
-    `Selama ${monthsCount} bulan masa penugasan (sejak ${startFmt}), ${glUser.name} mencatat rata-rata ${commitsPerMonth.toLocaleString('id-ID')} commit per bulan dan aktif pada ${activePct}% hari kerja.`,
-    `Nilai keseluruhan ${overall} (${grade.gradeLabel}) dengan role utama ${areasView.primaryRole}. Kontribusi kode tersebar di ${areaText || 'beberapa area'}.`,
-    `Poin alur kerja rata-rata ${pointsPerMonth.toLocaleString('id-ID')} per bulan; ritme ${trend} dari ${Math.round(firstAvg).toLocaleString('id-ID')} menjadi ${Math.round(lastAvg).toLocaleString('id-ID')} poin/bulan pada paruh akhir penugasan.`,
-    releaseFlow.firstMasterMonth
-      ? `Dalam alur rilis, tercatat ${releaseFlow.branches.toLocaleString('id-ID')} branch, ${totalDev} MR merged ke develop, ${totalRel} ke release, dan ${totalMaster} ke master dengan total ${Math.round(releaseFlow.totalPoints).toLocaleString('id-ID')} poin. Sebanyak ${releaseFlow.funnel.masterPct}% commit sudah sampai master/production; kontribusi pertama yang sampai ke master tercatat pada ${monthLabel(releaseFlow.firstMasterMonth)}.`
-      : `Dalam alur rilis, tercatat ${releaseFlow.branches.toLocaleString('id-ID')} branch, ${totalDev} MR merged ke develop, ${totalRel} ke release, dan ${totalMaster} ke master dengan total ${Math.round(releaseFlow.totalPoints).toLocaleString('id-ID')} poin. Belum ada commit yang tercatat sampai master/production.`,
-    `Dari sisi kualitas: ${fixPct}% commit berupa perbaikan; ${repeated.repeatedFiles.length} file diperbaiki berulang; ${repeated.fixOnFix.count} perbaikan dilakukan atas perbaikan sebelumnya dalam ≤45 hari; ${repeated.backAndForth.lines} baris dihapus lalu dikembalikan.`,
+  const pointsByProject = new Map<number, number>();
+  for (const e of flowEvents) {
+    if (e.action !== 'pushed new' || !e.project_id) continue;
+    if (!inWindow(e.created_at, start, end)) continue;
+    pointsByProject.set(e.project_id, (pointsByProject.get(e.project_id) ?? 0) + 1);
+  }
+  for (const m of flowMrs) {
+    if (m.role !== 'author' || !m.merged_at || !inWindow(m.merged_at, start, end)) continue;
+    const stage = stageOfTarget(m.target_branch);
+    if (stage === 'other' || !m.project_id) continue;
+    pointsByProject.set(m.project_id, (pointsByProject.get(m.project_id) ?? 0) + STAGE_POINTS[stage]);
+  }
+  const workAreas: WorkAreaRow[] = projectRows
+    .map((p) => ({
+      name: p.path,
+      commits: p.commits,
+      added: p.added,
+      deleted: p.deleted,
+      mrs: p.mrs,
+      points: Math.round((pointsByProject.get(p.id) ?? 0) * 10) / 10,
+    }))
+    .sort((a, b) => b.points - a.points || b.commits - a.commits)
+    .slice(0, 10);
+
+  // ---- Rekap ekstensi file ----
+  const extMap = new Map<string, number>();
+  for (const f of files) {
+    const idx = f.path.lastIndexOf('.');
+    const ext = idx > 0 ? f.path.slice(idx) : '(tanpa ekstensi)';
+    extMap.set(ext, (extMap.get(ext) ?? 0) + f.added);
+  }
+  const fileExtensions: FileExtRow[] = [...extMap.entries()]
+    .map(([ext, lines]) => ({ ext, lines }))
+    .sort((a, b) => b.lines - a.lines)
+    .slice(0, 8);
+
+  // ---- Commit yang perlu dicek ulang (lokasi temuan tersimpan) ----
+  const titles = new Map(flowCommits.map((c) => [c.sha, c.title]));
+  const checks: CommitCheckRow[] = [];
+  for (const f of files) {
+    if (!f.issues_json) continue;
+    let bundle: { loc?: Record<string, { line: number; snippet: string }[]> };
+    try {
+      bundle = JSON.parse(f.issues_json) as { loc?: Record<string, { line: number; snippet: string }[]> };
+    } catch {
+      continue;
+    }
+    const loc = bundle.loc;
+    if (!loc) continue;
+    for (const key of ['secret', 'debugPrint'] as const) {
+      const list = loc[key];
+      if (!list?.length) continue;
+      checks.push({
+        sha: f.sha,
+        title: titles.get(f.sha) ?? f.sha.slice(0, 8),
+        file: f.path,
+        finding: key === 'secret' ? 'Secret tertulis' : 'Debug print tertinggal',
+        count: list.length,
+      });
+    }
+  }
+  checks.sort((a, b) => {
+    const weight = (v: CommitCheckRow) => (v.finding === 'Secret tertulis' ? 0 : 1);
+    return weight(a) - weight(b) || b.count - a.count;
+  });
+  const commitsToCheck = checks.slice(0, 6);
+
+  // ---- Komponen, indikator, skill, review ----
+  const componentScores = score.components.map((c) => ({
+    name: c.label,
+    score: c.score,
+    weight: c.weight,
+    grade: c.grade ?? '-',
+  }));
+
+  const qualityOf = (key: string) => score.quality.breakdown.find((b) => b.key === key);
+  const recurringOf = (key: string) => score.recurringIssues.find((r) => r.key === key);
+  const goodWarn = (value: number, good: number, warn: number): 'good' | 'warn' | 'critical' =>
+    value <= good ? 'good' : value <= warn ? 'warn' : 'critical';
+  const qualityIndicators: QualityIndicator[] = [
+    {
+      label: 'Self-rework (kode sendiri diubah lagi ≤ 21 hari)',
+      value: `${fmt1(score.evidence.selfReworkPct)}%`,
+      status: goodWarn(score.evidence.selfReworkPct, 10, 15),
+      statusText: score.evidence.selfReworkPct <= 10 ? 'Baik' : score.evidence.selfReworkPct <= 15 ? 'Perhatian' : 'Kritis',
+    },
+    {
+      label: 'Fix atas fix (≤ 45 hari)',
+      value: `${fmtNum(score.evidence.fixOnFix)} commit`,
+      status: recurringOf('fixOnFix')?.status ?? 'good',
+      statusText: recurringOf('fixOnFix')?.statusLabel ?? 'Baik',
+    },
+    {
+      label: 'File fix berulang (≥ 3×)',
+      value: `${fmtNum(qualityOf('repeatedFix')?.count ?? repeatedFiles.length)} file`,
+      status: recurringOf('repeatedFix')?.status ?? 'good',
+      statusText: recurringOf('repeatedFix')?.statusLabel ?? 'Baik',
+    },
+    {
+      label: 'Kode bolak-balik (≤ 21 hari)',
+      value: `${fmtNum(score.evidence.backAndForthLines)} baris`,
+      status: recurringOf('backAndForth')?.status ?? 'good',
+      statusText: recurringOf('backAndForth')?.statusLabel ?? 'Baik',
+    },
+    {
+      label: 'Proporsi commit fix',
+      value: `${fmt1(score.evidence.fixRatio)}%`,
+      status: goodWarn(score.evidence.fixRatio, 20, 30),
+      statusText: score.evidence.fixRatio <= 20 ? 'Baik' : score.evidence.fixRatio <= 30 ? 'Perhatian' : 'Kritis',
+    },
+    {
+      label: 'Revert asli',
+      value: `${fmtNum(score.evidence.revertCount)} commit`,
+      status: recurringOf('revert')?.status ?? 'good',
+      statusText: recurringOf('revert')?.statusLabel ?? 'Baik',
+    },
+    {
+      label: 'Pesan commit deskriptif',
+      value: `${fmt1(score.evidence.messageQuality)}%`,
+      status: score.evidence.messageQuality >= 90 ? 'good' : score.evidence.messageQuality >= 70 ? 'warn' : 'critical',
+      statusText: score.evidence.messageQuality >= 90 ? 'Baik' : score.evidence.messageQuality >= 70 ? 'Perhatian' : 'Kritis',
+    },
+    {
+      label: 'Kode bertahan (> 21 hari)',
+      value: `${fmt1(100 - score.evidence.selfReworkPct)}%`,
+      status: 100 - score.evidence.selfReworkPct >= 85 ? 'good' : 100 - score.evidence.selfReworkPct >= 75 ? 'warn' : 'critical',
+      statusText: 100 - score.evidence.selfReworkPct >= 85 ? 'Baik' : 100 - score.evidence.selfReworkPct >= 75 ? 'Perhatian' : 'Kritis',
+    },
   ];
 
-  const narrativeStrengths: string[] = [];
-  if (releaseFlow.funnel.master > 0)
-    narrativeStrengths.push(`Jangkauan produksi: ${releaseFlow.funnel.master} commit sampai master/production (${releaseFlow.funnel.masterPct}% dari total).`);
-  if (totalRel > 0 || totalMaster > 0)
-    narrativeStrengths.push(`Alur rilis berjalan: ${totalRel} MR merged ke release dan ${totalMaster} ke master, dengan ${totalBranches} branch baru.`);
-  const topArea = areasView.areas.find((a) => a.lines > 0);
-  if (topArea) narrativeStrengths.push(`Kontribusi terkonsentrasi di ${topArea.label} (${topArea.pct}%, ${topArea.lines.toLocaleString('id-ID')} baris).`);
-  narrativeStrengths.push(`Konsistensi ${metrics.scores.consistency}/100 dengan ${totalActiveDays} hari aktif dari ${metrics.period.workdays} hari kerja.`);
-  if (metrics.kpis.pipelineSuccessRate !== null)
-    narrativeStrengths.push(`Pipeline sukses ${Math.round(metrics.kpis.pipelineSuccessRate * 100)}% dari ${metrics.kpis.pipelines} run yang terdeteksi.`);
+  const skillLanguages = score.skill.languages.map((l) => ({
+    language: l.language,
+    lines: l.lines,
+    commits: l.commits,
+    intensity: l.intensity,
+    score: l.score,
+    findings: l.findings,
+  }));
 
-  const focus: string[] = [];
-  if (releaseFlow.funnel.masterPct < 25)
-    focus.push(`Naikkan jangkauan commit ke master/production: baru ${releaseFlow.funnel.masterPct}% commit yang sampai, target 25%.`);
-  if (topRepeated)
-    focus.push(`Berkas ${topRepeated.file} diperbaiki ${topRepeated.fixCount} kali (rata-rata ${topRepeated.avgLines} baris per perbaikan). Perkuat pengujian sebelum push.`);
-  if (repeated.fixOnFix.count > 0)
-    focus.push(`Kurangi perbaikan atas perbaikan: ${repeated.fixOnFix.count} kejadian dalam ≤45 hari (${repeated.fixOnFix.lines} baris).`);
-  if (metrics.kpis.avgCommitSize > 500)
-    focus.push(`Pecah commit besar: rata-rata ${Math.round(metrics.kpis.avgCommitSize)} baris per commit.`);
-  if (metrics.scores.collaboration < 55)
-    focus.push(`Tingkatkan review MR rekan: skor kolaborasi ${metrics.scores.collaboration}/100 dari ${metrics.kpis.reviews} review.`);
-  if (focus.length < 3)
-    focus.push(`Pertahankan ritme dan perluas kontribusi ke area dengan porsi terkecil (${areasView.areas.filter((a) => a.lines > 0).slice(-1)[0]?.label ?? 'lainnya'}).`);
+  const reviewHighlights = score.review.highlights.map((h) => ({
+    sha: h.sha,
+    shortSha: h.shortSha,
+    title: h.title,
+    score: h.score,
+    summary: h.summary,
+    notes: h.notes,
+  }));
+
+  // ---- Narasi dari komponen terkuat/terlemah ----
+  const scored = componentScores.filter((c): c is typeof c & { score: number } => c.score !== null);
+  const strongest = [...scored].sort((a, b) => b.score - a.score).slice(0, 3);
+  const weakest = [...scored].sort((a, b) => a.score - b.score).slice(0, 3);
+  const reasonOf: Record<string, string> = {
+    Produktivitas: 'volume commit dan MR stabil',
+    'Kualitas Kode': 'rework dan perbaikan berulang terkendali',
+    'Skill Kode': 'temuan statis pada kode baru sedikit',
+    Kolaborasi: 'review dan MR berjalan aktif',
+    Konsistensi: 'ritme kerja terjaga',
+    'Alur Rilis': 'pekerjaan sampai production',
+  };
+  const actionOf = (label: string) => {
+    const component = score.components.find((c) => c.label === label);
+    return component ? score.actions.find((a) => a.component === component.key) : undefined;
+  };
+  const strengths = strongest.map((c) => `${c.name} (${c.score}) — ${reasonOf[c.name] ?? 'indikator utama'}.`);
+  const focus = weakest.map((c) => {
+    const action = actionOf(c.name);
+    return `${c.name} (${c.score}) — ${action?.steps[0] ?? action?.title ?? 'tingkatkan indikator ini'}`;
+  });
+
+  const topArea = areasView.areas.find((a) => a.lines > 0);
+  const secondArea = areasView.areas.filter((a) => a.lines > 0)[1];
+  const half = Math.max(1, Math.ceil(releaseFlow.monthly.length / 2));
+  const firstAvg = releaseFlow.monthly.slice(0, half).reduce((sum, m) => sum + m.points, 0) / half;
+  const lastSlice = releaseFlow.monthly.slice(-half);
+  const lastAvg = lastSlice.reduce((sum, m) => sum + m.points, 0) / Math.max(1, lastSlice.length);
+  const busiest = [...monthlyContributions.slice(0, -2)].sort((a, b) => b.commits - a.commits)[0];
+
+  const movement: string[] = [
+    `Selama ${monthsLabel} bulan masa penugasan (sejak ${startFmt}), ${glUser.name} mencatat rata-rata ${fmt1(score.evidence.commitsPerMonth)} commit per bulan dan aktif pada ${fmt1(score.evidence.activeWorkdayRatio)}% hari kerja. Nilai keseluruhan ${score.overall} (${score.gradeLabel}) dengan kontribusi terbesar di ${areasView.primaryRole}${topArea ? ` (${fmt1(topArea.pct)}% dari kode)` : ''}${secondArea ? `, diikuti ${secondArea.label} (${fmt1(secondArea.pct)}%)` : ''}.`,
+    `Poin alur kerja rata-rata ${fmt1(pointsPerMonth)} per bulan. Ritme ${lastAvg >= firstAvg ? 'meningkat' : 'melandai'} dari ${fmtNum(Math.round(firstAvg))} menjadi ${fmtNum(Math.round(lastAvg))} poin/bulan pada paruh akhir penugasan.`,
+    `Dalam alur rilis, tercatat ${fmtNum(releaseFlow.branches)} branch, ${fmtNum(releaseFlow.stages.find((x) => x.key === 'develop')?.merged ?? 0)} MR merged ke develop, ${fmtNum(releaseFlow.stages.find((x) => x.key === 'release')?.merged ?? 0)} ke release, dan ${fmtNum(releaseFlow.stages.find((x) => x.key === 'master')?.merged ?? 0)} ke master dengan total ${fmtNum(Math.round(releaseFlow.totalPoints))} poin. Sebanyak ${fmt1(releaseFlow.funnel.masterPct)}% commit sudah sampai master/production.`,
+    `Dari sisi kualitas: ${fmt1(score.evidence.fixRatio)}% commit berupa perbaikan; ${fmtNum(qualityOf('repeatedFix')?.count ?? repeatedFiles.length)} file diperbaiki berulang; ${fmtNum(score.evidence.fixOnFix)} perbaikan dilakukan atas perbaikan sebelumnya dalam ≤45 hari; ${fmtNum(score.evidence.backAndForthLines)} baris dihapus lalu dikembalikan.`,
+    `Skor Skill Kode ${score.skill.score ?? '-'} dari 100, dihitung atas ${fmtNum(score.skill.scannedLines)} baris; ${fmt1(score.evidence.testPct)}% di antaranya kode tes.${busiest ? ` Bulan paling produktif: ${busiest.month} (${fmtNum(busiest.commits)} commit, ${fmt1(Number(busiest.points))} poin).` : ''}`,
+  ];
+
+  // ---- Mingguan + heatmap ----
+  const weeklyMap = new Map<string, number>();
+  for (const c of flowCommits) {
+    const key = weekStartKey(c.authored_at);
+    weeklyMap.set(key, (weeklyMap.get(key) ?? 0) + 1);
+  }
+  const weeklyCommits: { week: string; count: number }[] = [];
+  const cursor = new Date(`${weekStartKey(start.toISOString())}T00:00:00Z`);
+  const lastWeek = weekStartKey(end.toISOString());
+  while (cursor.toISOString().slice(0, 10) <= lastWeek) {
+    const key = cursor.toISOString().slice(0, 10);
+    weeklyCommits.push({ week: key, count: weeklyMap.get(key) ?? 0 });
+    cursor.setUTCDate(cursor.getUTCDate() + 7);
+  }
 
   const cachedAi = getCachedReportAiAnalysis();
-  const aiNarrative = cachedAi || {
-    model: activeModel,
-    summary: `${glUser.name} menunjukkan performa kerja aktif dengan volume ${metrics.kpis.commits.toLocaleString('id-ID')} commit non-merge dan ${metrics.kpis.mrsMerged} MR berhasil di-merge. Role utama terdeteksi ${areasView.primaryRole} dengan ${releaseFlow.funnel.masterPct}% commit sampai master/production.`,
-    strengths: narrativeStrengths.slice(0, 4),
-    improvements: focus.slice(0, 4),
-  };
+  const activeModel = resolveAiModel(s, 'report');
 
   return {
     meta: {
@@ -482,142 +633,64 @@ export function getLiveReportData(): FullReportData {
       username: glUser.username,
       email: s.identityEmails || `${glUser.username}@gmail.com`,
       mergedIdentitiesNote: `Identitas tergabung: ${s.identityNames || glUser.name}`,
-      periodText,
-      createdText: `Dibuat pada ${todayFmt}`,
-      totalProjectsCount: projects.length,
+      periodText: `Periode ${startFmt} – ${endFmt} · masa penugasan ${monthsLabel} bulan`,
+      createdText: `Dibuat pada ${endFmt}`,
+      totalProjectsCount: projectRows.length,
       footerTitle: 'Rapor Talent : Rahasia, untuk keperluan internal',
-      totalPages,
-    },
-    summaryKpis: {
-      contributors: { value: 1, detail: '1 akun aktif' },
-      commits: { value: metrics.kpis.commits.toLocaleString('id-ID'), detail: `${metrics.kpis.commits} non-merge` },
-      lines: {
-        added: `+${metrics.kpis.linesAdded.toLocaleString('id-ID')}`,
-        deleted: `-${metrics.kpis.linesDeleted.toLocaleString('id-ID')}`,
-      },
-      mergeRequests: { value: totalDev + totalRel + totalMaster > 0 ? (totalDev + totalRel + totalMaster).toLocaleString('id-ID') : metrics.kpis.mrsCreated.toLocaleString('id-ID') },
+      totalPages: 8,
     },
     overallScore: {
       name: glUser.name,
-      score: overall,
-      grade: grade.grade,
-      gradeLabel: grade.gradeLabel,
+      score: score.overall,
+      grade: score.grade,
+      gradeLabel: score.gradeLabel,
     },
-    rankingTable: {
-      rank: 1,
-      name: glUser.name,
-      grade: grade.grade,
-      gradeLabel: grade.gradeLabel,
-      overall,
-      productivity: metrics.scores.productivity,
-      quality: metrics.scores.quality,
-      collaboration: metrics.scores.collaboration,
-      consistency: metrics.scores.consistency,
-      releaseFlow: releaseFlow.score,
-      months: monthsCount,
-      commitsPerMonth: commitsPerMonth.toFixed(1),
-      selfRework: `${fixPct}%`,
-      footnote:
-        'Peringkat dihitung dari talent yang tersinkron di DevHub. Saat ini baru 1 talent, sehingga peringkat tim belum bermakna. Skor Alur Rilis memakai 60% volume poin per bulan dan 40% jangkauan commit ke master.',
-    },
-    projects,
     methodology: { ...referenceReportData.methodology },
     talentProfile: {
       metrics: {
         tenure: {
           title: 'MASA PENUGASAN',
-          value: `${monthsCount} bln`,
+          value: `${monthsLabel} bln`,
           detail: `mulai ${startFmt}`,
-          sub: `${metrics.period.days} hari total`,
+          sub: `${totalActiveDays} hari ada commit`,
         },
         commits: {
-          title: 'TOTAL COMMIT',
-          value: metrics.kpis.commits.toLocaleString('id-ID'),
-          detail: `${commitsPerMonth.toLocaleString('id-ID')}/bln`,
-          sub: `${totalActiveDays} hari aktif`,
+          title: 'COMMIT',
+          value: fmtNum(score.evidence.commits),
+          detail: `${fmt1(score.evidence.commitsPerMonth)}/bulan`,
+          sub: `${fmtNum(score.evidence.activeWorkdays)} hari kerja aktif`,
         },
         lines: {
           title: 'BARIS KODE',
-          value: `+${metrics.kpis.linesAdded.toLocaleString('id-ID')} / -${metrics.kpis.linesDeleted.toLocaleString('id-ID')}`,
-        },
-        projects: {
-          title: 'PROYEK KONTRIBUSI',
-          value: `${projects.length}`,
-          detail: `dari ${projects.length} proyek aktif`,
+          value: `+${fmtNum(linesAdded)} / -${fmtNum(linesDeleted)}`,
+          detail: `rata-rata ${fmtNum(avgCommitSize)} baris/commit`,
         },
         mergeRequests: {
           title: 'MERGE REQUEST',
-          value: metrics.kpis.mrsCreated.toLocaleString('id-ID'),
-          detail: `${metrics.kpis.mrsMerged} di-merge`,
+          value: `${fmtNum(score.evidence.mergedMrs)} / ${fmtNum(score.evidence.mrsCreated)}`,
+          detail: 'merged / dibuat',
         },
         releasePoints: {
           title: 'POIN ALUR KERJA',
-          value: `${Math.round(releaseFlow.totalPoints).toLocaleString('id-ID')}`,
-          detail: `${pointsPerMonth.toLocaleString('id-ID')} poin/bulan`,
+          value: fmtNum(Math.round(releaseFlow.totalPoints)),
+          detail: `${fmt1(pointsPerMonth)}/bulan`,
         },
         masterReach: {
-          title: 'MR KE MASTER',
-          value: `${releaseFlow.funnel.masterPct}%`,
-          detail: `${releaseFlow.funnel.master} dari ${releaseFlow.funnel.total} commit sampai production`,
+          title: 'JANGKAUAN MASTER',
+          value: `${fmtNum(releaseFlow.funnel.master)} commit`,
+          detail: `${fmt1(releaseFlow.funnel.masterPct)}% sampai production`,
         },
         codeSurvival: {
-          title: 'CODE SURVIVAL',
-          value: `${100 - Math.round(metrics.kpis.fixRatio * 100)}%`,
-          detail: `${fixPct}% rework/fix`,
+          title: 'KODE BERTAHAN',
+          value: `${fmt1(100 - score.evidence.selfReworkPct)}%`,
+          detail: 'tidak diubah dalam 21 hari',
         },
       },
-      componentScores: [
-        { name: 'Produktivitas', score: metrics.scores.productivity },
-        { name: 'Kualitas Kode', score: metrics.scores.quality },
-        { name: 'Kolaborasi', score: metrics.scores.collaboration },
-        { name: 'Konsistensi', score: metrics.scores.consistency },
-        { name: 'Alur Rilis', score: releaseFlow.score },
-      ],
-      qualityIndicators: [
-        {
-          label: 'Pipeline Success Rate',
-          value:
-            metrics.kpis.pipelines >= 5
-              ? `${Math.round((metrics.kpis.pipelineSuccessRate ?? 0) * 100)}%`
-              : metrics.kpis.pipelines > 0
-                ? `${Math.round((metrics.kpis.pipelineSuccessRate ?? 0) * 100)}% (${metrics.kpis.pipelines} run)`
-                : 'N/A (Tanpa CI)',
-          status:
-            metrics.kpis.pipelines < 5
-              ? 'warn'
-              : (metrics.kpis.pipelineSuccessRate ?? 0) >= 0.8
-                ? 'good'
-                : 'warn',
-          statusText:
-            metrics.kpis.pipelines < 5
-              ? 'CI Terbatas'
-              : (metrics.kpis.pipelineSuccessRate ?? 0) >= 0.8
-                ? 'Baik'
-                : 'Perlu Pantau',
-        },
-        {
-          label: 'Self-Rework Ratio',
-          value: `${fixPct}%`,
-          status: metrics.kpis.fixRatio < 0.2 ? 'good' : metrics.kpis.fixRatio < 0.35 ? 'warn' : 'critical',
-          statusText: metrics.kpis.fixRatio < 0.2 ? 'Optimal' : 'Cukup Tinggi',
-        },
-        {
-          label: 'Rata-rata Ukuran Commit',
-          value: `${Math.round(metrics.kpis.avgCommitSize)} baris`,
-          status: metrics.kpis.avgCommitSize <= 500 ? 'good' : 'warn',
-          statusText: metrics.kpis.avgCommitSize <= 500 ? 'Modular' : 'Ukuran Besar',
-        },
-        {
-          label: 'Aktivitas Akhir Pekan',
-          value: `${metrics.kpis.weekendDays} hari`,
-          status: metrics.kpis.weekendDays <= 5 ? 'good' : 'warn',
-          statusText: metrics.kpis.weekendDays <= 5 ? 'Terjaga' : 'Perlu Seimbang',
-        },
-      ],
-      weeklyCommits: metrics.weekly.map((w) => ({ week: w.week, count: w.commits })),
+      componentScores,
+      qualityIndicators,
+      weeklyCommits,
       monthlyContributions,
-      monthlySummary: `Hari kerja aktif: ${activePct}% · Kestabilan: ${metrics.scores.consistency}%`,
-      commitHeatmap: buildHeatmap(flowCommits.map((c) => c.authored_at)),
+      monthlySummary: `Minggu dengan commit: ${fmt1((score.evidence.weeksWithCommit / Math.max(1, score.evidence.totalWeeks)) * 100)}% · Kestabilan bulanan: ${fmt1(score.evidence.monthlyStability)}%`,
       releaseFlow: {
         branches: releaseFlow.branches,
         totalPoints: Math.round(releaseFlow.totalPoints * 10) / 10,
@@ -625,14 +698,41 @@ export function getLiveReportData(): FullReportData {
         hasOtherBranch: releaseFlow.hasOtherBranch,
         stages: releaseFlow.stages.map((x) => ({ ...x, points: Math.round(x.points * 10) / 10 })),
         funnel: releaseFlow.funnel,
-        monthly: releaseFlow.monthly.map((m) => ({ ...m, points: Math.round(m.points * 10) / 10 })),
+        monthly: releaseFlow.monthly
+          .filter((m, i) => i > 0 || m.branches > 0 || m.points > 0)
+          .map((m) => ({ ...m, points: Math.round(m.points * 10) / 10 })),
         firstMasterMonth: releaseFlow.firstMasterMonth ? formatYmId(releaseFlow.firstMasterMonth) : null,
       },
       repeatedIssues: {
-        fixCommitCount: repeated.fixCommitCount,
-        repeatedFiles: repeated.repeatedFiles.slice(0, 10),
-        fixOnFix: repeated.fixOnFix,
-        backAndForth: repeated.backAndForth,
+        fixCommitCount: flowCommits.filter((c) => c.is_fix).length,
+        repeatedFileCount: repeatedFiles.length,
+        repeatedFiles: repeatedFiles.slice(0, 8).map((f) => ({
+          file: f.path,
+          fixCount: f.fixCount,
+          avgLines: f.avgLines,
+          kind: f.kind,
+        })),
+        fixOnFix: {
+          count: analysis.fixOnFixCommits,
+          lines: analysis.fixOnFixLines,
+          examples: reworkExamples.map((e) => ({
+            file: e.file,
+            first: e.initialCommit,
+            second: e.modifyingCommit,
+            lines: e.lines,
+            gapDays: Number(e.gap.replace(' hari', '')),
+          })),
+        },
+        backAndForth: {
+          lines: analysis.backAndForthLines,
+          commits: backAndForthCommits,
+          files: analysis.backAndForthFiles.slice(0, 5).map((f) => ({
+            file: f.path,
+            lines: f.count,
+            commits: f.shas.length,
+            lastCommit: f.shas[f.shas.length - 1] ?? '',
+          })),
+        },
       },
       areas: {
         primaryRole: areasView.primaryRole,
@@ -640,29 +740,54 @@ export function getLiveReportData(): FullReportData {
         areas: areasView.areas,
         languages: areasView.languages.slice(0, 10),
       },
-      identity: {
-        role: areasView.primaryRole,
-        roleLabel: areasView.roleLabel,
-        rank: 1,
-        rankTotal: 1,
-        roleRank: 1,
-        roleTotal: 1,
-      },
       narrative: {
         movement,
-        strengths: narrativeStrengths.slice(0, 4),
-        focus: focus.slice(0, 4),
+        strengths,
+        focus,
       },
+      skill: {
+        score: score.skill.score,
+        testPct: Math.round(score.evidence.testPct * 10) / 10,
+        scannedLines: score.skill.scannedLines,
+        scannedFiles: score.skill.scannedFiles,
+        issues: score.skill.issues.map((i) => ({
+          key: i.key,
+          label: i.label,
+          count: i.count,
+          per100: i.per100.toLocaleString('id-ID', { maximumFractionDigits: 2 }),
+          status: i.status,
+          statusText: i.statusLabel,
+        })),
+        languages: skillLanguages,
+      },
+      review: {
+        score: score.review.score,
+        count: score.review.count,
+        highlights: reviewHighlights,
+      },
+      workAreas,
+      fileExtensions,
+      hotspots,
+      commitsToCheck,
+      reworkExamples,
+      commitHeatmap: buildHeatmap(flowCommits.map((c) => c.authored_at)),
     },
     aiAnalysis: {
-      model: aiNarrative.model,
-      summary: aiNarrative.summary,
-      strengths: aiNarrative.strengths,
-      improvements: aiNarrative.improvements,
-      projectContributions,
-      fileTypes,
-      hotspots,
+      model: cachedAi?.model ?? activeModel,
+      summary: cachedAi?.summary ?? '-',
     },
-    reworkExamples,
   };
+}
+
+function inWindow(iso: string | null, start: Date, end: Date): boolean {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  return t >= start.getTime() && t <= end.getTime();
+}
+
+function weekStartKey(iso: string): string {
+  const dt = new Date(iso);
+  const day = dt.getUTCDay();
+  dt.setUTCDate(dt.getUTCDate() - ((day + 6) % 7));
+  return dt.toISOString().slice(0, 10);
 }

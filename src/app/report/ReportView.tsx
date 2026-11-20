@@ -1,13 +1,14 @@
 'use client';
 
-import Link from 'next/link';
 import { referenceReportData, type FullReportData } from './reportData';
-import { ReportProjectScopePages } from './ReportProjectScopePages';
 import { ReportMethodologyPage } from './ReportMethodologyPage';
 import { ReportTalentProfilePage } from './ReportTalentProfilePage';
 import { ReportReleaseFlowPage } from './ReportReleaseFlowPage';
-import { ReportAiAnalysisPage } from './ReportAiAnalysisPage';
 import { ReportReworkPage } from './ReportReworkPage';
+import { ReportSkillPage } from './ReportSkillPage';
+import { ReportCodeReviewPage } from './ReportCodeReviewPage';
+import { ReportWorkAreaPage } from './ReportWorkAreaPage';
+import { ReportHotspotPage } from './ReportHotspotPage';
 
 interface ReportViewProps {
   initialData?: FullReportData;
@@ -16,92 +17,44 @@ interface ReportViewProps {
 export default function ReportView({ initialData }: ReportViewProps) {
   // Active dataset: Realtime GitLab performance data
   const activeData: FullReportData = initialData || referenceReportData;
-
-  const projectPagesCount =
-    activeData.projects.length > 0
-      ? Math.max(...activeData.projects.map((p) => p.page))
-      : 1;
-
-  const totalPages = projectPagesCount + 5;
-  const methodologyPageNum = projectPagesCount + 1;
-  const talentProfilePageNum = projectPagesCount + 2;
-  const releaseFlowPageNum = projectPagesCount + 3;
-  const aiAnalysisPageNum = projectPagesCount + 4;
-  const reworkPageNum = projectPagesCount + 5;
+  const totalPages = 8;
 
   const handlePrint = () => {
     window.print();
   };
 
   return (
-    <div className='report-root max-w-[900px] mx-auto py-4 pb-15 print:max-w-full print:p-0 print:m-0'>
-      {/* Top Toolbar (Hidden on Print) */}
-      <div className='flex justify-between items-center mb-6 bg-surface border border-border py-3 px-5 rounded-xl box-border print:hidden'>
-        <Link
-          href='/gitlab'
-          className='btn btn-ghost text-[13px] inline-flex items-center'
-        >
-          <svg
-            width='16'
-            height='16'
-            viewBox='0 0 24 24'
-            fill='none'
-            stroke='currentColor'
-            strokeWidth='2.2'
-            strokeLinecap='round'
-            strokeLinejoin='round'
-            className='mr-1.5'
-          >
-            <line x1='19' y1='12' x2='5' y2='12' />
-            <polyline points='12 19 5 12 12 5' />
-          </svg>
-          Kembali ke GitLab Dashboard
-        </Link>
-
-        <button
-          type='button'
-          className='btn btn-primary font-bold whitespace-nowrap'
-          onClick={handlePrint}
-        >
-          Cetak PDF
-        </button>
-      </div>
-
-      {/* Pages: Ringkasan Eksekutif & Cakupan Proyek (Hanya proyek sedang / pernah dikerjakan) */}
-      <ReportProjectScopePages data={activeData} totalPages={totalPages} />
-
-      {/* Metodologi Penilaian */}
-      <ReportMethodologyPage
-        methodology={activeData.methodology}
-        currentPage={methodologyPageNum}
-        totalPages={totalPages}
-      />
-
-      {/* Profil Detail Talent */}
+    <div className='report-root max-w-[1150px] mx-auto py-4 pb-15 print:max-w-full print:p-0 print:m-0'>
+      {/* 1. Profil, KPI, skor komponen, indikator kualitas */}
       <ReportTalentProfilePage
         data={activeData}
-        currentPage={talentProfilePageNum}
+        currentPage={1}
         totalPages={totalPages}
+        onPrint={handlePrint}
       />
 
-      {/* Alur rilis: branch -> develop -> release -> master */}
-      <ReportReleaseFlowPage
-        data={activeData}
-        currentPage={releaseFlowPageNum}
-        totalPages={totalPages}
-      />
+      {/* 2. Alur kerja: branch -> develop -> release -> master */}
+      <ReportReleaseFlowPage data={activeData} currentPage={2} totalPages={totalPages} />
 
-      {/* Analisis AI (Menampilkan nama model LLM aktif di website) */}
-      <ReportAiAnalysisPage
-        data={activeData}
-        currentPage={aiAnalysisPageNum}
-        totalPages={totalPages}
-      />
+      {/* 3. Isu berulang atas kode sendiri */}
+      <ReportReworkPage data={activeData} currentPage={3} totalPages={totalPages} />
 
-      {/* Isu berulang atas kode sendiri */}
-      <ReportReworkPage
-        data={activeData}
-        currentPage={reworkPageNum}
+      {/* 4. Skill kode: temuan statis, bahasa, commit yang perlu dicek */}
+      <ReportSkillPage data={activeData} currentPage={4} totalPages={totalPages} />
+
+      {/* 5. Review kode AI + commit per minggu */}
+      <ReportCodeReviewPage data={activeData} currentPage={5} totalPages={totalPages} />
+
+      {/* 6. Area kerja, pola waktu, tipe file, catatan pengembangan */}
+      <ReportWorkAreaPage data={activeData} currentPage={6} totalPages={totalPages} />
+
+      {/* 7. Hotspot dan contoh self-rework */}
+      <ReportHotspotPage data={activeData} currentPage={7} totalPages={totalPages} />
+
+      {/* 8. Metodologi penilaian */}
+      <ReportMethodologyPage
+        methodology={activeData.methodology}
+        currentPage={8}
         totalPages={totalPages}
       />
     </div>
