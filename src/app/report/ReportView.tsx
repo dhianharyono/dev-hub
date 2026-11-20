@@ -5,6 +5,7 @@ import { referenceReportData, type FullReportData } from './reportData';
 import { ReportProjectScopePages } from './ReportProjectScopePages';
 import { ReportMethodologyPage } from './ReportMethodologyPage';
 import { ReportTalentProfilePage } from './ReportTalentProfilePage';
+import { ReportReleaseFlowPage } from './ReportReleaseFlowPage';
 import { ReportAiAnalysisPage } from './ReportAiAnalysisPage';
 import { ReportReworkPage } from './ReportReworkPage';
 
@@ -21,18 +22,19 @@ export default function ReportView({ initialData }: ReportViewProps) {
       ? Math.max(...activeData.projects.map((p) => p.page))
       : 1;
 
-  const totalPages = projectPagesCount + 4;
+  const totalPages = projectPagesCount + 5;
   const methodologyPageNum = projectPagesCount + 1;
   const talentProfilePageNum = projectPagesCount + 2;
-  const aiAnalysisPageNum = projectPagesCount + 3;
-  const reworkPageNum = projectPagesCount + 4;
+  const releaseFlowPageNum = projectPagesCount + 3;
+  const aiAnalysisPageNum = projectPagesCount + 4;
+  const reworkPageNum = projectPagesCount + 5;
 
   const handlePrint = () => {
     window.print();
   };
 
   return (
-    <div className='max-w-[900px] mx-auto py-4 pb-15 print:max-w-full print:p-0 print:m-0'>
+    <div className='report-root max-w-[900px] mx-auto py-4 pb-15 print:max-w-full print:p-0 print:m-0'>
       {/* Top Toolbar (Hidden on Print) */}
       <div className='flex justify-between items-center mb-6 bg-surface border border-border py-3 px-5 rounded-xl box-border print:hidden'>
         <Link
@@ -82,6 +84,13 @@ export default function ReportView({ initialData }: ReportViewProps) {
         totalPages={totalPages}
       />
 
+      {/* Alur rilis: branch -> develop -> release -> master */}
+      <ReportReleaseFlowPage
+        data={activeData}
+        currentPage={releaseFlowPageNum}
+        totalPages={totalPages}
+      />
+
       {/* Analisis AI (Menampilkan nama model LLM aktif di website) */}
       <ReportAiAnalysisPage
         data={activeData}
@@ -89,7 +98,7 @@ export default function ReportView({ initialData }: ReportViewProps) {
         totalPages={totalPages}
       />
 
-      {/* Contoh Rework Atas Kode Sendiri */}
+      {/* Isu berulang atas kode sendiri */}
       <ReportReworkPage
         data={activeData}
         currentPage={reworkPageNum}

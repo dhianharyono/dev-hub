@@ -40,6 +40,20 @@ export function ReportMethodologyPage({
         </div>
 
         <section className='my-4 print:my-1.5'>
+          <h3 className='text-xs font-extrabold tracking-wider uppercase text-slate-700 mb-1 print:text-[8.5px]'>ALUR RILIS</h3>
+          <p className='text-xs text-slate-600 leading-relaxed print:text-[8px] print:leading-tight'>
+            Poin dihitung dari MR yang sudah merged: branch baru 1 poin, MR ke develop 2, MR ke release 3, dan MR ke master/production 5. MR ke branch lain tidak menambah poin. Pekerjaan yang ikut terbawa lewat MR milik rekan dihitung setengah poin. Jangkauan commit dihitung dari commit yang dapat dijangkau branch develop, release, dan master/production pada repository.
+          </p>
+        </section>
+
+        <section className='my-4 print:my-1.5'>
+          <h3 className='text-xs font-extrabold tracking-wider uppercase text-slate-700 mb-1 print:text-[8.5px]'>ISU BERULANG</h3>
+          <p className='text-xs text-slate-600 leading-relaxed print:text-[8px] print:leading-tight'>
+            File dianggap diperbaiki berulang bila memiliki minimal 3 commit fix. Fix atas fix dihitung bila file yang sama diperbaiki lagi dalam 45 hari sejak perbaikan sebelumnya. Kode bolak-balik dihitung dari baris yang dihapus lalu ditambahkan kembali pada commit berikutnya; baris trivial dan file lock/hasil build tidak dihitung.
+          </p>
+        </section>
+
+        <section className='my-4 print:my-1.5'>
           <h3 className='text-xs font-extrabold tracking-wider uppercase text-slate-700 mb-1 print:text-[8.5px]'>MASA PENUGASAN</h3>
           <p className='text-xs text-slate-600 leading-relaxed print:text-[8px] print:leading-tight'>{methodology.assignmentTenure}</p>
         </section>

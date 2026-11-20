@@ -3,9 +3,9 @@ import { getLiveReportData } from '@/lib/report-live';
 import ReportView from './ReportView';
 
 export const metadata: Metadata = {
-  title: 'Laporan Performa',
+  title: 'Rapor Talent',
   description:
-    'Laporan Performa Talenta GitLab & Ringkasan Kontribusi Kerja (Format Cetak / PDF).',
+    'Rapor Talent: peringkat, alur rilis, isu berulang, dan ringkasan kontribusi kerja (format cetak / PDF).',
 };
 
 export const dynamic = 'force-dynamic';

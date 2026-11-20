@@ -19,7 +19,8 @@ export function ReportAiAnalysisPage({
       <div className='flex-1 print:overflow-hidden'>
         {/* Main AI Header with dynamic active LLM name */}
         <div className='mb-3'>
-          <h2 className='text-xl font-extrabold text-slate-900 tracking-tight mb-2 print:text-base print:mb-1'>ANALISIS AI (LLM {aiAnalysis.model})</h2>
+          <h2 className='text-xl font-extrabold text-slate-900 tracking-tight mb-2 print:text-base print:mb-1'>KEKUATAN DAN FOKUS PENGEMBANGAN</h2>
+          <p className='text-[10px] text-slate-400 mb-1 print:text-[7.5px]'>Model: {aiAnalysis.model}</p>
         </div>
 
         {/* AI Narrative Section */}
