@@ -11,6 +11,7 @@ import { RecurringIssuesCard } from './RecurringIssuesCard';
 import { LanguageSkillCard } from './LanguageSkillCard';
 import { StaticIssuesCard } from './StaticIssuesCard';
 import { ReviewCodeCard } from './ReviewCodeCard';
+import { ProductivitySkeleton } from './ProductivitySkeleton';
 
 interface ScorecardResponse extends Scorecard {
   user: { id: number; username: string; name: string } | null;
@@ -51,12 +52,7 @@ export function ProductivityDashboard({ days }: ProductivityDashboardProps) {
   }, [days, requestKey]);
 
   if (loading) {
-    return (
-      <div className='flex flex-col gap-6' aria-busy='true'>
-        <div className='card h-40 animate-pulse bg-surface-subtle' />
-        <div className='card h-48 animate-pulse bg-surface-subtle' />
-      </div>
-    );
+    return <ProductivitySkeleton />;
   }
 
   if (error) {
