@@ -3,7 +3,6 @@ import { createHash } from "node:crypto";
 import { db } from "./db";
 import { getSettings, saveSettings, splitList, splitMulti } from "./settings";
 import { buildTalentIndex, resolveTalent } from "./relative";
-import { stageOfTarget } from "./talent-report";
 import { countDiff, gl, glAll, globToRegex, isExcluded, pool } from "./gitlab";
 import { scanAddedLines, serializeIssues } from "./code-issues";
 import { REVIEW_MAX_PER_CYCLE } from "./commit-review";
@@ -59,7 +58,6 @@ interface GLProject {
   id: number;
   path_with_namespace: string;
   web_url: string;
-  last_activity_at?: string;
 }
 interface GLEvent {
   id: number;
@@ -79,12 +77,9 @@ interface GLMR {
   created_at: string;
   merged_at: string | null;
   web_url: string;
-  author: { username: string; name?: string };
+  author: { username: string };
   source_branch: string;
   target_branch: string;
-  reviewers?: { id: number; username: string; name?: string }[];
-  merge_commit_sha?: string | null;
-  squash_commit_sha?: string | null;
 }
 interface GLPipeline {
   id: number;
@@ -305,11 +300,7 @@ async function runSync(days: number, full: boolean) {
         100,
       );
       groupProjectCount += list.length;
-      for (const p of list) {
-        // Proyek grup yang sudah lama tidak aktif tidak perlu di-request.
-        if (p.last_activity_at && p.last_activity_at < since) continue;
-        if (!projMap.has(p.id)) projMap.set(p.id, p);
-      }
+      for (const p of list) if (!projMap.has(p.id)) projMap.set(p.id, p);
     } catch (e) {
       log(`⚠️ Grup ${group} dilewati: ${(e as Error).message}`);
     }
@@ -413,13 +404,12 @@ async function runSync(days: number, full: boolean) {
         insCommit.run(c.id, p.id, c.authored_date, c.title, c.author_name, c.author_email, add, del, adjAdd, adjDel, isMerge ? 1 : 0, FIX_RE.test(c.title) ? 1 : 0, c.web_url);
         commitCount++;
       }
+      const myShas = new Set(seen.keys());
       for (const { stage, refs } of DELAYED_STAGES) {
         for (const ref of refs) {
           try {
             const list = await glAll<{ id: string }>(`/projects/${p.id}/repository/commits?ref_name=${encodeURIComponent(ref)}&since=${since}`, 20);
-            // Semua commit di branch tahap ini ikut ditandai, bukan hanya milik
-            // token, supaya reach talent pembanding juga terbangun.
-            for (const c of list) insReach.run(c.id, stage);
+            for (const c of list) if (myShas.has(c.id)) insReach.run(c.id, stage);
             break;
           } catch {
             /* branch not present in this project */
@@ -439,54 +429,11 @@ async function runSync(days: number, full: boolean) {
   });
   log(`${commitCount} commit, ${pipeCount} pipeline`);
 
-  // 4. Merge request SEMUA proyek (termasuk group), bukan hanya milik token:
-  // kolaborasi, poin alur, dan reviewer talent pembanding butuh data ini.
-  st.phase = "Merge request proyek";
-  st.done = 0;
-  st.total = projects.length;
+  // 4. Merge requests (authored + reviewing)
+  st.phase = "Merge request";
   const insMr = d.prepare(
     `INSERT OR REPLACE INTO gl_mrs(id, role, iid, project_id, title, state, created_at, merged_at, web_url, author, source_branch, target_branch) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
   );
-  const insReviewer = d.prepare(
-    "INSERT OR REPLACE INTO gl_mr_reviewers(mr_id, project_id, username, name) VALUES (?,?,?,?)",
-  );
-  const clearReviewers = d.prepare("DELETE FROM gl_mr_reviewers WHERE mr_id = ?");
-  let projectMrCount = 0;
-  let reviewerCount = 0;
-  await pool(projects, 4, async (p) => {
-    try {
-      const list = await glAll<GLMR>(
-        `/projects/${p.id}/merge_requests?scope=all&state=all&updated_after=${since}`,
-        10,
-      );
-      for (const m of list) {
-        insMr.run(m.id, "author", m.iid, m.project_id, m.title, m.state, m.created_at, m.merged_at, m.web_url, m.author.username, m.source_branch, m.target_branch);
-        clearReviewers.run(m.id);
-        for (const reviewer of m.reviewers ?? []) {
-          insReviewer.run(m.id, p.id, reviewer.username, reviewer.name ?? null);
-          reviewerCount++;
-        }
-        // Reach dari MR proyek: commit hasil merge menandai tahap targetnya.
-        if (m.merged_at) {
-          const stage = stageOfTarget(m.target_branch);
-          const sha = m.squash_commit_sha || m.merge_commit_sha;
-          if (stage !== "other" && sha) insReach.run(sha, stage);
-        }
-      }
-      projectMrCount += list.length;
-      log(`${p.path_with_namespace}: ${list.length} MR`);
-    } catch (e) {
-      projectErrors++;
-      setErr.run((e as Error).message, p.id);
-      log(`⚠️ MR ${p.path_with_namespace}: ${(e as Error).message}`);
-    } finally {
-      st.done++;
-    }
-  });
-  log(`${projectMrCount} MR proyek, ${reviewerCount} baris reviewer`);
-
-  // 4b. MR milik token untuk sinyal kolaborasi pribadi.
-  st.phase = "Merge request";
   const authored = await glAll<GLMR>(`/merge_requests?scope=all&state=all&author_id=${me.id}&updated_after=${since}`, 30);
   const reviewing = await glAll<GLMR>(`/merge_requests?scope=all&state=all&reviewer_id=${me.id}&updated_after=${since}`, 30);
   for (const m of authored)
@@ -515,6 +462,6 @@ async function runSync(days: number, full: boolean) {
     log(`⚠️ Review kode dilewati: ${(e as Error).message}`);
   }
 
-  st.summary = { projects: projects.length, commits: commitCount, mrs: projectMrCount, events: events.length, pipelines: pipeCount, projectErrors, talents: countDetectedTalents() };
+  st.summary = { projects: projects.length, commits: commitCount, mrs: authored.length + reviewing.length, events: events.length, pipelines: pipeCount, projectErrors, talents: countDetectedTalents() };
   log("✅ Sinkronisasi selesai");
 }

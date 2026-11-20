@@ -205,7 +205,7 @@ export function loadTeamTalents(
     .prepare(
       `SELECT project_id, role, author, created_at, merged_at, source_branch, target_branch
        FROM gl_mrs
-       WHERE role = 'author' AND ((created_at BETWEEN ? AND ?) OR (merged_at BETWEEN ? AND ?))`,
+       WHERE (created_at BETWEEN ? AND ?) OR (merged_at BETWEEN ? AND ?)`,
     )
     .all(startIso, endIso, startIso, endIso) as unknown as TeamMrRow[];
   const reachRows = d
@@ -238,18 +238,14 @@ export function loadTeamTalents(
     bucketOf(name).commits.push(commit);
   }
 
-  // Review dihitung dari reviewer MR yang tersimpan, berlaku untuk semua talent
-  // (bukan lagi dari gl_events yang hanya mencatat aktivitas pemilik token).
-  const reviewerRows = d
-    .prepare(
-      `SELECT r.username FROM gl_mr_reviewers r
-       JOIN gl_mrs m ON m.id = r.mr_id AND m.role = 'author'
-       WHERE (m.created_at BETWEEN ? AND ?) OR (m.merged_at BETWEEN ? AND ?)`,
-    )
-    .all(startIso, endIso, startIso, endIso) as { username: string }[];
-  for (const row of reviewerRows) {
-    const name = resolveTalent(index, row.username, null);
-    if (name) bucketOf(name).reviews += 1;
+  const reviewActions = events.filter(
+    (event) =>
+      (event.action.startsWith("commented") && event.noteable_type === "MergeRequest") ||
+      event.action === "approved",
+  ).length;
+  const reviewerRows = mrs.filter((mr) => mr.role === "reviewer").length;
+  if (meName) {
+    bucketOf(meName).reviews = reviewActions + reviewerRows;
   }
 
   for (const mr of mrs) {
@@ -331,7 +327,7 @@ export function loadTeamTalents(
       mrsMerged: merged.length,
       activeDays,
       reviews: bucket.reviews,
-      reviewKnown: true,
+      reviewKnown: name === meName,
       releaseScore: flow.score,
     };
 
