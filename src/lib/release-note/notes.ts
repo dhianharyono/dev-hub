@@ -1,5 +1,6 @@
 import 'server-only';
 import { taiga, resolveEpicId } from '@/lib/taiga';
+import { readTaskTimesheet } from '@/lib/taiga/timesheet';
 import { getSettings } from '@/lib/settings';
 import {
   emptyReleaseNoteList,
@@ -122,6 +123,10 @@ export async function getReleaseNote(
     headers: { 'x-disable-pagination': 'true' },
   }).catch(() => [] as RawTask[]);
 
+  const timesheets = await Promise.all(
+    tasks.map((task) => readTaskTimesheet(task.id, project.id)),
+  );
+
   const source =
     RELEASE_NOTE_EPICS.find((epic) =>
       story.epics?.some((item) => item.ref === epic.epicRef),
@@ -132,12 +137,13 @@ export async function getReleaseNote(
     statusId: story.status,
     description: story.description ?? '',
     tasks: tasks
-      .map((task) => ({
+      .map((task, index) => ({
         id: task.id,
         ref: task.ref,
         subject: task.subject,
         description: task.description ?? '',
         statusId: task.status,
+        ...timesheets[index],
         status: {
           name: task.status_extra_info?.name ?? 'Unknown',
           color: task.status_extra_info?.color ?? '#94a3b8',

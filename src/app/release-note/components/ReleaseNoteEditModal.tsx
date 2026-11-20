@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { AlertCircle, Loader2, Save } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Select } from '@/components/Select';
+import { SmartTaskTimesheetLog } from '@/app/tasks/smart-task/SmartTaskTimesheetLog';
 import type { ReleaseNoteDetail } from '@/lib/release-note/model';
 import {
   changedTaskUpdates,
@@ -325,6 +326,22 @@ export function ReleaseNoteEditModal({
                         patchTask(task.id, { description: event.target.value })
                       }
                       disabled={saving}
+                    />
+                    <SmartTaskTimesheetLog
+                      activityDate={task.activityDate}
+                      startTime={task.startTime}
+                      totalTimeSpentMinutes={task.totalTimeSpentMinutes}
+                      onUpdateDate={(date) =>
+                        patchTask(task.id, { activityDate: date })
+                      }
+                      onUpdateStartTime={(time) =>
+                        patchTask(task.id, { startTime: time })
+                      }
+                      onUpdateDuration={(mins) =>
+                        patchTask(task.id, {
+                          totalTimeSpentMinutes: mins,
+                        })
+                      }
                     />
                   </div>
                 ))}

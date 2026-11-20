@@ -12,6 +12,9 @@ function task(overrides: Partial<ReleaseNoteTask> = {}): ReleaseNoteTask {
     subject: '[FE] Deployment Staging',
     description: '',
     statusId: 11,
+    activityDate: '2026-11-18',
+    startTime: '09:00',
+    totalTimeSpentMinutes: 60,
     status: { name: 'Done', color: '#A8E440', isClosed: true },
     url: 'https://taiga.example.com/project/SPA/task/74561',
     ...overrides,
@@ -19,15 +22,33 @@ function task(overrides: Partial<ReleaseNoteTask> = {}): ReleaseNoteTask {
 }
 
 describe('edit release note', () => {
-  it('mengambil nilai awal editor dari task', () => {
+  it('mengambil nilai awal editor dari task, termasuk timesheet', () => {
     expect(toTaskDrafts([task()])).toEqual([
       {
         id: 804338,
         subject: '[FE] Deployment Staging',
         description: '',
         statusId: 11,
+        activityDate: '2026-11-18',
+        startTime: '09:00',
+        totalTimeSpentMinutes: 60,
       },
     ]);
+  });
+
+  it('memakai nilai timesheet kosong bila task belum punya', () => {
+    const drafts = toTaskDrafts([
+      task({
+        activityDate: undefined,
+        startTime: undefined,
+        totalTimeSpentMinutes: undefined,
+      }),
+    ]);
+    expect(drafts[0]).toMatchObject({
+      activityDate: '',
+      startTime: '',
+      totalTimeSpentMinutes: null,
+    });
   });
 
   it('tidak mengirim task yang tidak berubah', () => {
@@ -57,6 +78,47 @@ describe('edit release note', () => {
         subject: '[BE] Deployment Staging',
         description: 'cek migrasi',
         statusId: 11,
+      },
+    ]);
+  });
+
+  it('mengirim timesheet hanya saat tanggal, jam, atau durasi berubah', () => {
+    const original = [task()];
+    const drafts = toTaskDrafts(original);
+    drafts[0] = {
+      ...drafts[0],
+      activityDate: '2026-11-19',
+      startTime: '10:30',
+      totalTimeSpentMinutes: 90,
+    };
+
+    expect(changedTaskUpdates(original, drafts)).toEqual([
+      {
+        taskId: 804338,
+        subject: '[FE] Deployment Staging',
+        description: '',
+        statusId: 11,
+        activityDate: '2026-11-19',
+        startTime: '10:30',
+        totalTimeSpentMinutes: 90,
+      },
+    ]);
+  });
+
+  it('mengirim ulang timesheet yang sama bila task diubah karena field lain', () => {
+    const original = [task()];
+    const drafts = toTaskDrafts(original);
+    drafts[0] = { ...drafts[0], activityDate: '2026-11-19' };
+
+    expect(changedTaskUpdates(original, drafts)).toEqual([
+      {
+        taskId: 804338,
+        subject: '[FE] Deployment Staging',
+        description: '',
+        statusId: 11,
+        activityDate: '2026-11-19',
+        startTime: '09:00',
+        totalTimeSpentMinutes: 60,
       },
     ]);
   });

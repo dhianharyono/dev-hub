@@ -5,6 +5,9 @@ export interface ReleaseTaskDraft {
   subject: string;
   description: string;
   statusId: number;
+  activityDate: string;
+  startTime: string;
+  totalTimeSpentMinutes: number | null;
 }
 
 export interface ReleaseTaskUpdate {
@@ -12,6 +15,9 @@ export interface ReleaseTaskUpdate {
   subject: string;
   description: string;
   statusId?: number;
+  activityDate?: string;
+  startTime?: string;
+  totalTimeSpentMinutes?: number | null;
 }
 
 /** Nilai awal editor task dari data detail release note. */
@@ -21,6 +27,9 @@ export function toTaskDrafts(tasks: ReleaseNoteTask[]): ReleaseTaskDraft[] {
     subject: task.subject,
     description: task.description ?? '',
     statusId: task.statusId ?? 0,
+    activityDate: task.activityDate ?? '',
+    startTime: task.startTime ?? '',
+    totalTimeSpentMinutes: task.totalTimeSpentMinutes ?? null,
   }));
 }
 
@@ -42,7 +51,17 @@ export function changedTaskUpdates(
       draft.statusId > 0 && draft.statusId !== before.statusId;
     const descriptionChanged =
       (draft.description ?? '') !== (before.description ?? '');
-    if (subject === before.subject.trim() && !statusChanged && !descriptionChanged) {
+    const timesheetChanged =
+      draft.activityDate !== (before.activityDate ?? '') ||
+      draft.startTime !== (before.startTime ?? '') ||
+      (draft.totalTimeSpentMinutes ?? null) !==
+        (before.totalTimeSpentMinutes ?? null);
+    if (
+      subject === before.subject.trim() &&
+      !statusChanged &&
+      !descriptionChanged &&
+      !timesheetChanged
+    ) {
       continue;
     }
 
@@ -51,6 +70,13 @@ export function changedTaskUpdates(
       subject,
       description: draft.description ?? '',
       ...(draft.statusId > 0 ? { statusId: draft.statusId } : {}),
+      ...(timesheetChanged
+        ? {
+            activityDate: draft.activityDate || undefined,
+            startTime: draft.startTime || undefined,
+            totalTimeSpentMinutes: draft.totalTimeSpentMinutes,
+          }
+        : {}),
     });
   }
 

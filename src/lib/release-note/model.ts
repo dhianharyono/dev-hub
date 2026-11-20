@@ -18,6 +18,9 @@ export interface ReleaseNoteTask {
   subject: string;
   description?: string;
   statusId?: number;
+  activityDate?: string;
+  startTime?: string;
+  totalTimeSpentMinutes?: number | null;
   status: { name: string; color: string; isClosed: boolean };
   url: string;
 }
