@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS gl_commit_files (
   deleted    INTEGER NOT NULL DEFAULT 0,
   added_hashes   TEXT,
   deleted_hashes TEXT,
+  issues_json    TEXT,               -- hasil pemindai statis per file
   PRIMARY KEY (sha, path)
 );
 CREATE INDEX IF NOT EXISTS idx_commit_files_path ON gl_commit_files(path);
@@ -107,6 +108,7 @@ CREATE TABLE IF NOT EXISTS gl_commit_reach (
   stage TEXT NOT NULL,               -- 'develop' | 'release' | 'master'
   PRIMARY KEY (sha, stage)
 );
+
 `;
 
 const globalForDb = globalThis as unknown as { __devhubDb?: DatabaseSync };
@@ -120,6 +122,9 @@ export function db(): DatabaseSync {
     d.exec(SCHEMA);
     try {
       d.exec("CREATE TABLE IF NOT EXISTS gl_commit_diffs (sha TEXT PRIMARY KEY, files_json TEXT NOT NULL);");
+    } catch {}
+    try {
+      d.exec("ALTER TABLE gl_commit_files ADD COLUMN issues_json TEXT;");
     } catch {}
     try {
       d.exec("ALTER TABLE gl_commits ADD COLUMN author_name TEXT;");

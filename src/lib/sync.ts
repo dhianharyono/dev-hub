@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { db } from "./db";
 import { getSettings, saveSettings, splitList } from "./settings";
 import { countDiff, gl, glAll, globToRegex, isExcluded, pool } from "./gitlab";
+import { scanAddedLines, serializeIssues } from "./code-issues";
 
 export interface SyncStatus {
   running: boolean;
@@ -71,6 +72,16 @@ interface GLPipeline {
 
 const FIX_RE = /\b(fix(e[sd])?|hotfix|bugfix|revert|perbaik\w*|patch)\b/i;
 
+/** Isi baris yang ditambahkan pada patch diff (tanpa prefiks `+`). */
+function addedLines(diff: string): string[] {
+  const out: string[] = [];
+  for (const line of diff.split("\n")) {
+    if (!line.startsWith("+") || line.startsWith("+++")) continue;
+    out.push(line.slice(1));
+  }
+  return out;
+}
+
 /** Normalized hashes of changed lines, used to detect code that is deleted then restored. */
 function lineHashes(diff: string, prefix: "+" | "-"): string[] {
   const out: string[] = [];
@@ -99,6 +110,118 @@ export function startSync(days = 180, full = false) {
       st.finishedAt = new Date().toISOString();
     });
   return st;
+}
+
+/**
+ * Pindai ulang commit lama yang belum punya `issues_json`. Dipakai sekali saat
+ * menyalakan pemindai statis: diff tidak disimpan di DB, jadi patch diambil
+ * ulang dari GitLab. Commit yang gagal diambil tetap NULL (netral).
+ */
+export function startRetroScan(days = 365) {
+  const st = syncStatus();
+  if (st.running) return st;
+  Object.assign(st, {
+    running: true,
+    phase: "Pindai kode",
+    done: 0,
+    total: 0,
+    error: undefined,
+    log: [],
+    startedAt: new Date().toISOString(),
+    finishedAt: undefined,
+    summary: undefined,
+  });
+  runRetroScan(days)
+    .catch((e: Error) => {
+      st.error = e.message;
+      log(`❌ ${e.message}`);
+    })
+    .finally(() => {
+      st.running = false;
+      st.phase = st.error ? "Gagal" : "Selesai";
+      st.finishedAt = new Date().toISOString();
+    });
+  return st;
+}
+
+async function runRetroScan(days: number) {
+  const st = syncStatus();
+  const d = db();
+  const s = getSettings();
+  const userRow = d.prepare("SELECT value FROM settings WHERE key = 'glUser'").get() as
+    | { value: string }
+    | undefined;
+  const user = userRow?.value
+    ? (JSON.parse(userRow.value) as { username?: string; name?: string })
+    : undefined;
+  const emails = new Set(splitList(s.identityEmails).map((value) => value.toLowerCase()).filter(Boolean));
+  const names = new Set(
+    [...splitList(s.identityNames), user?.username ?? "", user?.name ?? ""]
+      .map((value) => value.toLowerCase())
+      .filter(Boolean),
+  );
+  const clauses: string[] = [];
+  const params: string[] = [];
+  if (emails.size) {
+    clauses.push(`lower(c.author_email) IN (${[...emails].map(() => "?").join(",")})`);
+    params.push(...emails);
+  }
+  if (names.size) {
+    clauses.push(`lower(c.author_name) IN (${[...names].map(() => "?").join(",")})`);
+    params.push(...names);
+  }
+  if (!clauses.length) throw new Error("Identitas belum diatur. Buka Settings.");
+  const identity = `(${clauses.join(" OR ")})`;
+
+  const end = new Date();
+  const start =
+    days > 0
+      ? new Date(end.getTime() - days * 864e5)
+      : new Date(`${end.getFullYear()}-01-01T00:00:00+07:00`);
+
+  const rows = d
+    .prepare(
+      `SELECT DISTINCT f.sha, f.project_id FROM gl_commit_files f
+       JOIN gl_commits c ON c.sha = f.sha
+       WHERE c.is_merge = 0 AND c.authored_at >= ? AND ${identity}
+         AND EXISTS (
+           SELECT 1 FROM gl_commit_files x
+           WHERE x.sha = f.sha
+             AND (x.issues_json IS NULL OR x.issues_json NOT LIKE '%"v":2%')
+         )`,
+    )
+    .all(start.toISOString(), ...params) as { sha: string; project_id: number }[];
+
+  st.total = rows.length;
+  log(`${rows.length} commit perlu dipindai`);
+  const upd = d.prepare("UPDATE gl_commit_files SET issues_json = ? WHERE sha = ? AND path = ?");
+  let scanned = 0;
+  let failed = 0;
+
+  await pool(rows, 4, async (row) => {
+    try {
+      const diffs = await glAll<{ new_path: string; path?: string; diff: string }>(
+        `/projects/${row.project_id}/repository/commits/${row.sha}/diff?`,
+        5,
+      );
+      for (const file of diffs) {
+        const filePath = file.new_path || file.path || "";
+        if (!filePath) continue;
+        const bundle = scanAddedLines(filePath, addedLines(file.diff ?? ""));
+        upd.run(serializeIssues(bundle), row.sha, filePath);
+      }
+      scanned++;
+    } catch (e) {
+      failed++;
+      if (failed <= 5) log(`⚠️ ${row.sha.slice(0, 8)}: ${(e as Error).message}`);
+    } finally {
+      st.done++;
+      if (st.done % 200 === 0) log(`${st.done}/${rows.length} commit dipindai`);
+    }
+  });
+
+  st.summary = { projects: 0, commits: scanned, mrs: 0, events: 0, pipelines: 0, projectErrors: failed };
+  log(`✅ Pindai selesai: ${scanned} commit, ${failed} gagal (tetap netral)`);
 }
 
 async function runSync(days: number, full: boolean) {
@@ -162,7 +285,7 @@ async function runSync(days: number, full: boolean) {
   );
   const insPipe = d.prepare("INSERT OR REPLACE INTO gl_pipelines(id, project_id, status, ref, created_at, web_url) VALUES (?,?,?,?,?,?)");
   const insFile = d.prepare(
-    "INSERT OR REPLACE INTO gl_commit_files(sha, project_id, path, added, deleted, added_hashes, deleted_hashes) VALUES (?,?,?,?,?,?,?)",
+    "INSERT OR REPLACE INTO gl_commit_files(sha, project_id, path, added, deleted, added_hashes, deleted_hashes, issues_json) VALUES (?,?,?,?,?,?,?,?)",
   );
   const insReach = d.prepare("INSERT OR REPLACE INTO gl_commit_reach(sha, stage) VALUES (?,?)");
   const DELAYED_STAGES: { stage: string; refs: string[] }[] = [
@@ -223,7 +346,8 @@ async function runSync(days: number, full: boolean) {
               if (isExcluded(filePath, excludes)) continue;
               adjAdd += cnt.add;
               adjDel += cnt.del;
-              insFile.run(c.id, p.id, filePath, cnt.add, cnt.del, JSON.stringify(lineHashes(f.diff, "+")), JSON.stringify(lineHashes(f.diff, "-")));
+              const issues = scanAddedLines(filePath, addedLines(f.diff));
+              insFile.run(c.id, p.id, filePath, cnt.add, cnt.del, JSON.stringify(lineHashes(f.diff, "+")), JSON.stringify(lineHashes(f.diff, "-")), serializeIssues(issues));
             }
             const diffFiles = diffs.map((df) => df.new_path).filter(Boolean);
             if (diffFiles.length > 0) {
@@ -286,6 +410,7 @@ async function runSync(days: number, full: boolean) {
   d.prepare("INSERT INTO settings(key,value) VALUES('glUser',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(
     JSON.stringify({ id: me.id, username: me.username, name: me.name }),
   );
+
   st.summary = { projects: projects.length, commits: commitCount, mrs: authored.length + reviewing.length, events: events.length, pipelines: pipeCount, projectErrors };
   log("✅ Sinkronisasi selesai");
 }
