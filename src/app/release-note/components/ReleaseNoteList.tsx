@@ -9,6 +9,7 @@ import type {
   ReleaseNoteSummary,
 } from '@/lib/release-note/model';
 import { ReleaseNoteDetailModal } from './ReleaseNoteDetailModal';
+import { ReleaseNoteEditModal } from './ReleaseNoteEditModal';
 
 const PAGE_SIZE = 15;
 
@@ -54,6 +55,7 @@ export function ReleaseNoteList({
   const [status, setStatus] = useState('ALL');
   const [page, setPage] = useState(1);
   const [selectedRef, setSelectedRef] = useState<number | null>(null);
+  const [editRef, setEditRef] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -229,7 +231,7 @@ export function ReleaseNoteList({
                     <th>Judul</th>
                     <th className='w-28'>Sumber</th>
                     <th className='w-32'>Status</th>
-                    <th className='w-28 text-right'>Aksi</th>
+                    <th className='text-right whitespace-nowrap'>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -252,20 +254,32 @@ export function ReleaseNoteList({
                         {note.status.name}
                       </td>
                       <td className='text-right'>
-                        <button
-                          type='button'
-                          className='btn btn-ghost btn-sm'
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            if (onAction) {
-                              onAction(note);
-                            } else {
-                              setSelectedRef(note.ref);
-                            }
-                          }}
-                        >
-                          {onAction ? actionLabel : 'Lihat'}
-                        </button>
+                        <div className='flex items-center justify-end gap-1 whitespace-nowrap'>
+                          <button
+                            type='button'
+                            className='btn btn-ghost btn-sm'
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (onAction) {
+                                onAction(note);
+                              } else {
+                                setSelectedRef(note.ref);
+                              }
+                            }}
+                          >
+                            {onAction ? actionLabel : 'Lihat'}
+                          </button>
+                          <button
+                            type='button'
+                            className='btn btn-ghost btn-sm'
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setEditRef(note.ref);
+                            }}
+                          >
+                            Edit
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -316,6 +330,15 @@ export function ReleaseNoteList({
           key={selectedRef}
           noteRef={selectedRef}
           onClose={() => setSelectedRef(null)}
+        />
+      )}
+
+      {editRef !== null && (
+        <ReleaseNoteEditModal
+          key={editRef}
+          noteRef={editRef}
+          onClose={() => setEditRef(null)}
+          onSaved={() => void load()}
         />
       )}
     </section>
