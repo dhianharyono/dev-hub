@@ -119,6 +119,12 @@ export interface CreateItemResult {
   epic?: { id: number; ref: number } | null;
 }
 
+export interface UpdateUserStoryPayload {
+  subject?: string;
+  description?: string;
+  statusId?: number | null;
+}
+
 export interface UpdateTaskPayload {
   subject?: string;
   description?: string;

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createItem, updateTask } from "@/lib/taiga";
+import { createItem, updateTask, updateUserStory } from "@/lib/taiga";
 import { db } from "@/lib/db";
 import { errorResponse } from "@/lib/http";
 
@@ -44,6 +44,14 @@ const UpdateBody = z.object({
   isClosed: z.boolean().optional(),
 });
 
+const UpdateUserStoryBody = z.object({
+  kind: z.literal("userstory"),
+  userStoryId: z.number(),
+  subject: z.string().min(1).optional(),
+  description: z.string().optional(),
+  statusId: z.number().nullable().optional(),
+});
+
 export async function POST(req: Request) {
   try {
     const body = Body.parse(await req.json());
@@ -79,7 +87,14 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    const body = UpdateBody.parse(await req.json());
+    const json = await req.json();
+    if (json?.kind === "userstory") {
+      const body = UpdateUserStoryBody.parse(json);
+      const userStory = await updateUserStory(body.userStoryId, body);
+      return NextResponse.json({ ok: true, userStory });
+    }
+
+    const body = UpdateBody.parse(json);
     const r = await updateTask(body.taskId, body);
     if (body.subject) {
       try {

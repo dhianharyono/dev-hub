@@ -2,7 +2,7 @@ import "server-only";
 import { getSettings } from "../settings";
 import { taiga } from "./client";
 import { TaigaError } from "./types";
-import type { CreateItem, CreateItemResult, TaigaCustomAttribute, UpdateTaskPayload } from "./types";
+import type { CreateItem, CreateItemResult, TaigaCustomAttribute, UpdateTaskPayload, UpdateUserStoryPayload } from "./types";
 
 export function formatTaigaDescription(rawDesc?: string | null): string {
   if (!rawDesc) return "";
@@ -173,6 +173,39 @@ export async function createItem(
 
 export async function deleteTask(taskId: number): Promise<void> {
   await taiga(`/tasks/${taskId}`, { method: "DELETE" });
+}
+
+/** Perbarui user story: ambil version dulu agar PATCH tidak bentrok. */
+export async function updateUserStory(
+  userStoryId: number,
+  updates: UpdateUserStoryPayload,
+) {
+  const current = await taiga<{
+    id: number;
+    ref: number;
+    project: number;
+    version: number;
+    subject: string;
+  }>(`/userstories/${userStoryId}`);
+
+  const body: Record<string, unknown> = { version: current.version };
+  if (updates.subject !== undefined) body.subject = updates.subject;
+  if (updates.description !== undefined) {
+    body.description = formatTaigaDescription(updates.description);
+  }
+  if (updates.statusId !== undefined) body.status = updates.statusId;
+
+  return taiga<{
+    id: number;
+    ref: number;
+    subject: string;
+    status?: number;
+    description?: string;
+    status_extra_info?: { name: string; color: string; is_closed?: boolean };
+  }>(`/userstories/${userStoryId}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
 }
 
 export async function updateTask(taskId: number, updates: UpdateTaskPayload) {

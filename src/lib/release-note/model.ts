@@ -16,11 +16,14 @@ export interface ReleaseNoteTask {
   id: number;
   ref: number;
   subject: string;
+  description?: string;
+  statusId?: number;
   status: { name: string; color: string; isClosed: boolean };
   url: string;
 }
 
 export interface ReleaseNoteDetail extends ReleaseNoteSummary {
+  statusId?: number;
   description: string;
   tasks: ReleaseNoteTask[];
 }

@@ -12,8 +12,9 @@ export {
   type TaigaMeta,
   type CreateItem,
   type UpdateTaskPayload,
+  type UpdateUserStoryPayload,
 } from "./taiga/types";
 
 export { taiga } from "./taiga/client";
 export { getMeta } from "./taiga/meta";
-export { createItem, updateTask, deleteTask, resolveEpicId, linkUserStoryToEpic } from "./taiga/mutations";
+export { createItem, updateTask, updateUserStory, deleteTask, resolveEpicId, linkUserStoryToEpic } from "./taiga/mutations";

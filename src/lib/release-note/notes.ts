@@ -27,6 +27,8 @@ interface RawTask {
   id: number;
   ref: number;
   subject: string;
+  description?: string;
+  status: number;
   status_extra_info?: { name: string; color: string; is_closed?: boolean };
   is_closed: boolean;
 }
@@ -127,12 +129,15 @@ export async function getReleaseNote(
 
   return {
     ...toReleaseNoteSummary(story, ctx, source),
+    statusId: story.status,
     description: story.description ?? '',
     tasks: tasks
       .map((task) => ({
         id: task.id,
         ref: task.ref,
         subject: task.subject,
+        description: task.description ?? '',
+        statusId: task.status,
         status: {
           name: task.status_extra_info?.name ?? 'Unknown',
           color: task.status_extra_info?.color ?? '#94a3b8',
