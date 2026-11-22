@@ -21,7 +21,7 @@ interface TaigaSettingsSectionProps {
   onChange: (key: keyof PublicSettings, value: unknown) => void;
   testResult?: TestResult['taiga'];
   testing?: TestingState['taiga'];
-  onTest: () => void;
+  onTest: (token?: string) => void;
   sessionInput: string;
   onSessionInputChange: (val: string) => void;
   minimized?: boolean;
@@ -77,9 +77,13 @@ export function TaigaSettingsSection({
           onChange('taigaToken', data.settings.taigaToken);
           if (data.settings.taigaRefresh)
             onChange('taigaRefresh', data.settings.taigaRefresh);
+          onSessionInputChange(data.settings.taigaToken);
         }
         triggerTelemetryRefresh();
-        if (onTest) setTimeout(onTest, 600);
+        if (onTest) {
+          const freshToken = data.settings?.taigaToken;
+          setTimeout(() => onTest(freshToken), 600);
+        }
       } else {
         setChromeSyncMsg({
           ok: false,
@@ -121,7 +125,7 @@ export function TaigaSettingsSection({
             <button
               type='button'
               className='btn btn-sm'
-              onClick={onTest}
+              onClick={() => onTest()}
               disabled={testing}
             >
               {testing ? <span className='spinner' /> : <RefreshCw size={13} />}

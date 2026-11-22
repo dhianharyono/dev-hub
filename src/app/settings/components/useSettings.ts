@@ -149,7 +149,10 @@ export function useSettings() {
     }
   };
 
-  const runTest = async (target: 'taiga' | 'gitlab' | 'gemini' | 'ai') => {
+  const runTest = async (
+    target: 'taiga' | 'gitlab' | 'gemini' | 'ai',
+    overrides?: { taigaToken?: string },
+  ) => {
     const key = target === 'ai' ? 'ai' : target;
     setTesting((prev) => ({ ...prev, [key]: true, ...(target === 'ai' ? { gemini: true } : {}) }));
     try {
@@ -158,11 +161,12 @@ export function useSettings() {
         form.aiApiKeys?.[activeProvider] ??
         form.aiApiKey ??
         (activeProvider === 'gemini' ? form.geminiApiKey : '');
+      const freshTaigaToken = overrides?.taigaToken;
       const payload = {
         target,
         taigaBaseUrl: form.taigaBaseUrl,
-        taigaSession: taigaSessionInput,
-        taigaToken: form.taigaToken,
+        taigaSession: freshTaigaToken ?? taigaSessionInput,
+        taigaToken: freshTaigaToken ?? form.taigaToken,
         gitlabBaseUrl: form.gitlabBaseUrl,
         gitlabToken: form.gitlabToken,
         geminiApiKey: activeApiKey,

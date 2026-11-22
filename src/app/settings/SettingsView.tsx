@@ -159,7 +159,7 @@ export default function SettingsView() {
           onChange={handleChange}
           testResult={testResult.taiga}
           testing={testing.taiga}
-          onTest={() => runTest('taiga')}
+          onTest={(token) => runTest('taiga', { taigaToken: token })}
           sessionInput={taigaSessionInput}
           onSessionInputChange={setTaigaSessionInput}
           minimized={minimizedCards.taiga}
