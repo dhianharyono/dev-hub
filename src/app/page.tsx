@@ -5,6 +5,7 @@ import { useIntegrations, useMetrics, useSync } from '@/components/hooks';
 import { triggerTelemetryRefresh } from '@/components/SidebarTelemetry';
 import { useAppMode } from '@/components/AppModeContext';
 import type { WorkloadData } from '@/lib/workload';
+import type { Scorecard } from '@/lib/scoring';
 import { GitlabVelocityCard } from './dashboard/GitlabVelocityCard';
 import { RightActivityPanel } from './dashboard/RightActivityPanel';
 import { TaigaDeliveryCard } from './dashboard/TaigaDeliveryCard';
@@ -29,17 +30,36 @@ export default function Home() {
   });
   const [workload, setWorkload] = useState<WorkloadData | null>(null);
   const [workloadLoading, setWorkloadLoading] = useState(true);
-  const [velocityDays, setVelocityDays] = useState<number>(90);
+  const [velocityDays, setVelocityDays] = useState<number>(0);
+  const [scorecard, setScorecard] = useState<Scorecard | null>(null);
   const {
     data: metrics,
     loading: metricsLoading,
     error: metricsError,
     reload: reloadMetrics,
   } = useMetrics(velocityDays);
+
+  const loadScorecardData = useCallback(async (d: number) => {
+    try {
+      const r = await fetch(`/api/gitlab/score?days=${d}`);
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error);
+      setScorecard(j as Scorecard);
+    } catch {
+      setScorecard(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadScorecardData(velocityDays);
+  }, [velocityDays, loadScorecardData]);
+
   const handleGitlabSyncDone = useCallback(() => {
     reloadMetrics();
+    loadScorecardData(velocityDays);
     triggerTelemetryRefresh();
-  }, [reloadMetrics]);
+  }, [reloadMetrics, loadScorecardData, velocityDays]);
   const { status: gitlabSyncStatus, start: startGitlabSync } =
     useSync(handleGitlabSyncDone);
 
@@ -212,6 +232,7 @@ export default function Home() {
             <div className='grid grid-cols-1 @[640px]:grid-cols-2 gap-4'>
               <GitlabVelocityCard
                 metrics={metrics}
+                scorecard={scorecard}
                 connected={gitlabConnected}
                 loading={effectiveMetricsLoading}
                 error={metricsError}

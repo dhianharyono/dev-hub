@@ -3,12 +3,14 @@
 import Link from 'next/link';
 import { GitBranch, Settings } from 'lucide-react';
 import type { MetricsData } from '@/components/hooks';
+import type { Scorecard, ScoreComponent } from '@/lib/scoring';
 import { EmptyState } from '@/components/EmptyState';
 import { GitlabActivitySection } from './GitlabActivitySection';
 import { GitlabSkeletonCard } from './DashboardSkeleton';
 
 interface GitlabVelocityCardProps {
   metrics: MetricsData | null;
+  scorecard?: Scorecard | null;
   connected?: boolean;
   loading: boolean;
   error: string | null;
@@ -31,21 +33,67 @@ function formatWeekLabel(dateStr: string) {
   }
 }
 
-function getScoreBarColor(value: number) {
-  const safeValue = Math.min(100, Math.max(0, value));
-  return safeValue >= 70
-    ? 'bg-emerald-500'
-    : safeValue >= 55
-      ? 'bg-amber-500'
-      : 'bg-red-500';
+type Tone = 'ok' | 'mid' | 'bad' | 'empty';
+
+const TONE_TEXT: Record<Tone, string> = {
+  ok: 'text-emerald-600',
+  mid: 'text-amber-600',
+  bad: 'text-rose-600',
+  empty: 'text-slate-400',
+};
+
+const TONE_BAR: Record<Tone, string> = {
+  ok: 'bg-emerald-500',
+  mid: 'bg-amber-500',
+  bad: 'bg-rose-500',
+  empty: 'bg-slate-300',
+};
+
+const GRADE_BOX: Record<
+  string,
+  { box: string; label: string; shadow: string }
+> = {
+  A: {
+    box: 'bg-gradient-to-br from-emerald-500 to-green-500',
+    label: 'text-emerald-600',
+    shadow: 'shadow-[0_4px_14px_rgba(16,185,129,0.35)]',
+  },
+  B: {
+    box: 'bg-gradient-to-br from-cyan-500 to-sky-500',
+    label: 'text-cyan-600',
+    shadow: 'shadow-[0_4px_14px_rgba(6,182,212,0.35)]',
+  },
+  C: {
+    box: 'bg-gradient-to-br from-amber-500 to-yellow-500',
+    label: 'text-amber-600',
+    shadow: 'shadow-[0_4px_14px_rgba(245,158,11,0.35)]',
+  },
+  D: {
+    box: 'bg-gradient-to-br from-orange-500 to-amber-500',
+    label: 'text-orange-600',
+    shadow: 'shadow-[0_4px_14px_rgba(249,115,22,0.35)]',
+  },
+  E: {
+    box: 'bg-gradient-to-br from-rose-500 to-orange-500',
+    label: 'text-rose-600',
+    shadow: 'shadow-[0_4px_14px_rgba(244,63,94,0.35)]',
+  },
+};
+
+function toneOf(component: ScoreComponent): Tone {
+  if (component.score === null) return 'empty';
+  if (component.score >= 70) return 'ok';
+  if (component.score >= 40) return 'mid';
+  return 'bad';
 }
 
 export function GitlabVelocityCard({
   metrics,
+  scorecard,
   connected = true,
   loading,
   error,
-  days = 90,
+  days = 0,
 }: GitlabVelocityCardProps) {
   if (loading) {
     return <GitlabSkeletonCard />;
@@ -53,24 +101,29 @@ export function GitlabVelocityCard({
 
   const isDisconnected = !connected;
 
-  const score = metrics?.scores?.overall ?? 0;
-  const grade = metrics?.scores?.grade ?? '-';
-  const gradeLabel = metrics?.scores?.gradeLabel ?? 'Belum ada data';
-  const productivity = metrics?.scores?.productivity ?? 0;
-  const consistency = metrics?.scores?.consistency ?? 0;
-  const collaboration = metrics?.scores?.collaboration ?? 0;
-  const quality = metrics?.scores?.quality ?? 0;
-
-  const pillars = [
-    { label: 'Produktivitas', val: productivity },
-    { label: 'Konsistensi', val: consistency },
-    { label: 'Kolaborasi', val: collaboration },
-    { label: 'Kualitas', val: quality },
-  ];
+  const score = scorecard?.overall ?? metrics?.scores?.overall ?? 0;
+  const grade = scorecard?.grade ?? metrics?.scores?.grade ?? '-';
+  const gradeLabel = scorecard?.gradeLabel ?? metrics?.scores?.gradeLabel ?? 'Belum ada data';
+  const components = [...(scorecard?.components ?? [])].sort((a, b) => {
+    if (a.score === null && b.score === null) return 0;
+    if (a.score === null) return 1;
+    if (b.score === null) return -1;
+    return b.score - a.score;
+  });
+  const gradeTone = GRADE_BOX[grade] ?? {
+    box: 'bg-gradient-to-br from-slate-400 to-slate-500',
+    label: 'text-slate-500',
+    shadow: 'shadow-[0_4px_14px_rgba(100,116,139,0.35)]',
+  };
 
   const weeklyList = (metrics?.weekly || []).slice(-6);
   const maxWeeklyCommits = Math.max(...weeklyList.map((w) => w.commits), 1);
-  const daysLabel = days === 180 ? '6 bulan terakhir' : `${days} hari terakhir`;
+  const daysLabel =
+    days === 0
+      ? 'tahun berjalan (YTD)'
+      : days === 180
+        ? '6 bulan terakhir'
+        : `${days} hari terakhir`;
 
   return (
     <section
@@ -112,46 +165,76 @@ export function GitlabVelocityCard({
         <>
           {/* Grade Highlight Hero Banner */}
           <div className='flex flex-cols-2 gap-4 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-blue-600/[0.06] to-cyan-500/[0.09] border border-blue-600/[0.18] items-center'>
-            <div className='flex items-center gap-3.5'>
-              <div className='w-[54px] h-[54px] rounded-2xl bg-gradient-to-br from-[#1977f3] to-[#06b6d4] text-white grid place-items-center text-[28px] font-black shadow-[0_4px_14px_rgba(25,119,243,0.35)] shrink-0'>
-                {grade}
+            <div className='flex flex-col items-center gap-1.5 shrink-0'>
+              <div
+                className={`w-[76px] h-[76px] rounded-2xl text-white grid place-items-center text-[30px] font-black ${gradeTone.box} ${gradeTone.shadow}`}
+              >
+                {score}
               </div>
-              <div className='flex flex-col gap-0.5'>
-                <span className='text-xl font-extrabold text-slate-text leading-tight'>
-                  {score}
-                </span>
-                <span className='text-[11.5px] font-bold text-sky-600 uppercase tracking-wider whitespace-nowrap'>
-                  Grade {grade}
-                </span>
-              </div>
+              <span
+                className={`text-[11.5px] font-bold uppercase tracking-wider whitespace-nowrap ${gradeTone.label}`}
+              >
+                Grade {grade} · {gradeLabel}
+              </span>
             </div>
 
-            <div className='grid grid-cols-2 gap-x-4 gap-y-2.5 justify-end flex-1 min-w-0'>
-              {pillars.map((p) => (
-                <div key={p.label} className='flex flex-col gap-1 min-w-0'>
-                  <div className='flex items-center justify-between gap-1.5 text-[11px] font-semibold text-slate-text-2 min-w-0'>
-                    <span className='truncate'>{p.label}</span>
-                    <strong className='font-extrabold text-slate-text shrink-0'>
-                      {p.val}%
-                    </strong>
-                  </div>
-                  <div className='w-full h-[6px] rounded-full bg-slate-200 overflow-hidden'>
-                    {(() => {
-                      const velocityWidthStyle: React.CSSProperties = {
-                        width: `${Math.min(100, Math.max(0, p.val))}%`,
-                      };
-                      return (
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ease-out ${getScoreBarColor(p.val)}`}
-                          style={velocityWidthStyle}
-                        />
-                      );
-                    })()}
-                  </div>
-                </div>
-              ))}
+            <div className='grid grid-cols-2 gap-x-3 gap-y-2 flex-1 min-w-0'>
+              {components.length > 0
+                ? components.map((c) => {
+                    const tone = toneOf(c);
+                    return (
+                      <div
+                        key={c.key}
+                        className='rounded-lg border border-border bg-surface-subtle/80 px-2.5 py-1.5 min-w-0'
+                        title={
+                          c.available
+                            ? `Bobot efektif ${c.effectiveWeight}% · potensi ke target +${c.potentialToTarget}`
+                            : 'Komponen belum punya data pada periode ini'
+                        }
+                      >
+                        <div className='flex items-baseline justify-between gap-1'>
+                          <span className='text-[10.5px] font-bold text-slate-text-2 truncate'>
+                            {c.label}
+                          </span>
+                          <span className='text-[9.5px] font-bold text-slate-400 shrink-0'>
+                            {c.weight}%
+                          </span>
+                        </div>
+                        <div className='flex items-center gap-2 mt-0.5'>
+                          <span className={`text-[14px] font-extrabold ${TONE_TEXT[tone]}`}>
+                            {c.score ?? '—'}
+                          </span>
+                          <div className='flex-1 h-1.5 rounded-full bg-slate-200 overflow-hidden'>
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ease-out ${TONE_BAR[tone]}`}
+                              style={{
+                                width: `${Math.min(100, Math.max(0, c.score ?? 0))}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                : [1, 2, 3, 4, 5, 6].map((i) => (
+                    <div
+                      key={`score-skeleton-${i}`}
+                      className='rounded-lg border border-border bg-surface-subtle/80 px-2.5 py-1.5 animate-pulse'
+                    >
+                      <div className='h-2 w-2/3 rounded bg-slate-200' />
+                      <div className='h-1.5 w-full rounded bg-slate-200 mt-1.5' />
+                    </div>
+                  ))}
             </div>
           </div>
+
+          {scorecard && (
+            <p className='text-[10.5px] text-slate-400 leading-relaxed -mt-2'>
+              Skor dihitung dari 6 komponen berbobot (metodologi Ranking Talent).
+              Target {scorecard.potential.target} (B) · potensi naik +
+              {scorecard.potential.toTarget.toLocaleString('id-ID')} poin.
+            </p>
+          )}
 
           {/* 3-Column Velocity KPI row */}
           <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 bg-surface-subtle border border-border rounded-2xl p-5 sm:p-6'>
@@ -164,7 +247,7 @@ export function GitlabVelocityCard({
               </span>
               <span className='text-[11.5px] text-slate-muted truncate'>
                 {(metrics?.kpis.commitsPerWeek || 0).toFixed(1)} / minggu (
-                {days === 180 ? '6 bulan' : `${days} hari`})
+                {days === 0 ? 'YTD' : days === 180 ? '6 bulan' : `${days} hari`})
               </span>
             </div>
             <div className='flex flex-col justify-between min-h-[72px] gap-1.5'>
@@ -179,7 +262,7 @@ export function GitlabVelocityCard({
                 </span>
               </span>
               <span className='text-[11.5px] text-slate-muted truncate'>
-                Merge Requests ({days === 180 ? '6 bulan' : `${days} hari`})
+                Merge Requests ({days === 0 ? 'YTD' : days === 180 ? '6 bulan' : `${days} hari`})
               </span>
             </div>
             <div className='flex flex-col justify-between min-h-[72px] gap-1.5'>
