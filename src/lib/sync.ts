@@ -415,8 +415,8 @@ async function runSync(days: number, full: boolean) {
     JSON.stringify({ id: me.id, username: me.username, name: me.name }),
   );
 
-  // 5. Review kode AI (kuota aman: hanya commit baru yang belum pernah dinilai).
-  st.phase = "Review kode AI";
+  // 5. Generate Insight (kuota aman: hanya commit baru yang belum pernah dinilai).
+  st.phase = "Generate Insight";
   st.detail = undefined;
   try {
     const review = await runReviewBatch({
@@ -428,11 +428,11 @@ async function runSync(days: number, full: boolean) {
     });
     log(
       review.configured
-        ? `Review kode: ${review.reviewed} dari ${review.total} commit`
-        : "Review kode: API key Gemini belum diatur",
+        ? `Generate Insight: ${review.reviewed} dari ${review.total} commit`
+        : "Generate Insight: API key Gemini belum diatur",
     );
   } catch (e) {
-    log(`⚠️ Review kode dilewati: ${(e as Error).message}`);
+    log(`⚠️ Generate Insight dilewati: ${(e as Error).message}`);
   } finally {
     st.detail = undefined;
   }

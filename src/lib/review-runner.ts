@@ -283,7 +283,7 @@ export async function runReviewBatch(
   st.reviewed = 0;
   st.failed = 0;
   st.skipped = 0;
-  st.phase = "Review kode";
+  st.phase = "Generate Insight";
   log(`${rows.length} kandidat, ${candidates.length} direview siklus ini`);
   options.onProgress?.(0, st.total, 0);
 
@@ -333,7 +333,7 @@ export function startReview(options: { limit?: number; days?: number } = {}): Re
   if (st.running) return st;
   Object.assign(st, {
     running: true,
-    phase: "Review kode",
+    phase: "Generate Insight",
     done: 0,
     total: 0,
     candidates: 0,
