@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { AssignedTaskItem } from '@/app/api/taiga/assigned/route';
 import { useToast } from '@/components/Notification';
+import { triggerTelemetryRefresh } from '@/components/SidebarTelemetry';
 import {
   buildBulkDoneDayOptions,
   buildBulkDonePlan,
@@ -439,6 +440,9 @@ export function useAssignedBoard({
       // Muat ulang agar status dan daftar project untuk grup baru ikut tersinkron.
       onRefresh(assignedActiveOnly);
     }
+
+    // Pemicu untuk pill coverage jam hari ini agar ikut menghitung ulang.
+    triggerTelemetryRefresh();
 
     setUpdateSuccessTaskId(taskId);
     setTimeout(() => setUpdateSuccessTaskId(null), 2500);

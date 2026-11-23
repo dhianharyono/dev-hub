@@ -13,6 +13,7 @@ import { useAssignedTasks } from './useAssignedTasks';
 import { useDrafts } from './useDrafts';
 import { useTaigaMeta } from './useTaigaMeta';
 import { useNotification } from '@/components/Notification';
+import { triggerTelemetryRefresh } from '@/components/SidebarTelemetry';
 import { useAiTask } from '@/components/ai-task/AiTaskContext';
 
 export function useSmartTask() {
@@ -310,6 +311,8 @@ export function useSmartTask() {
         if (toSubmit.some((d) => d.kind === 'userstory')) {
           metaState.loadMeta(metaState.projectSlug, metaState.sprintSlug);
         }
+        // Pemicu untuk pill coverage jam hari ini agar ikut menghitung ulang.
+        triggerTelemetryRefresh();
       }
     } catch (e) {
       const errMsg = (e as Error).message;

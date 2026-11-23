@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { TELEMETRY_REFRESH_EVENT } from '@/components/SidebarTelemetry';
 import {
   DAILY_TARGET_HOURS,
   DAILY_TARGET_META,
@@ -18,24 +19,32 @@ export function SmartTaskTodayCoveragePill() {
 
   useEffect(() => {
     let ignore = false;
-    fetch('/api/workload')
-      .then(async (response) => {
+    const run = async () => {
+      try {
+        const response = await fetch('/api/workload');
         const payload = await response.json();
         if (!response.ok) {
           throw new Error(payload.error ?? 'Gagal memuat data workload');
         }
-        return payload as WorkloadData;
-      })
-      .then((data) => {
+        const data = payload as WorkloadData;
         if (ignore) return;
         const today = data.days.find((day) => day.date === todayKey());
         setHours(today?.hoursSpent ?? 0);
-      })
-      .catch(() => {
+      } catch {
         // Pill disembunyikan bila data jam tidak tersedia.
-      });
+      }
+    };
+    run();
+
+    // Muat ulang saat komponen lain memicu refresh (mis. jam task diubah).
+    const onTelemetryRefresh = () => void run();
+    window.addEventListener(TELEMETRY_REFRESH_EVENT, onTelemetryRefresh);
+    // Muat ulang juga saat tab kembali fokus.
+    window.addEventListener('focus', onTelemetryRefresh);
     return () => {
       ignore = true;
+      window.removeEventListener(TELEMETRY_REFRESH_EVENT, onTelemetryRefresh);
+      window.removeEventListener('focus', onTelemetryRefresh);
     };
   }, []);
 
