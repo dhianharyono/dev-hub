@@ -20,7 +20,53 @@ import {
 } from "./scoring";
 import type { FlowMr, ReachRow } from "./talent-report";
 
-export function loadMetrics(days: number, endDate = new Date()) {
+/** Identitas GitLab yang terhubung (glUser + identityEmails/identityNames). */
+function loadGitlabIdentity() {
+  const d = db();
+  const s = getSettings();
+  const userRow = d.prepare("SELECT value FROM settings WHERE key = 'glUser'").get() as
+    | { value: string }
+    | undefined;
+  const user = userRow?.value
+    ? (JSON.parse(userRow.value) as { id: number; username: string; name: string })
+    : null;
+  const emails = new Set(
+    splitList(s.identityEmails)
+      .map((value) => value.toLowerCase())
+      .filter(Boolean),
+  );
+  const names = new Set(
+    [...splitList(s.identityNames), user?.username ?? "", user?.name ?? ""]
+      .map((value) => value.toLowerCase())
+      .filter(Boolean),
+  );
+  return { emails, names, configured: emails.size > 0 || names.size > 0 };
+}
+
+/** Klause SQL filter identitas; "0" berarti tidak ada baris yang cocok. */
+function identitySql(columnEmail: string | null, columnName: string, emails: Set<string>, names: Set<string>) {
+  const clauses: string[] = [];
+  const params: string[] = [];
+  if (columnEmail && emails.size) {
+    clauses.push(`lower(${columnEmail}) IN (${[...emails].map(() => "?").join(",")})`);
+    params.push(...emails);
+  }
+  if (names.size) {
+    clauses.push(`lower(${columnName}) IN (${[...names].map(() => "?").join(",")})`);
+    params.push(...names);
+  }
+  return { sql: clauses.length ? `(${clauses.join(" OR ")})` : "0", params };
+}
+
+/**
+ * scope 'identity' membatasi commit & MR ke user GitLab yang terhubung.
+ * Default 'all' supaya /api/summary, laporan, dan halaman GitLab tetap global.
+ */
+export function loadMetrics(
+  days: number,
+  endDate = new Date(),
+  options: { scope?: "all" | "identity" } = {},
+) {
   const end = endDate;
   // days = 0 berarti YTD: 1 Januari tahun berjalan (Asia/Jakarta) sampai hari ini.
   const start =
@@ -29,12 +75,21 @@ export function loadMetrics(days: number, endDate = new Date()) {
       : new Date(`${localDay(end).slice(0, 4)}-01-01T00:00:00+07:00`);
   const s = start.toISOString();
   const d = db();
+  const identity = options.scope === "identity" ? loadGitlabIdentity() : null;
+  const commitScope = identity ? identitySql("author_email", "author_name", identity.emails, identity.names) : null;
+  const mrScope = identity ? identitySql(null, "author", identity.emails, identity.names) : null;
   const commits = d
-    .prepare("SELECT authored_at, adj_additions, adj_deletions, additions, deletions, is_merge, is_fix, project_id FROM gl_commits WHERE authored_at >= ?")
-    .all(s) as unknown as CommitRow[];
+    .prepare(
+      `SELECT authored_at, adj_additions, adj_deletions, additions, deletions, is_merge, is_fix, project_id
+       FROM gl_commits WHERE authored_at >= ?${commitScope ? ` AND ${commitScope.sql}` : ""}`,
+    )
+    .all(s, ...(commitScope?.params ?? [])) as unknown as CommitRow[];
   const mrs = d
-    .prepare("SELECT role, created_at, merged_at, state, project_id FROM gl_mrs WHERE created_at >= ? OR merged_at >= ?")
-    .all(s, s) as unknown as MrRow[];
+    .prepare(
+      `SELECT role, created_at, merged_at, state, project_id FROM gl_mrs
+       WHERE (created_at >= ? OR merged_at >= ?)${mrScope ? ` AND role = 'author' AND ${mrScope.sql}` : ""}`,
+    )
+    .all(s, s, ...(mrScope?.params ?? [])) as unknown as MrRow[];
   const events = d.prepare("SELECT created_at, action, noteable_type FROM gl_events WHERE created_at >= ?").all(s) as unknown as EventRow[];
   const pipelines = d.prepare("SELECT status, created_at FROM gl_pipelines WHERE created_at >= ?").all(s) as unknown as PipelineRow[];
   const projectNames = Object.fromEntries(
@@ -45,8 +100,10 @@ export function loadMetrics(days: number, endDate = new Date()) {
   // 52 weeks (365 days) rolling daily commit map for GitLab-style horizontal full-calendar heatmap
   const heatmapStart = new Date(end.getTime() - 365 * 864e5);
   const heatmapCommits = d
-    .prepare("SELECT authored_at FROM gl_commits WHERE authored_at >= ?")
-    .all(heatmapStart.toISOString()) as { authored_at: string }[];
+    .prepare(
+      `SELECT authored_at FROM gl_commits WHERE authored_at >= ?${commitScope ? ` AND ${commitScope.sql}` : ""}`,
+    )
+    .all(heatmapStart.toISOString(), ...(commitScope?.params ?? [])) as { authored_at: string }[];
   const heatmapDaily: Record<string, number> = {};
   for (const c of heatmapCommits) {
     const day = localDay(c.authored_at);
@@ -58,9 +115,9 @@ export function loadMetrics(days: number, endDate = new Date()) {
       .prepare(
         `SELECT c.sha, c.title, c.authored_at, c.adj_additions, c.adj_deletions, c.web_url, p.path AS project
          FROM gl_commits c LEFT JOIN gl_projects p ON p.id = c.project_id
-         WHERE c.is_merge = 0 AND c.authored_at >= ? ORDER BY c.authored_at DESC LIMIT 15`,
+         WHERE c.is_merge = 0 AND c.authored_at >= ?${commitScope ? ` AND ${commitScope.sql}` : ""} ORDER BY c.authored_at DESC LIMIT 15`,
       )
-      .all(s) as {
+      .all(s, ...(commitScope?.params ?? [])) as {
         sha: string;
         title: string;
         authored_at: string;
@@ -77,9 +134,10 @@ export function loadMetrics(days: number, endDate = new Date()) {
       .prepare(
         `SELECT c.sha, c.title, c.authored_at, c.adj_additions, c.adj_deletions, c.additions, c.deletions, c.web_url, c.is_merge, p.path AS project
          FROM gl_commits c LEFT JOIN gl_projects p ON p.id = c.project_id
+         ${commitScope ? `WHERE ${commitScope.sql}` : ""}
          ORDER BY c.authored_at DESC LIMIT 100`,
       )
-      .all() as {
+      .all(...(commitScope?.params ?? [])) as {
         sha: string;
         title: string;
         authored_at: string;
@@ -96,9 +154,9 @@ export function loadMetrics(days: number, endDate = new Date()) {
     .prepare(
       `SELECT m.title, m.state, m.role, m.created_at, m.merged_at, m.web_url, m.author, p.path AS project
        FROM gl_mrs m LEFT JOIN gl_projects p ON p.id = m.project_id
-       WHERE m.created_at >= ? OR m.merged_at >= ? ORDER BY COALESCE(m.merged_at, m.created_at) DESC LIMIT 15`,
+       WHERE (m.created_at >= ? OR m.merged_at >= ?)${mrScope ? ` AND m.role = 'author' AND ${mrScope.sql}` : ""} ORDER BY COALESCE(m.merged_at, m.created_at) DESC LIMIT 15`,
     )
-    .all(s, s);
+    .all(s, s, ...(mrScope?.params ?? []));
   const meta = Object.fromEntries(
     (d.prepare("SELECT key, value FROM settings WHERE key IN ('glLastSync','glUser')").all() as { key: string; value: string }[]).map((r) => [
       r.key,
@@ -114,6 +172,7 @@ export function loadMetrics(days: number, endDate = new Date()) {
     todayCommits,
     recentMrs,
     lastSync: meta.glLastSync ?? null,
+    identity: identity ? { configured: identity.configured } : null,
     user: meta.glUser ? (JSON.parse(meta.glUser) as { id: number; username: string; name: string }) : null,
   };
 }

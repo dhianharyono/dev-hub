@@ -21,16 +21,21 @@ export interface SyncStatus {
   summary?: { projects: number; commits: number; mrs: number; events: number; pipelines: number; projectErrors: number };
 }
 
-export function useMetrics(days: number) {
+export function useMetrics(days: number, scope?: "identity") {
   const [data, setData] = useState<MetricsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const metricsUrl = useCallback(
+    (d: number) => `/api/gitlab/stats?days=${d}${scope ? `&scope=${scope}` : ""}`,
+    [scope],
+  );
 
   const fetchMetrics = useCallback(async (d: number) => {
     setLoading(true);
     setError(null);
     try {
-      const r = await fetch(`/api/gitlab/stats?days=${d}`);
+      const r = await fetch(metricsUrl(d));
       const j = await r.json();
       if (!r.ok) throw new Error(j.error);
       setData(j);
@@ -39,13 +44,13 @@ export function useMetrics(days: number) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [metricsUrl]);
 
   useEffect(() => {
     let ignore = false;
     const run = async () => {
       try {
-        const r = await fetch(`/api/gitlab/stats?days=${days}`);
+        const r = await fetch(metricsUrl(days));
         const j = await r.json();
         if (!ignore) {
           if (!r.ok) throw new Error(j.error);
@@ -61,7 +66,7 @@ export function useMetrics(days: number) {
     return () => {
       ignore = true;
     };
-  }, [days]);
+  }, [days, metricsUrl]);
 
   const reload = useCallback(() => fetchMetrics(days), [fetchMetrics, days]);
 

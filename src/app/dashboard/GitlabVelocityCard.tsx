@@ -20,19 +20,6 @@ interface GitlabVelocityCardProps {
   isSyncing?: boolean;
 }
 
-function formatWeekLabel(dateStr: string) {
-  if (!dateStr) return '';
-  try {
-    const d = new Date(`${dateStr}T00:00:00Z`);
-    return new Intl.DateTimeFormat('id-ID', {
-      day: 'numeric',
-      month: 'short',
-    }).format(d);
-  } catch {
-    return dateStr;
-  }
-}
-
 type Tone = 'ok' | 'mid' | 'bad' | 'empty';
 
 const TONE_TEXT: Record<Tone, string> = {
@@ -100,6 +87,7 @@ export function GitlabVelocityCard({
   }
 
   const isDisconnected = !connected;
+  const isIdentityMissing = connected && metrics?.identity?.configured === false;
 
   const score = scorecard?.overall ?? metrics?.scores?.overall ?? 0;
   const grade = scorecard?.grade ?? metrics?.scores?.grade ?? '-';
@@ -116,8 +104,6 @@ export function GitlabVelocityCard({
     shadow: 'shadow-[0_4px_14px_rgba(100,116,139,0.35)]',
   };
 
-  const weeklyList = (metrics?.weekly || []).slice(-6);
-  const maxWeeklyCommits = Math.max(...weeklyList.map((w) => w.commits), 1);
   const daysLabel =
     days === 0
       ? 'tahun berjalan (YTD)'
@@ -157,6 +143,24 @@ export function GitlabVelocityCard({
               >
                 <Settings size={15} className='shrink-0' />
                 <span>Konfigurasi GitLab di Pengaturan</span>
+              </Link>
+            }
+          />
+        </div>
+      ) : isIdentityMissing ? (
+        <div className='py-2 pb-4 w-full'>
+          <EmptyState
+            tone='amber'
+            icon={<GitBranch size={24} />}
+            title='Identitas GitLab Belum Diatur'
+            description='Isi email dan nama yang kamu pakai untuk commit/MR di menu Pengaturan supaya metrik di kartu ini hanya menghitung commit dan merge request milikmu, bukan seluruh anggota proyek.'
+            action={
+              <Link
+                href='/settings'
+                className='btn btn-primary no-underline max-w-full text-center whitespace-normal h-auto min-h-[42px] py-2 px-4 text-[13px] leading-snug'
+              >
+                <Settings size={15} className='shrink-0' />
+                <span>Atur identitas di Pengaturan</span>
               </Link>
             }
           />
@@ -276,68 +280,6 @@ export function GitlabVelocityCard({
                 -{(metrics?.kpis.linesDeleted || 0).toLocaleString()}
               </span>
             </div>
-          </div>
-
-          {/* 6-Week Commit Velocity Trends */}
-          <div className='flex flex-col justify-between gap-4 p-5 sm:p-6 bg-slate-50/70 border border-border rounded-2xl min-h-[260px]'>
-            <div className='flex items-center justify-between'>
-              <span className='text-[12px] font-bold text-slate-text'>
-                Tren Commit Mingguan
-              </span>
-              <span className='xs dim'>Rolling 6 Minggu</span>
-            </div>
-
-            {weeklyList.length > 0 ? (
-              <>
-                <div className='flex items-end justify-between gap-2.5 flex-1 min-h-[120px] p-2 pt-0'>
-                  {weeklyList.map((w, idx) => {
-                    const isLatest = idx === weeklyList.length - 1;
-                    const heightPct = Math.round(
-                      (w.commits / maxWeeklyCommits) * 100,
-                    );
-                    const label = formatWeekLabel(w.week);
-
-                    return (
-                      <div
-                        key={`weekly-${w.week}`}
-                        className='flex flex-col items-center gap-1.5 flex-1 h-full'
-                      >
-                        <span className='text-[11px] font-bold text-slate-text-2'>
-                          {w.commits}
-                        </span>
-                        <div
-                          className='w-full max-w-[28px] flex-1 min-h-[60px] bg-slate-100 rounded-lg flex items-end overflow-hidden hover:bg-slate-200 transition-colors'
-                          title={`Minggu ${label}: ${w.commits} commit, ${w.mrs} MR, ${(w.lines || 0).toLocaleString()} baris kode`}
-                        >
-                          {(() => {
-                            const colHeightStyle: React.CSSProperties = {
-                              height: `${w.commits > 0 ? Math.max(16, heightPct) : 0}%`,
-                            };
-                            return (
-                              <div
-                                className={`w-full rounded-lg bg-gradient-to-b from-sky-400 to-blue-600 transition-all duration-500 ${
-                                  isLatest
-                                    ? '!from-sky-600 !to-blue-600 shadow-[0_2px_8px_rgba(25,119,243,0.35)]'
-                                    : ''
-                                }`}
-                                style={colHeightStyle}
-                              />
-                            );
-                          })()}
-                        </div>
-                        <span className='text-[10.5px] font-bold text-slate-text-3 whitespace-nowrap'>
-                          {label}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            ) : (
-              <div className='py-6 text-center text-xs text-slate-text-3'>
-                Belum ada data riwayat commit untuk periode ini.
-              </div>
-            )}
           </div>
 
           {/* Dynamic Activity Section (Repos & Recent Commits) */}
