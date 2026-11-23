@@ -83,6 +83,11 @@ export const PDF_REFERENCE = {
 
 export const TARGET_SCORE = 70;
 
+/** Target dinamis: skor dibulatkan ke atas ke kelipatan 10 (88 → 90, 77 → 80, 70 → 70). */
+export function targetOfScore(score: number): number {
+  return Math.min(100, Math.max(10, Math.ceil(score / 10) * 10));
+}
+
 /** Target tindak lanjut yang dipakai kartu Prioritas Aksi (bukan angka UI). */
 export const FOLLOW_UP_TARGETS = {
   selfReworkPct: 10,
@@ -597,12 +602,13 @@ function buildActions(
   repeatedFiles: RepeatedFixFile[],
   hotspots: HotspotFile[],
   skillDetail: SkillDetail,
+  target: number,
 ): ScoreAction[] {
   const scoreOf = (key: ComponentKey) =>
     components.find((component) => component.key === key)?.score ?? null;
   const withTarget = (key: ComponentKey) => {
     const score = scoreOf(key);
-    return score === null ? `target ${TARGET_SCORE}` : `${score}/100 (target ${TARGET_SCORE})`;
+    return score === null ? `target ${target}` : `${score}/100 (target ${target})`;
   };
   const exampleOf = (key: IssueKey) => {
     const example = skillDetail.examples[key];
@@ -1033,6 +1039,7 @@ export function computeScorecard(input: ScoreInput): Scorecard {
           ),
         );
   const gradeInfo = gradeOfScore(overall);
+  const target = targetOfScore(overall);
 
   const components: ScoreComponent[] = COMPONENT_KEYS.map((key) => {
     const score = scores[key];
@@ -1045,7 +1052,7 @@ export function computeScorecard(input: ScoreInput): Scorecard {
       score,
       grade: score === null ? null : gradeOfScore(score).grade,
       available: score !== null,
-      potentialToTarget: score === null ? 0 : round1(Math.max(0, TARGET_SCORE - score) * (weight / 100)),
+      potentialToTarget: score === null ? 0 : round1(Math.max(0, target - score) * (weight / 100)),
       potentialToMax: score === null ? 0 : round1((100 - score) * (weight / 100)),
     };
   });
@@ -1193,7 +1200,7 @@ export function computeScorecard(input: ScoreInput): Scorecard {
     effectiveWeights,
     components,
     potential: {
-      target: TARGET_SCORE,
+      target,
       toTarget: round1(components.reduce((sum, c) => sum + c.potentialToTarget, 0)),
       toMax: round1(components.reduce((sum, c) => sum + c.potentialToMax, 0)),
     },
@@ -1216,6 +1223,6 @@ export function computeScorecard(input: ScoreInput): Scorecard {
     recurringIssues: diffReady ? recurringIssues : [],
     repeatedFixFiles: diffReady ? rework.repeatedFixFiles.slice(0, 10) : [],
     hotspots: diffReady ? rework.hotspots.slice(0, 8) : [],
-    actions: buildActions(components, evidence, rework.repeatedFixFiles, rework.hotspots, skillDetail),
+    actions: buildActions(components, evidence, rework.repeatedFixFiles, rework.hotspots, skillDetail, target),
   };
 }
