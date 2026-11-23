@@ -14,6 +14,8 @@ export interface SyncStatus {
   phase: string;
   done: number;
   total: number;
+  /** Teks progres tahap lanjutan, mis. "3/20 commit dinilai AI". */
+  detail?: string;
   startedAt?: string;
   finishedAt?: string;
   error?: string;

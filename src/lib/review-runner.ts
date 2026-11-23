@@ -219,7 +219,7 @@ function markReview(
  * diproses, ambil baris tambahan (cache di gl_commit_diffs), panggil Gemini.
  */
 export async function runReviewBatch(
-  options: { limit?: number; days?: number } = {},
+  options: { limit?: number; days?: number; onProgress?: (done: number, total: number, reviewed: number) => void } = {},
 ): Promise<ReviewRunResult> {
   const st = reviewStatus();
   const s = getSettings();
@@ -285,6 +285,7 @@ export async function runReviewBatch(
   st.skipped = 0;
   st.phase = "Review kode";
   log(`${rows.length} kandidat, ${candidates.length} direview siklus ini`);
+  options.onProgress?.(0, st.total, 0);
 
   await pool(candidates, 2, async (candidate) => {
     try {
@@ -309,6 +310,7 @@ export async function runReviewBatch(
       if (st.failed <= 3) log(`⚠️ ${candidate.sha.slice(0, 8)}: ${message}`);
     } finally {
       st.done++;
+      options.onProgress?.(st.done, st.total, st.reviewed);
     }
   });
 

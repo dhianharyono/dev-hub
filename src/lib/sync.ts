@@ -12,6 +12,8 @@ export interface SyncStatus {
   phase: string;
   done: number;
   total: number;
+  /** Teks progres tahap lanjutan, mis. "3/20 commit dinilai AI". */
+  detail?: string;
   startedAt?: string;
   finishedAt?: string;
   error?: string;
@@ -414,9 +416,16 @@ async function runSync(days: number, full: boolean) {
   );
 
   // 5. Review kode AI (kuota aman: hanya commit baru yang belum pernah dinilai).
-  st.phase = "Review kode";
+  st.phase = "Review kode AI";
+  st.detail = undefined;
   try {
-    const review = await runReviewBatch({ limit: REVIEW_MAX_PER_CYCLE, days: 365 });
+    const review = await runReviewBatch({
+      limit: REVIEW_MAX_PER_CYCLE,
+      days: 365,
+      onProgress: (done, total) => {
+        st.detail = total ? `${done}/${total} commit dinilai AI` : undefined;
+      },
+    });
     log(
       review.configured
         ? `Review kode: ${review.reviewed} dari ${review.total} commit`
@@ -424,6 +433,8 @@ async function runSync(days: number, full: boolean) {
     );
   } catch (e) {
     log(`⚠️ Review kode dilewati: ${(e as Error).message}`);
+  } finally {
+    st.detail = undefined;
   }
 
   st.summary = { projects: projects.length, commits: commitCount, mrs: authored.length + reviewing.length, events: events.length, pipelines: pipeCount, projectErrors };
