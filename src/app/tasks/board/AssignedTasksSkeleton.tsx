@@ -18,16 +18,17 @@ export function AssignedTasksSkeleton() {
 
           {/* Table Rows Skeleton */}
           <div className='overflow-x-auto'>
-            <table className='table min-w-[920px]'>
+            <table className='table min-w-[1040px]'>
               <thead>
                 <tr className='bg-surface-subtle/50 whitespace-nowrap'>
-                  <th className='w-[85px]'>#Ref</th>
-                  <th className='min-w-[240px]'>Judul Task</th>
-                  <th className='w-[240px]'>User Story Induk</th>
-                  <th className='w-[105px] text-center'>Jam</th>
-                  <th className='w-[80px] text-center'>Waktu</th>
-                  <th className='w-[210px] text-right'>Status</th>
-                  <th className='w-[56px] text-right'>Aksi</th>
+                  <th className='w-[80px]'>#Ref</th>
+                  <th className='min-w-[200px]'>Judul Task</th>
+                  <th className='w-[130px]'>Proyek</th>
+                  <th className='w-[170px]'>User Story Induk</th>
+                  <th className='w-[85px] text-center'>Jam</th>
+                  <th className='w-[70px] text-center'>Waktu</th>
+                  <th className='w-[170px] text-right'>Status</th>
+                  <th className='w-[48px] text-right'>Aksi</th>
                 </tr>
               </thead>
               <tbody className='divide-y divide-border/60 text-xs sm:text-[13px]'>
@@ -44,6 +45,9 @@ export function AssignedTasksSkeleton() {
                           }`}
                         />
                       </div>
+                    </td>
+                    <td className='py-3.5 px-4'>
+                      <div className='h-4 w-28 bg-slate-200 rounded animate-pulse' />
                     </td>
                     <td className='py-3.5 px-4'>
                       <div className='h-4 w-32 bg-slate-200 rounded animate-pulse' />

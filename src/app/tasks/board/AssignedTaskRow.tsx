@@ -8,7 +8,6 @@ import type { Status } from './types';
 
 interface AssignedTaskRowProps {
   task: AssignedTaskItem;
-  projectSlug: string;
   baseUrl: string;
   availableStatuses: Status[];
   isUpdating: boolean;
@@ -27,7 +26,6 @@ interface AssignedTaskRowProps {
 
 export function AssignedTaskRow({
   task,
-  projectSlug,
   baseUrl,
   availableStatuses,
   isUpdating,
@@ -54,7 +52,7 @@ export function AssignedTaskRow({
       {/* Ref & Link */}
       <td className='align-middle whitespace-nowrap'>
         <a
-          href={`${baseUrl}/project/${projectSlug}/task/${task.ref}`}
+          href={`${baseUrl}/project/${task.projectSlug}/task/${task.ref}`}
           target='_blank'
           rel='noreferrer'
           className='font-bold text-cyan-600 dark:text-cyan-400 inline-flex items-center gap-1 hover:underline text-xs sm:text-[13px]'
@@ -66,7 +64,7 @@ export function AssignedTaskRow({
       </td>
 
       {/* Subject & Inline / Modal Edit */}
-      <td className='align-middle min-w-[240px]'>
+      <td className='align-middle min-w-[200px]'>
         {isEditingThis ? (
           <div className='flex items-center gap-2'>
             <input
@@ -124,14 +122,24 @@ export function AssignedTaskRow({
         )}
       </td>
 
+      {/* Project */}
+      <td className='align-middle'>
+        <span
+          className='inline-block max-w-[170px] truncate align-middle text-xs text-slate-600'
+          title={task.projectName}
+        >
+          {task.projectName}
+        </span>
+      </td>
+
       {/* User Story Parent */}
       <td className='align-middle whitespace-nowrap'>
         {task.userStory ? (
           <a
-            href={`${baseUrl}/project/${projectSlug}/us/${task.userStory.ref}`}
+            href={`${baseUrl}/project/${task.projectSlug}/us/${task.userStory.ref}`}
             target='_blank'
             rel='noreferrer'
-            className='text-xs sm:text-[13px] text-slate-600 hover:text-slate-900 inline-block max-w-[240px] truncate'
+            className='text-xs sm:text-[13px] text-slate-600 hover:text-slate-900 inline-block max-w-[170px] truncate'
             title={`#${task.userStory.ref} ${task.userStory.subject}`}
           >
             <span className='font-bold text-violet-600 mr-1'>
@@ -179,7 +187,7 @@ export function AssignedTaskRow({
       {/* Status Selector Cell */}
       <td className='align-middle text-right whitespace-nowrap'>
         <div className='inline-flex items-center justify-end gap-2'>
-          <div className='relative inline-flex items-center w-[165px]'>
+          <div className='relative inline-flex items-center w-[150px]'>
             <Select
               size='sm'
               value={task.status}

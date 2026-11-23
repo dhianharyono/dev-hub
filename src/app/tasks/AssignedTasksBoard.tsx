@@ -49,6 +49,9 @@ export default function AssignedTasksBoard({
         assignedProjects={assignedProjects}
         selectedAssignedProject={board.selectedAssignedProject}
         setSelectedAssignedProject={board.setSelectedAssignedProject}
+        selectedAssignedStatus={board.selectedAssignedStatus}
+        setSelectedAssignedStatus={board.setSelectedAssignedStatus}
+        assignedStatusOptions={board.assignedStatusOptions}
         assignedSearch={board.assignedSearch}
         setAssignedSearch={board.setAssignedSearch}
         bulkDoneCount={board.bulkDonePlan.targets.length}
@@ -84,7 +87,7 @@ export default function AssignedTasksBoard({
             </div>
           }
         />
-      ) : board.groupedTasksByProject.length === 0 ? (
+      ) : board.groupedTasks.length === 0 ? (
         <AssignedTasksEmptyState
           assignedActiveOnly={assignedActiveOnly}
           setAssignedActiveOnly={setAssignedActiveOnly}
@@ -94,17 +97,19 @@ export default function AssignedTasksBoard({
           onClearSearch={() => board.setAssignedSearch('')}
           selectedProject={board.selectedAssignedProject}
           onResetProject={() => board.setSelectedAssignedProject('all')}
+          selectedStatus={board.selectedAssignedStatus}
+          onResetStatus={() => board.setSelectedAssignedStatus('all')}
           hasAnyTasks={assignedTasks.length > 0}
         />
       ) : (
         <div className='flex flex-col gap-[22px]'>
-          {board.groupedTasksByProject.map((group) => (
+          {board.groupedTasks.map((group) => (
             <AssignedProjectGroup
-              key={`${group.projectId}-${assignedActiveOnly ? 'active' : 'all'}`}
+              key={`${group.projectId}-${assignedActiveOnly ? 'active' : 'all'}-${board.selectedAssignedStatus}`}
               group={group}
               isAllTasks={!assignedActiveOnly}
               baseUrl={baseUrl}
-              availableStatuses={projectStatuses[group.projectId] || []}
+              projectStatuses={projectStatuses}
               updatingTaskId={board.updatingTaskId}
               updateSuccessTaskId={board.updateSuccessTaskId}
               deletingTaskId={board.deletingTaskId}
@@ -152,7 +157,10 @@ export default function AssignedTasksBoard({
           isRunning={board.bulkDoneRunning}
           day={board.bulkDoneDay}
           dayOptions={board.bulkDoneDayOptions}
+          targetStatus={board.bulkDoneTargetStatus}
+          statusOptions={board.bulkStatusOptions}
           onDayChange={board.setBulkDoneDay}
+          onTargetStatusChange={board.setBulkDoneTargetStatus}
           onCancel={board.handleCancelBulkDone}
           onConfirm={board.handleConfirmBulkDone}
         />

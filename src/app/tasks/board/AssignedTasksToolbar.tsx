@@ -11,6 +11,9 @@ interface AssignedTasksToolbarProps {
   assignedProjects: { id: number; name: string; slug: string }[];
   selectedAssignedProject: number | 'all';
   setSelectedAssignedProject: (id: number | 'all') => void;
+  selectedAssignedStatus: string | 'all';
+  setSelectedAssignedStatus: (name: string | 'all') => void;
+  assignedStatusOptions: string[];
   assignedSearch: string;
   setAssignedSearch: (q: string) => void;
   bulkDoneCount: number;
@@ -27,6 +30,9 @@ export function AssignedTasksToolbar({
   assignedProjects,
   selectedAssignedProject,
   setSelectedAssignedProject,
+  selectedAssignedStatus,
+  setSelectedAssignedStatus,
+  assignedStatusOptions,
   assignedSearch,
   setAssignedSearch,
   bulkDoneCount,
@@ -38,7 +44,7 @@ export function AssignedTasksToolbar({
     loadingAssigned || bulkDoneRunning || bulkDoneCount === 0;
   const bulkDoneTitle =
     bulkDoneCount > 0
-      ? `Tandai ${bulkDoneCount} task aktif sebagai Done sekaligus`
+      ? `Tandai ${bulkDoneCount} task aktif ke status pilihan sekaligus`
       : alreadyClosedCount > 0
         ? 'Semua task aktif sudah selesai'
         : 'Tidak ada task aktif';
@@ -83,9 +89,7 @@ export function AssignedTasksToolbar({
             <span>
               {bulkDoneRunning
                 ? 'Memproses...'
-                : `Tandai Semua Done${
-                    bulkDoneCount > 0 ? ` (${bulkDoneCount})` : ''
-                  }`}
+                : `Tandai Semua${bulkDoneCount > 0 ? ` (${bulkDoneCount})` : ''}`}
             </span>
           </button>
           <button
@@ -144,8 +148,26 @@ export function AssignedTasksToolbar({
           </button>
         </div>
 
-        {/* Right Filter Controls: Project Select & Search Filter */}
+        {/* Right Filter Controls: Status Select, Project Select & Search Filter */}
         <div className='flex items-center gap-3 flex-wrap flex-1 sm:flex-initial justify-end'>
+          {/* Status Select Filter */}
+          <div className='w-full sm:w-[190px]'>
+            <Select
+              size='sm'
+              value={selectedAssignedStatus}
+              onChange={(e) => setSelectedAssignedStatus(e.target.value)}
+              className='w-full !h-10 text-xs sm:text-sm rounded-xl !bg-white'
+              aria-label='Filter berdasarkan Status Task'
+            >
+              <option value='all'>Semua Status</option>
+              {assignedStatusOptions.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </Select>
+          </div>
+
           {/* Project Select Filter */}
           <div className='w-full sm:w-[220px]'>
             <Select

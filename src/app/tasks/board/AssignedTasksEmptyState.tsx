@@ -20,6 +20,8 @@ interface AssignedTasksEmptyStateProps {
   onClearSearch?: () => void;
   selectedProject?: number | 'all';
   onResetProject?: () => void;
+  selectedStatus?: string | 'all';
+  onResetStatus?: () => void;
   hasAnyTasks?: boolean;
 }
 
@@ -32,6 +34,8 @@ export function AssignedTasksEmptyState({
   onClearSearch,
   selectedProject = 'all',
   onResetProject,
+  selectedStatus = 'all',
+  onResetStatus,
   hasAnyTasks = false,
 }: AssignedTasksEmptyStateProps) {
   // Case 1: Filter pencarian aktif tetapi tidak ada hasil yang cocok
@@ -58,7 +62,31 @@ export function AssignedTasksEmptyState({
     );
   }
 
-  // Case 2: Filter proyek spesifik dipilih tetapi tidak ada task pada proyek tersebut
+  // Case 2: Filter status dipilih tetapi tidak ada task dengan status tersebut
+  if (selectedStatus !== 'all') {
+    return (
+      <EmptyState
+        tone='blue'
+        icon={<SearchX size={26} strokeWidth={2.2} />}
+        title='Tidak Ada Task dengan Status Ini'
+        description={`Tidak ditemukan task berstatus "${selectedStatus}" pada filter yang aktif saat ini.`}
+        action={
+          onResetStatus && (
+            <button
+              type='button'
+              className='btn btn-sm text-[12.5px] gap-1.5'
+              onClick={onResetStatus}
+            >
+              <ListFilter size={13} />
+              <span>Tampilkan Semua Status</span>
+            </button>
+          )
+        }
+      />
+    );
+  }
+
+  // Case 3: Filter proyek spesifik dipilih tetapi tidak ada task pada proyek tersebut
   if (selectedProject !== 'all') {
     return (
       <EmptyState
@@ -82,7 +110,7 @@ export function AssignedTasksEmptyState({
     );
   }
 
-  // Case 3: Filter Task Aktif Saja menyala dan semua tugas aktif sudah selesai (Kasus Gambar 1)
+  // Case 4: Filter Task Aktif Saja menyala dan semua tugas aktif sudah selesai (Kasus Gambar 1)
   if (assignedActiveOnly && hasAnyTasks) {
     return (
       <EmptyState
@@ -120,7 +148,7 @@ export function AssignedTasksEmptyState({
     );
   }
 
-  // Case 4: Akun baru atau belum ada task sama sekali
+  // Case 5: Akun baru atau belum ada task sama sekali
   return (
     <EmptyState
       tone='blue'

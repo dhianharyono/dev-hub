@@ -90,3 +90,49 @@ export function groupTasksByDate(
       tasks: groupTasks,
     }));
 }
+
+/** Jumlah hari yang ditampilkan per halaman pada daftar task. */
+export const DAYS_PER_PAGE = 7;
+
+export interface DateGroupPage {
+  /** Hari-hari yang tampil di halaman ini, lengkap tanpa potongan task. */
+  groups: TaskDateGroup[];
+  page: number;
+  totalPages: number;
+  /** Indeks task pertama di halaman (1-based), 0 saat tidak ada task. */
+  startIndex: number;
+  endIndex: number;
+  /** Jumlah task di halaman ini. */
+  taskCount: number;
+  totalTasks: number;
+}
+
+/**
+ * Bagi grup hari menjadi halaman utuh: satu halaman berisi beberapa hari penuh,
+ * sehingga tidak ada hari yang tampil sebagian.
+ */
+export function paginateDateGroups(
+  groups: TaskDateGroup[],
+  page: number,
+  daysPerPage: number = DAYS_PER_PAGE,
+): DateGroupPage {
+  const perPage = Math.max(1, daysPerPage);
+  const totalPages = Math.max(1, Math.ceil(groups.length / perPage));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const start = (currentPage - 1) * perPage;
+  const pageGroups = groups.slice(start, start + perPage);
+  const countTasks = (list: TaskDateGroup[]) =>
+    list.reduce((sum, group) => sum + group.tasks.length, 0);
+  const taskCount = countTasks(pageGroups);
+  const tasksBefore = countTasks(groups.slice(0, start));
+
+  return {
+    groups: pageGroups,
+    page: currentPage,
+    totalPages,
+    startIndex: taskCount > 0 ? tasksBefore + 1 : 0,
+    endIndex: tasksBefore + taskCount,
+    taskCount,
+    totalTasks: countTasks(groups),
+  };
+}

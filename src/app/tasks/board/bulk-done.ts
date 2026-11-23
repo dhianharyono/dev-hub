@@ -24,8 +24,8 @@ export interface BulkDonePlan {
   targets: BulkDoneTarget[];
   /** Task yang dilewati karena sudah closed. */
   alreadyClosed: number;
-  /** Task yang dilewati karena project tidak punya status closed. */
-  withoutDoneStatus: number;
+  /** Task yang dilewati karena project tidak punya status target. */
+  withoutTargetStatus: number;
 }
 
 const PREFERRED_DONE_NAME =
@@ -43,6 +43,55 @@ export function pickDoneStatus(statuses: Status[] | undefined): Status | null {
     closedStatuses.find((s) => PREFERRED_DONE_NAME.test(s.name.trim())) ??
     closedStatuses[0]
   );
+}
+
+/**
+ * Cari status dengan nama yang sama di daftar status sebuah project.
+ * Nama dibandingkan tanpa beda huruf besar/kecil dan spasi tepi.
+ */
+export function findStatusByName(
+  statuses: Status[] | undefined,
+  name: string,
+): Status | null {
+  if (!statuses || !name.trim()) return null;
+  const target = name.trim().toLowerCase();
+  return (
+    statuses.find((s) => s.name.trim().toLowerCase() === target) ?? null
+  );
+}
+
+/**
+ * Daftar nama status unik dari semua project yang termuat, urut kemunculan.
+ * Status proyek berbeda punya id sendiri, jadi pilihan lintas proyek memakai nama.
+ */
+export function buildBulkStatusOptions(
+  statusesByProject: Record<number, Status[]>,
+): string[] {
+  const seen = new Map<string, string>();
+  for (const list of Object.values(statusesByProject)) {
+    for (const status of list) {
+      const key = status.name.trim().toLowerCase();
+      if (key && !seen.has(key)) seen.set(key, status.name.trim());
+    }
+  }
+  return [...seen.values()];
+}
+
+/**
+ * Status target default: nama status Done bila ada, lalu status closed pertama,
+ * lalu status pertama yang tersedia.
+ */
+export function pickDefaultTargetStatusName(
+  statusesByProject: Record<number, Status[]>,
+): string | null {
+  const allStatuses = Object.values(statusesByProject).flat();
+  const preferred = allStatuses.find(
+    (s) => s.is_closed && PREFERRED_DONE_NAME.test(s.name.trim()),
+  );
+  if (preferred) return preferred.name.trim();
+  const closed = allStatuses.find((s) => s.is_closed);
+  if (closed) return closed.name.trim();
+  return allStatuses[0]?.name.trim() ?? null;
 }
 
 /**
@@ -75,18 +124,20 @@ export function buildBulkDoneDayOptions(
 }
 
 /**
- * Susun daftar task aktif yang akan ditandai Done.
+ * Susun daftar task aktif yang akan diubah ke status target.
  * `day` membatasi ke satu hari; `ALL_DAYS` berarti semua tanggal ikut.
+ * Tanpa `targetStatusName`, status target memakai status penutup project.
  */
 export function buildBulkDonePlan(
   tasks: AssignedTaskItem[],
   statusesByProject: Record<number, Status[]>,
   day: string = ALL_DAYS,
+  targetStatusName?: string | null,
 ): BulkDonePlan {
   const plan: BulkDonePlan = {
     targets: [],
     alreadyClosed: 0,
-    withoutDoneStatus: 0,
+    withoutTargetStatus: 0,
   };
 
   const scopedTasks =
@@ -98,9 +149,12 @@ export function buildBulkDonePlan(
       continue;
     }
 
-    const status = pickDoneStatus(statusesByProject[task.projectId]);
+    const statuses = statusesByProject[task.projectId];
+    const status = targetStatusName
+      ? findStatusByName(statuses, targetStatusName)
+      : pickDoneStatus(statuses);
     if (!status) {
-      plan.withoutDoneStatus += 1;
+      plan.withoutTargetStatus += 1;
       continue;
     }
 

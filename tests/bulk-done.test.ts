@@ -4,6 +4,8 @@ import {
   NO_DATE_DAY,
   buildBulkDoneDayOptions,
   buildBulkDonePlan,
+  buildBulkStatusOptions,
+  pickDefaultTargetStatusName,
   pickDoneStatus,
   taskDayKey,
 } from '../src/app/tasks/board/bulk-done';
@@ -67,7 +69,7 @@ describe('bulk done helper', () => {
 
     expect(plan.targets.map((t) => t.task.id)).toEqual([1, 2, 3, 4]);
     expect(plan.alreadyClosed).toBe(0);
-    expect(plan.withoutDoneStatus).toBe(0);
+    expect(plan.withoutTargetStatus).toBe(0);
   });
 
   it('skips tasks that are already closed', () => {
@@ -93,7 +95,7 @@ describe('bulk done helper', () => {
     );
 
     expect(plan.targets).toEqual([]);
-    expect(plan.withoutDoneStatus).toBe(1);
+    expect(plan.withoutTargetStatus).toBe(1);
   });
 
   it('prefers a status named Done over another closed status', () => {
@@ -119,7 +121,7 @@ describe('bulk done helper', () => {
 
     expect(plan.targets).toEqual([]);
     expect(plan.alreadyClosed).toBe(0);
-    expect(plan.withoutDoneStatus).toBe(0);
+    expect(plan.withoutTargetStatus).toBe(0);
   });
 
   it('normalizes activity dates to a day key', () => {
@@ -161,7 +163,7 @@ describe('bulk done helper', () => {
 
     expect(plan.targets.map((t) => t.task.id)).toEqual([1]);
     expect(plan.alreadyClosed).toBe(1);
-    expect(plan.withoutDoneStatus).toBe(0);
+    expect(plan.withoutTargetStatus).toBe(0);
   });
 
   it('counts skipped tasks only inside the selected day', () => {
@@ -175,7 +177,7 @@ describe('bulk done helper', () => {
     );
 
     expect(plan.targets).toEqual([]);
-    expect(plan.withoutDoneStatus).toBe(1);
+    expect(plan.withoutTargetStatus).toBe(1);
   });
 
   it('can target only tasks without an activity date', () => {
@@ -186,5 +188,55 @@ describe('bulk done helper', () => {
     );
 
     expect(plan.targets.map((t) => t.task.id)).toEqual([1]);
+  });
+
+  it('lists unique status names across projects in first-seen order', () => {
+    expect(buildBulkStatusOptions(projectStatuses)).toEqual([
+      'New',
+      'Done',
+      'Cancelled',
+    ]);
+  });
+
+  it('defaults the bulk target to Done', () => {
+    expect(pickDefaultTargetStatusName(projectStatuses)).toBe('Done');
+  });
+
+  it('falls back to the first closed status when no project has Done', () => {
+    expect(
+      pickDefaultTargetStatusName({
+        1: [status(1, 'New', false), status(8, 'Archived', true)],
+      }),
+    ).toBe('Archived');
+  });
+
+  it('targets the chosen status name in every project', () => {
+    const plan = buildBulkDonePlan(
+      [
+        task(1, '2026-11-12', { projectId: 1 }),
+        task(2, '2026-11-12', { projectId: 2 }),
+      ],
+      projectStatuses,
+      ALL_DAYS,
+      'New',
+    );
+
+    expect(plan.targets.map((t) => [t.task.id, t.status.id, t.status.name])).toEqual([
+      [1, 1, 'New'],
+      [2, 1, 'New'],
+    ]);
+    expect(plan.withoutTargetStatus).toBe(0);
+  });
+
+  it('skips tasks whose project lacks the chosen status', () => {
+    const plan = buildBulkDonePlan(
+      [task(1, '2026-11-12', { projectId: 1 })],
+      projectStatuses,
+      ALL_DAYS,
+      'Cancelled',
+    );
+
+    expect(plan.targets).toEqual([]);
+    expect(plan.withoutTargetStatus).toBe(1);
   });
 });

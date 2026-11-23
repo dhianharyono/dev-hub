@@ -3,7 +3,13 @@
 import { useMemo, useState } from 'react';
 import type { AssignedTaskItem } from '@/app/api/taiga/assigned/route';
 import { useToast } from '@/components/Notification';
-import { buildBulkDoneDayOptions, buildBulkDonePlan, ALL_DAYS } from './bulk-done';
+import {
+  buildBulkDoneDayOptions,
+  buildBulkDonePlan,
+  buildBulkStatusOptions,
+  pickDefaultTargetStatusName,
+  ALL_DAYS,
+} from './bulk-done';
 import type { ProjectTaskGroup, Status } from './types';
 
 interface UseAssignedBoardProps {
@@ -23,6 +29,7 @@ export function useAssignedBoard({
 }: UseAssignedBoardProps) {
   const [assignedSearch, setAssignedSearch] = useState('');
   const [selectedAssignedProject, setSelectedAssignedProject] = useState<number | 'all'>('all');
+  const [selectedAssignedStatus, setSelectedAssignedStatus] = useState<string | 'all'>('all');
   const [updatingTaskId, setUpdatingTaskId] = useState<number | null>(null);
   const [updateSuccessTaskId, setUpdateSuccessTaskId] = useState<number | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<AssignedTaskItem | null>(null);
@@ -32,6 +39,7 @@ export function useAssignedBoard({
   const [bulkDoneOpen, setBulkDoneOpen] = useState(false);
   const [bulkDoneRunning, setBulkDoneRunning] = useState(false);
   const [bulkDoneDay, setBulkDoneDay] = useState<string>(ALL_DAYS);
+  const [bulkDoneTargetStatus, setBulkDoneTargetStatus] = useState<string | null>(null);
   const { notify } = useToast();
 
   const bulkDoneDayOptions = useMemo(
@@ -39,9 +47,27 @@ export function useAssignedBoard({
     [assignedTasks],
   );
 
+  const bulkStatusOptions = useMemo(
+    () => buildBulkStatusOptions(projectStatuses),
+    [projectStatuses],
+  );
+
+  const defaultBulkTargetStatus = useMemo(
+    () => pickDefaultTargetStatusName(projectStatuses),
+    [projectStatuses],
+  );
+
+  const bulkTargetStatus = bulkDoneTargetStatus ?? defaultBulkTargetStatus ?? '';
+
   const bulkDonePlan = useMemo(
-    () => buildBulkDonePlan(assignedTasks, projectStatuses, bulkDoneDay),
-    [assignedTasks, projectStatuses, bulkDoneDay],
+    () =>
+      buildBulkDonePlan(
+        assignedTasks,
+        projectStatuses,
+        bulkDoneDay,
+        bulkTargetStatus || null,
+      ),
+    [assignedTasks, projectStatuses, bulkDoneDay, bulkTargetStatus],
   );
 
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
@@ -125,11 +151,13 @@ export function useAssignedBoard({
     if (bulkDoneRunning) return;
     setBulkDoneOpen(false);
     setBulkDoneDay(ALL_DAYS);
+    setBulkDoneTargetStatus(null);
   };
 
   const handleConfirmBulkDone = async () => {
     if (bulkDoneRunning || bulkDonePlan.targets.length === 0) return;
     setBulkDoneRunning(true);
+    const targetLabel = bulkTargetStatus || 'Done';
 
     const scopeLabel =
       bulkDoneDay === ALL_DAYS
@@ -184,20 +212,21 @@ export function useAssignedBoard({
     setBulkDoneRunning(false);
     setBulkDoneOpen(false);
     setBulkDoneDay(ALL_DAYS);
+    setBulkDoneTargetStatus(null);
 
     if (failedRefs.length === 0) {
       notify.success(
-        `${successIds.size} ${scopeLabel} berhasil ditandai Done.`,
-        'Semua task selesai',
+        `${successIds.size} ${scopeLabel} berhasil diubah ke status ${targetLabel}.`,
+        'Status task diperbarui',
       );
     } else if (successIds.size === 0) {
       notify.error(
-        `Gagal menandai ${failedRefs.length} ${scopeLabel} (${failedRefs.join(', ')}). Coba lagi.`,
+        `Gagal mengubah ${failedRefs.length} ${scopeLabel} ke status ${targetLabel} (${failedRefs.join(', ')}). Coba lagi.`,
         'Tidak ada task yang berubah',
       );
     } else {
       notify.warning(
-        `${successIds.size} task selesai, ${failedRefs.length} gagal (${failedRefs.join(', ')}).`,
+        `${successIds.size} task diubah ke ${targetLabel}, ${failedRefs.length} gagal (${failedRefs.join(', ')}).`,
         'Sebagian berhasil',
       );
     }
@@ -239,11 +268,18 @@ export function useAssignedBoard({
     }
   };
 
-  const groupedTasksByProject = useMemo(() => {
+  const groupedTasks = useMemo(() => {
     const filtered = assignedTasks.filter((t) => {
       if (
         selectedAssignedProject !== 'all' &&
         t.projectId !== selectedAssignedProject
+      ) {
+        return false;
+      }
+      if (
+        selectedAssignedStatus !== 'all' &&
+        (t.statusExtraInfo?.name ?? '').trim().toLowerCase() !==
+          selectedAssignedStatus.trim().toLowerCase()
       ) {
         return false;
       }
@@ -258,6 +294,19 @@ export function useAssignedBoard({
       }
       return true;
     });
+
+    // Semua proyek: satu daftar per hari, tanpa pengelompokan proyek.
+    if (selectedAssignedProject === 'all') {
+      if (filtered.length === 0) return [];
+      return [
+        {
+          projectId: -1,
+          projectName: 'Semua Task',
+          projectSlug: '',
+          tasks: filtered,
+        },
+      ];
+    }
 
     const groups: ProjectTaskGroup[] = [];
     const map = new Map<number, AssignedTaskItem[]>();
@@ -279,7 +328,12 @@ export function useAssignedBoard({
     }
 
     return groups;
-  }, [assignedTasks, selectedAssignedProject, assignedSearch]);
+  }, [
+    assignedTasks,
+    selectedAssignedProject,
+    selectedAssignedStatus,
+    assignedSearch,
+  ]);
 
   const [taskToEdit, setTaskToEdit] = useState<AssignedTaskItem | null>(null);
 
@@ -433,6 +487,9 @@ export function useAssignedBoard({
     setAssignedSearch,
     selectedAssignedProject,
     setSelectedAssignedProject,
+    selectedAssignedStatus,
+    setSelectedAssignedStatus,
+    assignedStatusOptions: bulkStatusOptions,
     updatingTaskId,
     updateSuccessTaskId,
     editingTaskId,
@@ -453,11 +510,14 @@ export function useAssignedBoard({
     handleStartEdit,
     handleCancelEdit,
     handleSaveSubject,
-    groupedTasksByProject,
+    groupedTasks,
     bulkDonePlan,
     bulkDoneDay,
     setBulkDoneDay,
     bulkDoneDayOptions,
+    bulkDoneTargetStatus: bulkTargetStatus,
+    setBulkDoneTargetStatus,
+    bulkStatusOptions,
     bulkDoneOpen,
     bulkDoneRunning,
     handleRequestBulkDone,

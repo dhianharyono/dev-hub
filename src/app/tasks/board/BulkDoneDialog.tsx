@@ -2,7 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCheck, CalendarDays, Info, X } from 'lucide-react';
+import { CheckCheck, CalendarDays, Info, Tag, X } from 'lucide-react';
 import { Select } from '@/components/Select';
 import type { BulkDoneDayOption, BulkDonePlan } from './bulk-done';
 import { ALL_DAYS } from './bulk-done';
@@ -14,7 +14,10 @@ interface BulkDoneDialogProps {
   isRunning: boolean;
   day: string;
   dayOptions: BulkDoneDayOption[];
+  targetStatus: string;
+  statusOptions: string[];
   onDayChange: (day: string) => void;
+  onTargetStatusChange: (name: string) => void;
   onCancel: () => void;
   onConfirm: () => void;
 }
@@ -24,7 +27,10 @@ export function BulkDoneDialog({
   isRunning,
   day,
   dayOptions,
+  targetStatus,
+  statusOptions,
   onDayChange,
+  onTargetStatusChange,
   onCancel,
   onConfirm,
 }: BulkDoneDialogProps) {
@@ -70,7 +76,7 @@ export function BulkDoneDialog({
             className='text-sm font-bold text-slate-text inline-flex items-center gap-2'
           >
             <CheckCheck size={16} className='text-brand' />
-            Tandai Semua Done
+            Tandai Semua ke {targetStatus}
           </h2>
           <button
             type='button'
@@ -84,6 +90,30 @@ export function BulkDoneDialog({
         </div>
 
         <div className='p-5 flex flex-col gap-3'>
+          <div className='flex flex-col gap-1.5'>
+            <label
+              htmlFor='bulk-done-status'
+              className='text-xs font-medium text-slate-600 flex items-center gap-1.5'
+            >
+              <Tag size={12} className='text-slate-400' />
+              <span>Status target</span>
+            </label>
+            <Select
+              id='bulk-done-status'
+              size='sm'
+              value={targetStatus}
+              onChange={(e) => onTargetStatusChange(e.target.value)}
+              disabled={isRunning}
+              className='h-9 text-xs sm:text-sm rounded-lg'
+            >
+              {statusOptions.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </Select>
+          </div>
+
           <div className='flex flex-col gap-1.5'>
             <label
               htmlFor='bulk-done-day'
@@ -111,12 +141,13 @@ export function BulkDoneDialog({
           {plan.targets.length === 0 ? (
             <p className='text-sm font-semibold text-slate-text'>
               Tidak ada task aktif{allDays ? '' : ` pada ${dayLabel}`} yang bisa
-              ditandai Done.
+              diubah ke status {targetStatus}.
             </p>
           ) : (
             <p className='text-sm font-semibold text-slate-text'>
               {plan.targets.length} task aktif
-              {allDays ? '' : ` pada ${dayLabel}`} akan diubah ke status Done.
+              {allDays ? '' : ` pada ${dayLabel}`} akan diubah ke status{' '}
+              {targetStatus}.
             </p>
           )}
           <p className='text-xs text-slate-600 leading-relaxed'>
@@ -127,9 +158,19 @@ export function BulkDoneDialog({
 
           <ul className='flex flex-col gap-1.5 m-0 p-0 list-none max-h-44 overflow-y-auto'>
             {preview.map(({ task }) => (
-              <li key={task.id} className='text-xs text-slate-700 truncate'>
-                <span className='font-semibold text-slate-500'>#{task.ref}</span>{' '}
-                {task.subject}
+              <li
+                key={task.id}
+                className='flex items-center gap-2 text-xs text-slate-700'
+              >
+                <span className='min-w-0 flex-1 truncate'>
+                  <span className='font-semibold text-slate-500'>
+                    #{task.ref}
+                  </span>{' '}
+                  {task.subject}
+                </span>
+                <span className='shrink-0 font-semibold text-slate-500'>
+                  {targetStatus}
+                </span>
               </li>
             ))}
             {remaining > 0 && (
@@ -139,14 +180,14 @@ export function BulkDoneDialog({
             )}
           </ul>
 
-          {(plan.alreadyClosed > 0 || plan.withoutDoneStatus > 0) && (
+          {(plan.alreadyClosed > 0 || plan.withoutTargetStatus > 0) && (
             <div className='flex items-start gap-2 p-3 text-xs font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-xl'>
               <Info size={14} className='shrink-0 mt-0.5' />
               <span>
                 {plan.alreadyClosed > 0 &&
                   `${plan.alreadyClosed} task sudah selesai dilewati. `}
-                {plan.withoutDoneStatus > 0 &&
-                  `${plan.withoutDoneStatus} task dilewati karena project tidak punya status Done.`}
+                {plan.withoutTargetStatus > 0 &&
+                  `${plan.withoutTargetStatus} task dilewati karena project tidak punya status ${targetStatus}.`}
               </span>
             </div>
           )}
@@ -176,7 +217,7 @@ export function BulkDoneDialog({
             <span>
               {isRunning
                 ? 'Memproses...'
-                : `Tandai ${plan.targets.length} Done`}
+                : `Tandai ${plan.targets.length} ke ${targetStatus}`}
             </span>
           </button>
         </div>

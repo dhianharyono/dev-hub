@@ -4,14 +4,18 @@ import { Fragment, useMemo, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { AssignedTaskItem } from '@/app/api/taiga/assigned/route';
 import { AssignedTaskRow } from './AssignedTaskRow';
-import { groupTasksByDate } from './task-date-groups';
+import {
+  groupTasksByDate,
+  paginateDateGroups,
+  DAYS_PER_PAGE,
+} from './task-date-groups';
 import type { ProjectTaskGroup, Status } from './types';
 
 interface AssignedProjectGroupProps {
   group: ProjectTaskGroup;
   isAllTasks?: boolean;
   baseUrl: string;
-  availableStatuses: Status[];
+  projectStatuses: Record<number, Status[]>;
   updatingTaskId: number | null;
   updateSuccessTaskId: number | null;
   deletingTaskId: number | null;
@@ -30,7 +34,7 @@ export function AssignedProjectGroup({
   group,
   isAllTasks = false,
   baseUrl,
-  availableStatuses,
+  projectStatuses,
   updatingTaskId,
   updateSuccessTaskId,
   deletingTaskId,
@@ -45,10 +49,7 @@ export function AssignedProjectGroup({
   onRequestDelete,
 }: AssignedProjectGroupProps) {
   const [page, setPage] = useState(1);
-  const pageSize = 10;
   const totalTasks = group.tasks.length;
-  const totalPages = isAllTasks ? Math.max(1, Math.ceil(totalTasks / pageSize)) : 1;
-  const currentPage = Math.min(Math.max(1, page), totalPages);
 
   // Urutkan per project: startTime terbaru di atas, yang kosong di akhir.
   // Task tanpa startTime diurutkan ref ascending; waktu sama tetap stabil.
@@ -69,17 +70,19 @@ export function AssignedProjectGroup({
     [group.tasks],
   );
 
-  const displayedTasks = isAllTasks
-    ? sortedTasks.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-    : sortedTasks;
-
-  const displayedDateGroups = useMemo(
-    () => groupTasksByDate(displayedTasks),
-    [displayedTasks],
+  // Kelompokkan dulu semua task per hari, baru bagi per halaman berisi hari utuh.
+  const dateGroups = useMemo(() => groupTasksByDate(sortedTasks), [sortedTasks]);
+  const pageData = useMemo(
+    () =>
+      paginateDateGroups(
+        dateGroups,
+        page,
+        isAllTasks ? DAYS_PER_PAGE : Math.max(1, dateGroups.length),
+      ),
+    [dateGroups, page, isAllTasks],
   );
-
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, totalTasks);
+  const { groups: displayedDateGroups, page: currentPage, totalPages } = pageData;
+  const { startIndex, endIndex } = pageData;
 
   return (
     <div className='border border-border rounded-2xl overflow-hidden bg-surface shadow-xs'>
@@ -97,16 +100,17 @@ export function AssignedProjectGroup({
 
       {/* Table of Tasks */}
       <div className='overflow-x-auto'>
-        <table className='table min-w-[920px]'>
+        <table className='table min-w-[1040px]'>
           <thead>
             <tr className='bg-surface-subtle/50 whitespace-nowrap'>
-              <th className='w-[85px]'>#Ref</th>
-              <th className='min-w-[240px]'>Judul Task</th>
-              <th className='w-[240px]'>User Story Induk</th>
-              <th className='w-[105px] text-center'>Jam</th>
-              <th className='w-[80px] text-center'>Waktu</th>
-              <th className='w-[210px] text-right'>Status</th>
-              <th className='w-[56px] text-right'>Aksi</th>
+              <th className='w-[80px]'>#Ref</th>
+              <th className='min-w-[200px]'>Judul Task</th>
+              <th className='w-[130px]'>Proyek</th>
+              <th className='w-[170px]'>User Story Induk</th>
+              <th className='w-[85px] text-center'>Jam</th>
+              <th className='w-[70px] text-center'>Waktu</th>
+              <th className='w-[170px] text-right'>Status</th>
+              <th className='w-[48px] text-right'>Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -115,7 +119,7 @@ export function AssignedProjectGroup({
                 <tr className='bg-surface-subtle/70'>
                   <th
                     scope='rowgroup'
-                    colSpan={7}
+                    colSpan={8}
                     className='text-left px-5 py-2 border-b border-border'
                   >
                     <span className='inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-500'>
@@ -131,9 +135,8 @@ export function AssignedProjectGroup({
                   <AssignedTaskRow
                     key={task.id}
                     task={task}
-                    projectSlug={group.projectSlug}
                     baseUrl={baseUrl}
-                    availableStatuses={availableStatuses}
+                    availableStatuses={projectStatuses[task.projectId] || []}
                     isUpdating={updatingTaskId === task.id}
                     isSuccess={updateSuccessTaskId === task.id}
                     isDeleting={deletingTaskId === task.id}
@@ -158,13 +161,14 @@ export function AssignedProjectGroup({
       {isAllTasks && totalTasks > 0 && (
         <div className='flex items-center justify-between px-5 py-3.5 bg-surface-subtle/50 border-t border-border flex-wrap gap-3'>
           <div className='text-xs text-slate-muted'>
-            Menampilkan <span className='font-semibold text-slate-text'>{startIndex + 1}</span> -{' '}
+            Menampilkan <span className='font-semibold text-slate-text'>{startIndex}</span> -{' '}
             <span className='font-semibold text-slate-text'>{endIndex}</span> dari{' '}
             <span className='font-semibold text-slate-text'>{totalTasks}</span> task
             {totalPages > 1 && (
               <>
                 {' '}(Halaman <span className='font-semibold text-slate-text'>{currentPage}</span> dari{' '}
-                <span className='font-semibold text-slate-text'>{totalPages}</span>)
+                <span className='font-semibold text-slate-text'>{totalPages}</span> ·{' '}
+                {DAYS_PER_PAGE} hari per halaman)
               </>
             )}
           </div>

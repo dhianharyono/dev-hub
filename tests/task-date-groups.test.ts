@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   formatTaskDateLabel,
   groupTasksByDate,
+  paginateDateGroups,
   toDateKey,
+  DAYS_PER_PAGE,
 } from '../src/app/tasks/board/task-date-groups';
 import type { AssignedTaskItem } from '../src/app/api/taiga/assigned/route';
 
@@ -79,5 +81,50 @@ describe('task date groups', () => {
       'no-date',
     ]);
     expect(groups[5].tasks.map((t) => t.id)).toEqual([6, 7]);
+  });
+
+  it('paginates whole days and never splits a day across pages', () => {
+    const tasks: AssignedTaskItem[] = [];
+    for (let day = 1; day <= 10; day++) {
+      const date = `2026-10-${String(day).padStart(2, '0')}`;
+      for (let n = 1; n <= 4; n++) tasks.push(task(day * 10 + n, date));
+    }
+    const groups = groupTasksByDate(tasks, today);
+
+    const first = paginateDateGroups(groups, 1, DAYS_PER_PAGE);
+    const second = paginateDateGroups(groups, 2, DAYS_PER_PAGE);
+
+    expect(first.groups).toHaveLength(7);
+    expect(first.groups.every((g) => g.tasks.length === 4)).toBe(true);
+    expect(first.taskCount).toBe(28);
+    expect(first.startIndex).toBe(1);
+    expect(first.endIndex).toBe(28);
+    expect(second.groups).toHaveLength(3);
+    expect(second.taskCount).toBe(12);
+    expect(second.startIndex).toBe(29);
+    expect(second.endIndex).toBe(40);
+    expect(second.totalPages).toBe(2);
+  });
+
+  it('keeps all tasks of a day on one page', () => {
+    const groups = groupTasksByDate(
+      [task(1, '2026-11-12'), task(2, '2026-11-12'), task(3, '2026-11-12')],
+      today,
+    );
+    const pageData = paginateDateGroups(groups, 1, 1);
+
+    expect(pageData.groups).toHaveLength(1);
+    expect(pageData.groups[0].tasks.map((t) => t.id)).toEqual([1, 2, 3]);
+  });
+
+  it('clamps the page and handles an empty board', () => {
+    const empty = paginateDateGroups([], 3);
+    expect(empty.totalPages).toBe(1);
+    expect(empty.page).toBe(1);
+    expect(empty.startIndex).toBe(0);
+    expect(empty.endIndex).toBe(0);
+
+    const groups = groupTasksByDate([task(1, '2026-11-12')], today);
+    expect(paginateDateGroups(groups, 99).page).toBe(1);
   });
 });
