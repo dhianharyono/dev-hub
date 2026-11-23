@@ -23,8 +23,10 @@ import {
 } from "./code-issues";
 import {
   averageReviewScore,
+  buildReviewInsights,
   reviewHighlights,
   type ReviewHighlight,
+  type ReviewInsight,
 } from "./commit-review";
 import {
   CARRIED_FACTOR,
@@ -146,6 +148,7 @@ export interface ReviewDetail {
   score: number | null;
   count: number;
   highlights: ReviewHighlight[];
+  insights: ReviewInsight[];
 }
 
 export interface ScoreComponent {
@@ -984,6 +987,7 @@ export function computeScorecard(input: ScoreInput): Scorecard {
     score: averageReviewScore(reviews),
     count: reviews.length,
     highlights: reviewHighlights(reviews),
+    insights: buildReviewInsights(reviews),
   };
 
   const collaborationAvailable = mrs.length > 0 || events.length > 0;

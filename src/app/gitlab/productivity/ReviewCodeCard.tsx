@@ -1,98 +1,192 @@
+import type { ReviewInsight } from '@/lib/commit-review';
+import { buildPerformanceInsights } from '@/lib/performance-insights';
 import type { Scorecard } from '@/lib/scoring';
+import type { WorklifeBalance } from '@/lib/stats';
 import { ScorePending } from './ScorePending';
 
 interface ReviewCodeCardProps {
   card: Scorecard;
+  worklife?: WorklifeBalance;
 }
 
-function toneOf(score: number): 'green' | 'amber' | 'rose' {
-  if (score >= 70) return 'green';
-  if (score >= 40) return 'amber';
-  return 'rose';
+const TONE_BADGE: Record<ReviewInsight['tone'], string> = {
+  good: 'badge-green',
+  warn: 'badge-amber',
+  info: 'badge-cyan',
+};
+
+const TONE_ICON: Record<ReviewInsight['tone'], string> = {
+  good: '▲',
+  warn: '!',
+  info: 'ℹ',
+};
+
+function WorklifeRow({
+  tone,
+  icon,
+  children,
+}: {
+  tone: ReviewInsight['tone'];
+  icon: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className='flex items-start gap-2.5'>
+      <span
+        className={`badge ${TONE_BADGE[tone]} shrink-0 text-xs px-2 py-0.5 rounded-md`}
+      >
+        {icon}
+      </span>
+      <span className='text-xs sm:text-[12.5px] text-slate-600 leading-relaxed font-normal'>
+        {children}
+      </span>
+    </div>
+  );
 }
 
-const SCORE_TEXT: Record<'green' | 'amber' | 'rose', string> = {
-  green: 'text-emerald-700',
-  amber: 'text-amber-700',
-  rose: 'text-rose-700',
-};
+function WorklifeSection({ worklife }: { worklife: WorklifeBalance }) {
+  const {
+    officePct,
+    officeCommits,
+    lateNightPct,
+    lateNightCommits,
+    weekendDays,
+    weekendCommits,
+    peakHour,
+  } = worklife;
 
-const SCORE_BOX: Record<'green' | 'amber' | 'rose', string> = {
-  green: 'border-emerald-200 from-emerald-50 to-green-50',
-  amber: 'border-amber-200 from-amber-50 to-yellow-50',
-  rose: 'border-rose-200 from-rose-50 to-orange-50',
-};
-
-const BADGE: Record<'green' | 'amber' | 'rose', string> = {
-  green: 'badge-green',
-  amber: 'badge-amber',
-  rose: 'badge-rose',
-};
-
-export function ReviewCodeCard({ card }: ReviewCodeCardProps) {
-  const { score, count, highlights } = card.review;
+  let balanceLabel = 'Ritme Teratur & Sehat';
+  let balanceTone: ReviewInsight['tone'] = 'good';
+  if (lateNightPct > 20) {
+    balanceTone = 'warn';
+    balanceLabel = 'Kelelahan Tinggi (Fatigue)';
+  } else if (lateNightPct > 10 || weekendDays > 4) {
+    balanceTone = 'warn';
+    balanceLabel = 'Perlu Rehat Ekstra';
+  }
 
   return (
-    <section className='card animate-fade-up h-full flex flex-col' aria-labelledby='review-code-title'>
-      <div className='card-title' id='review-code-title'>
-        <span>Review Kode AI</span>
+    <div className='pt-4 mt-3 border-t border-border flex flex-col'>
+      <div className='card-title flex items-center justify-between gap-2 mb-2.5'>
+        <span>Work-Life Balance</span>
+        <span
+          className={`badge ${TONE_BADGE[balanceTone]} text-[11px] font-bold`}
+        >
+          {balanceLabel}
+        </span>
+      </div>
+
+      <div className='flex flex-col gap-2.5'>
+        <WorklifeRow tone='info' icon='ℹ'>
+          <strong>
+            Jam normal ({officePct}% · {officeCommits} commit)
+          </strong>
+          : Puncak aktivitas di sekitar pk {peakHour}:00. Manfaatkan rentang ini
+          sebagai <em>deep work window</em> untuk pekerjaan yang butuh fokus.
+        </WorklifeRow>
+
+        {lateNightCommits > 0 ? (
+          <WorklifeRow tone='warn' icon='!'>
+            <strong>
+              Larut malam ({lateNightPct}% · {lateNightCommits} commit)
+            </strong>
+            : Ada commit di jam istirahat malam (pk 22:00–06:00). Coding larut
+            malam berulang menurunkan energi. Tetapkan batas push sebelum pk
+            21:00.
+          </WorklifeRow>
+        ) : (
+          <WorklifeRow tone='good' icon='▲'>
+            <strong>Larut malam (0%)</strong>: Tidak ada commit di atas pk
+            22:00. Ritme tidur terjaga, pertahankan.
+          </WorklifeRow>
+        )}
+
+        {weekendDays > 0 ? (
+          <WorklifeRow tone='info' icon='ℹ'>
+            <strong>
+              Akhir pekan ({weekendDays} hari · {weekendCommits} commit)
+            </strong>
+            : Dedikasi tinggi, tapi sisihkan akhir pekan untuk <em>recharge</em>{' '}
+            agar performa sprint berikutnya tetap prima.
+          </WorklifeRow>
+        ) : (
+          <WorklifeRow tone='good' icon='▲'>
+            <strong>Akhir pekan (0 hari)</strong>: Hari kerja rapi tanpa commit
+            di akhir pekan.
+          </WorklifeRow>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PerformanceSection({ card }: { card: Scorecard }) {
+  const insights = buildPerformanceInsights(card);
+  if (insights.length === 0) return null;
+
+  return (
+    <div className='pt-4 mt-3 border-t border-border flex flex-col'>
+      <div className='card-title mb-2.5'>
+        <span>Peluang Naik Skor</span>
+      </div>
+      <div className='flex flex-col gap-2.5'>
+        {insights.map((insight, index) => (
+          <div key={index} className='flex items-start gap-2.5'>
+            <span
+              className={`badge ${TONE_BADGE[insight.tone]} shrink-0 text-xs px-2 py-0.5 rounded-md`}
+            >
+              {TONE_ICON[insight.tone]}
+            </span>
+            <span className='text-xs sm:text-[12.5px] text-slate-600 leading-relaxed font-normal'>
+              {insight.text}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function ReviewCodeCard({ card, worklife }: ReviewCodeCardProps) {
+  const { score, count, insights } = card.review;
+
+  return (
+    <section
+      className='card animate-fade-up h-full flex flex-col'
+      aria-labelledby='review-code-title'
+    >
+      <div
+        className='card-title flex items-center justify-between'
+        id='review-code-title'
+      >
+        <span>Insight</span>
+        {score !== null && count > 0 && (
+          <span className='badge badge-violet xs'>{count} commit dinilai</span>
+        )}
       </div>
 
       {score === null ? (
         <ScorePending description='Belum ada commit yang dinilai Gemini. Review berjalan otomatis saat sinkronisasi GitLab, maksimal 20 commit per siklus.' />
       ) : (
-        <>
-          <div className='flex items-center gap-4 mb-3.5'>
-            <div
-              className={`shrink-0 text-center px-4 py-2.5 rounded-2xl border bg-gradient-to-br ${SCORE_BOX[toneOf(score)]}`}
-            >
-              <div className={`text-[32px] font-extrabold leading-none ${SCORE_TEXT[toneOf(score)]}`}>
-                {score}
-              </div>
-              <div className='text-[10px] text-slate-muted mt-1'>dari 100</div>
-            </div>
-            <p className='text-[12px] text-slate-muted leading-relaxed'>
-              Rata-rata penilaian Gemini atas isi commit yang di-push. Diperbarui
-              saat sinkronisasi GitLab.
-            </p>
-          </div>
-
-          <div className='space-y-3'>
-            {highlights.map((commit) => (
-              <div
-                key={commit.sha}
-                className='rounded-xl border border-border bg-surface-subtle px-3 py-2.5'
+        <div className='flex flex-col gap-2.5'>
+          {insights.map((insight, index) => (
+            <div key={index} className='flex items-start gap-2.5'>
+              <span
+                className={`badge ${TONE_BADGE[insight.tone]} shrink-0 text-xs px-2 py-0.5 rounded-md`}
               >
-                <div className='flex items-center gap-2 flex-wrap'>
-                  <span className={`badge ${BADGE[toneOf(commit.score)]} text-[10px]`}>
-                    {commit.score}
-                  </span>
-                  <code className='text-[10.5px] text-slate-muted'>{commit.shortSha}</code>
-                  <span className='text-[11.5px] font-bold text-slate-text-2 truncate min-w-0 flex-1'>
-                    {commit.title}
-                  </span>
-                </div>
-                <ul className='mt-1.5 space-y-1'>
-                  {commit.notes.slice(0, 3).map((note, index) => (
-                    <li
-                      key={index}
-                      className='text-[11px] text-slate-muted leading-relaxed flex gap-1.5'
-                    >
-                      <span className='text-slate-300 shrink-0'>•</span>
-                      <span>{note}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-
-          <p className='text-[10.5px] text-slate-400 mt-3 leading-relaxed'>
-            {count.toLocaleString('id-ID')} commit dinilai AI (hanya baris tambahan).
-            Sorotan di atas adalah commit dengan skor terendah.
-          </p>
-        </>
+                {TONE_ICON[insight.tone]}
+              </span>
+              <span className='text-xs sm:text-[12.5px] text-slate-600 leading-relaxed font-normal'>
+                {insight.text}
+              </span>
+            </div>
+          ))}
+        </div>
       )}
+
+      <PerformanceSection card={card} />
+
+      {worklife && <WorklifeSection worklife={worklife} />}
     </section>
   );
 }

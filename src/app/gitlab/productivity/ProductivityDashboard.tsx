@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import type { Scorecard } from '@/lib/scoring';
+import type { WorklifeBalance } from '@/lib/stats';
 import { ScoreHeaderCard } from './ScoreHeaderCard';
 import { ComponentScoreGrid } from './ComponentScoreGrid';
 import { ActionPriorityCard } from './ActionPriorityCard';
@@ -15,6 +16,7 @@ import { ProductivitySkeleton } from './ProductivitySkeleton';
 
 interface ScorecardResponse extends Scorecard {
   user: { id: number; username: string; name: string } | null;
+  worklife?: WorklifeBalance;
 }
 
 interface ProductivityDashboardProps {
@@ -100,7 +102,7 @@ export function ProductivityDashboard({ days }: ProductivityDashboardProps) {
       <ActionPriorityCard card={data} />
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch'>
         <StaticIssuesCard card={data} days={days} />
-        <ReviewCodeCard card={data} />
+        <ReviewCodeCard card={data} worklife={data.worklife} />
       </div>
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch'>
         <LanguageSkillCard card={data} days={days} />

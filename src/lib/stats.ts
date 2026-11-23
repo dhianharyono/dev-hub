@@ -9,7 +9,7 @@ import {
   type RecurringKey,
 } from "./card-detail";
 
-import { computeMetrics, localDay, type CommitRow, type EventRow, type MrRow, type PipelineRow } from "./metrics";
+import { computeMetrics, localDay, localHour, type CommitRow, type EventRow, type MrRow, type PipelineRow } from "./metrics";
 import {
   computeScorecard,
   analyzeRework,
@@ -19,6 +19,17 @@ import {
   type ScoreReview,
 } from "./scoring";
 import type { FlowMr, ReachRow } from "./talent-report";
+
+/** Rekap jam commit untuk insight work-life balance satu periode. */
+export interface WorklifeBalance {
+  officeCommits: number;
+  officePct: number;
+  lateNightCommits: number;
+  lateNightPct: number;
+  weekendDays: number;
+  weekendCommits: number;
+  peakHour: number;
+}
 
 /** Identitas GitLab yang terhubung (glUser + identityEmails/identityNames). */
 function loadGitlabIdentity() {
@@ -308,9 +319,41 @@ export function loadScorecard(days: number, endDate = new Date()) {
     };
   });
 
+  // Work-life balance: jam normal 08-17, larut malam 22-05, akhir pekan.
+  const hourly = new Array(24).fill(0) as number[];
+  const dailyCommits = new Map<string, number>();
+  for (const c of commits) {
+    hourly[localHour(c.authored_at)]++;
+    const day = localDay(c.authored_at);
+    dailyCommits.set(day, (dailyCommits.get(day) ?? 0) + 1);
+  }
+  const officeCommits = hourly.slice(8, 18).reduce((a, b) => a + b, 0);
+  const lateNightCommits =
+    hourly.slice(22, 24).reduce((a, b) => a + b, 0) + hourly.slice(0, 6).reduce((a, b) => a + b, 0);
+  let weekendDays = 0;
+  let weekendCommits = 0;
+  for (const [day, count] of dailyCommits) {
+    const dow = new Date(`${day}T00:00:00Z`).getUTCDay();
+    if (dow === 0 || dow === 6) {
+      weekendDays++;
+      weekendCommits += count;
+    }
+  }
+  const totalCommitsForWorklife = commits.length || 1;
+  const worklife: WorklifeBalance = {
+    officeCommits,
+    officePct: Math.round((officeCommits / totalCommitsForWorklife) * 100),
+    lateNightCommits,
+    lateNightPct: Math.round((lateNightCommits / totalCommitsForWorklife) * 100),
+    weekendDays,
+    weekendCommits,
+    peakHour: hourly.indexOf(Math.max(...hourly)),
+  };
+
   return {
     ...computeScorecard({ start, end, commits, mrs, events, files, reaches, reviews }),
     user,
+    worklife,
   };
 }
 

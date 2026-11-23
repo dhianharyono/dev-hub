@@ -51,7 +51,7 @@ const TZ = "Asia/Jakarta";
 const dayFmt = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" });
 const hourFmt = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", hourCycle: "h23" });
 export const localDay = (d: string | Date) => dayFmt.format(new Date(d));
-const localHour = (d: string) => Number(hourFmt.format(new Date(d)));
+export const localHour = (d: string) => Number(hourFmt.format(new Date(d)));
 
 const clamp = (n: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n));
 const round = (n: number) => Math.round(n);
