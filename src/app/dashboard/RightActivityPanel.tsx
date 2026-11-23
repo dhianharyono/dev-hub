@@ -1,11 +1,49 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Clock, Settings } from 'lucide-react';
-import type { WorkloadData } from '@/lib/workload';
+import type { WorkloadData, WorkloadTask } from '@/lib/workload';
 import { getStatusBadgeClass } from './status-utils';
 import { ActivityPanelSkeleton } from './DashboardSkeleton';
+
+function toDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function getDayLabel(dateStr?: string): string {
+  if (!dateStr) return 'Tanpa Tanggal';
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (dateStr === toDateKey(today)) return 'Hari ini';
+  if (dateStr === toDateKey(yesterday)) return 'Kemarin';
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('id-ID', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  });
+}
+
+interface TaskDayGroup {
+  key: string;
+  label: string;
+  items: WorkloadTask[];
+}
+
+function groupTasksByDay(tasks: WorkloadTask[]): TaskDayGroup[] {
+  const groups: TaskDayGroup[] = [];
+  for (const task of tasks) {
+    const key = task.activityDate || 'none';
+    let group = groups.find((g) => g.key === key);
+    if (!group) {
+      group = { key, label: getDayLabel(task.activityDate), items: [] };
+      groups.push(group);
+    }
+    group.items.push(task);
+  }
+  return groups;
+}
 
 function formatTimeRange(startTime?: string, hours?: number): string {
   if (!startTime) return '';
@@ -43,6 +81,11 @@ export function RightActivityPanel({
     'recent',
   );
 
+  const taskGroups = useMemo(
+    () => groupTasksByDay(workload?.tasks?.slice(0, 15) ?? []),
+    [workload],
+  );
+
   if (loading && !workload) {
     return <ActivityPanelSkeleton customHeight={customHeight} />;
   }
@@ -51,7 +94,7 @@ export function RightActivityPanel({
 
   return (
     <aside
-      className='card flex flex-col gap-4 flex-1 min-h-0 overflow-hidden max-[1200px]:flex-initial max-[1200px]:min-h-auto'
+      className='card flex flex-col gap-4 flex-1 min-h-0 h-full overflow-hidden max-[1200px]:flex-initial max-[1200px]:min-h-auto'
       aria-label='Linimasa Aktivitas Terkini'
       style={
         customHeight
@@ -59,60 +102,61 @@ export function RightActivityPanel({
           : undefined
       }
     >
-      <div className='flex items-center justify-between pb-1 border-b border-border/60'>
+      <div className='flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-border/60'>
         <h3 className='text-[17px] font-extrabold tracking-tight text-slate-text'>
           Aktivitas Terkini
         </h3>
-        {isDisconnected && (
-          <span className='badge badge-amber text-[10px] font-bold px-2.5 py-[3px]'>
-            Offline
-          </span>
-        )}
-      </div>
-
-      <div
-        className='flex items-center gap-1.5 p-1.5 bg-slate-100/80 rounded-xl border border-slate-200/60'
-        role='tablist'
-      >
-        <button
-          type='button'
-          role='tab'
-          aria-selected={activeTab === 'recent'}
-          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-center cursor-pointer transition-all ${
-            activeTab === 'recent'
-              ? 'bg-white text-brand font-bold shadow-xs'
-              : 'text-slate-500 hover:text-slate-900'
-          }`}
-          onClick={() => setActiveTab('recent')}
-        >
-          Recent
-        </button>
-        <button
-          type='button'
-          role='tab'
-          aria-selected={activeTab === 'activity'}
-          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-center cursor-pointer transition-all ${
-            activeTab === 'activity'
-              ? 'bg-white text-brand font-bold shadow-xs'
-              : 'text-slate-500 hover:text-slate-900'
-          }`}
-          onClick={() => setActiveTab('activity')}
-        >
-          Activity
-        </button>
-        <button
-          type='button'
-          role='tab'
-          aria-selected={activeTab === 'details'}
-          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-center cursor-pointer transition-all ${
-            activeTab === 'details'
-              ? 'bg-white text-brand font-bold shadow-xs'
-              : 'text-slate-500 hover:text-slate-900'
-          }`}
-          onClick={() => setActiveTab('details')}
-        >
-          Details
-        </button>
+        <div className='flex items-center gap-2 ml-auto'>
+          <div
+            className='flex items-center gap-1 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 w-fit'
+            role='tablist'
+          >
+            <button
+              type='button'
+              role='tab'
+              aria-selected={activeTab === 'recent'}
+              className={`py-1.5 px-2.5 rounded-lg text-[11.5px] font-semibold text-center cursor-pointer transition-all ${
+                activeTab === 'recent'
+                  ? 'bg-white text-brand font-bold shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+              onClick={() => setActiveTab('recent')}
+            >
+              Recent
+            </button>
+            <button
+              type='button'
+              role='tab'
+              aria-selected={activeTab === 'activity'}
+              className={`py-1.5 px-2.5 rounded-lg text-[11.5px] font-semibold text-center cursor-pointer transition-all ${
+                activeTab === 'activity'
+                  ? 'bg-white text-brand font-bold shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+              onClick={() => setActiveTab('activity')}
+            >
+              Activity
+            </button>
+            <button
+              type='button'
+              role='tab'
+              aria-selected={activeTab === 'details'}
+              className={`py-1.5 px-2.5 rounded-lg text-[11.5px] font-semibold text-center cursor-pointer transition-all ${
+                activeTab === 'details'
+                  ? 'bg-white text-brand font-bold shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+              onClick={() => setActiveTab('details')}
+            >
+              Details
+            </button>
+          </div>
+          {isDisconnected && (
+            <span className='badge badge-amber text-[10px] font-bold px-2.5 py-[3px]'>
+              Offline
+            </span>
+          )}
+        </div>
       </div>
 
       <div className='flex-1 min-h-0 overflow-y-auto flex flex-col [scrollbar-width:thin] max-[1200px]:max-h-[420px]'>
@@ -142,59 +186,69 @@ export function RightActivityPanel({
             {/* Tab 1: Recent Taiga Tasks */}
             {activeTab === 'recent' && (
               <div className='flex flex-col gap-3 relative pl-5 before:content-[""] before:absolute before:top-2 before:bottom-3 before:left-1.5 before:w-0.5 before:bg-slate-200'>
-                {workload?.tasks && workload.tasks.length > 0 ? (
-                  workload.tasks.slice(0, 15).map((t) => {
-                    const cleanSubject = t.subject.replace(
-                      /[\u2014\u2013]/g,
-                      '-',
-                    );
-                    return (
-                      <div
-                        key={`taiga-act-${t.id}`}
-                        className='relative flex flex-col gap-2 p-3.5 rounded-xl bg-surface-subtle/70 border border-slate-200/80 shadow-2xs hover:bg-surface-hover hover:border-border transition-all'
-                      >
-                        <span className='absolute -left-5 top-2 w-3.5 h-3.5 rounded-full bg-white border-[3px] border-brand' />
-                        <div className='flex items-center gap-2 flex-wrap'>
-                          <span className='text-[11px] font-bold text-brand'>
-                            {t.startTime ? `${formatTimeRange(t.startTime, t.timeSpentHours)} · ` : ''}
-                            {t.activityDate
-                              ? new Date(
-                                  t.activityDate + 'T00:00:00',
-                                ).toLocaleDateString('id-ID', {
-                                  day: 'numeric',
-                                  month: 'short',
-                                })
-                              : 'Terkini'}
-                          </span>
-                          <span className='text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200/60'>
-                            {t.timeSpentHours}h
-                          </span>
-                        </div>
-                        <a
-                          href={t.url}
-                          target='_blank'
-                          rel='noopener noreferrer'
-                          className='text-[13px] font-bold text-slate-text no-underline leading-snug transition-colors hover:text-brand hover:underline'
-                          title={cleanSubject}
-                        >
-                          {cleanSubject}
-                        </a>
-                        <div className='flex flex-wrap gap-1.5 items-center mt-1'>
-                          <span className='text-[11px] font-bold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200/60'>
-                            #{t.ref}
-                          </span>
-                          <span className='text-[11px] font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/60'>
-                            {t.projectName || t.project || 'Taiga'}
-                          </span>
-                          <span
-                            className={`text-[11px] font-bold px-2 py-0.5 rounded-md inline-flex items-center gap-1 ${getStatusBadgeClass(t.status)}`}
-                          >
-                            {t.status || 'Done'}
-                          </span>
-                        </div>
+                {taskGroups.length > 0 ? (
+                  taskGroups.map((group) => (
+                    <div
+                      key={`day-group-${group.key}`}
+                      className='flex flex-col gap-3'
+                    >
+                      <div className='flex items-center gap-2 pt-0.5'>
+                        <span className='text-[10px] font-bold uppercase tracking-wider text-slate-muted whitespace-nowrap'>
+                          {group.label}
+                        </span>
+                        <span className='flex-1 border-t border-slate-200/80' />
                       </div>
-                    );
-                  })
+                      {group.items.map((t) => {
+                        const cleanSubject = t.subject.replace(
+                          /[\u2014\u2013]/g,
+                          '-',
+                        );
+                        return (
+                          <div
+                            key={`taiga-act-${t.id}`}
+                            className='relative flex flex-col gap-2 p-3.5 rounded-xl bg-surface-subtle/70 border border-slate-200/80 shadow-2xs hover:bg-surface-hover hover:border-border transition-all'
+                          >
+                            <span className='absolute -left-5 top-2 w-3.5 h-3.5 rounded-full bg-white border-[3px] border-brand' />
+                            <div className='flex items-center gap-2 flex-wrap'>
+                              {t.startTime && (
+                                <span className='text-[11px] font-bold text-brand'>
+                                  {formatTimeRange(
+                                    t.startTime,
+                                    t.timeSpentHours,
+                                  )}
+                                </span>
+                              )}
+                              <span className='text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200/60'>
+                                {t.timeSpentHours}h
+                              </span>
+                            </div>
+                            <a
+                              href={t.url}
+                              target='_blank'
+                              rel='noopener noreferrer'
+                              className='text-[13px] font-bold text-slate-text no-underline leading-snug transition-colors hover:text-brand hover:underline'
+                              title={cleanSubject}
+                            >
+                              {cleanSubject}
+                            </a>
+                            <div className='flex flex-wrap gap-1.5 items-center mt-1'>
+                              <span className='text-[11px] font-bold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200/60'>
+                                #{t.ref}
+                              </span>
+                              <span className='text-[11px] font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/60'>
+                                {t.projectName || t.project || 'Taiga'}
+                              </span>
+                              <span
+                                className={`text-[11px] font-bold px-2 py-0.5 rounded-md inline-flex items-center gap-1 ${getStatusBadgeClass(t.status)}`}
+                              >
+                                {t.status || 'Done'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))
                 ) : (
                   <div className='p-8 text-center'>
                     <p className='text-xs text-slate-text-3'>

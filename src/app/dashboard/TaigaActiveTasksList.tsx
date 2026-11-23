@@ -21,7 +21,9 @@ export function TaigaActiveTasksList({
   tasks,
   totalActiveCount,
 }: TaigaActiveTasksListProps) {
-  const [filterTab, setFilterTab] = useState<'all' | 'progress' | 'todo'>('all');
+  const [filterTab, setFilterTab] = useState<'all' | 'progress' | 'todo'>(
+    'all',
+  );
   const [isTabSwitching, setIsTabSwitching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -154,7 +156,7 @@ export function TaigaActiveTasksList({
         <div className='flex items-center gap-2.5'>
           <div>
             <h3 className='text-[14px] font-bold text-slate-text leading-tight m-0'>
-              Daftar Tugas Aktif Tim
+              Daftar Task Aktif
             </h3>
             <span className='text-[11px] text-slate-muted'>
               Pantau pekerjaan yang sedang berlangsung dan antrean sprint

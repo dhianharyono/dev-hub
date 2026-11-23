@@ -8,7 +8,7 @@ export function WadSkeletonCard() {
     >
       <div className='flex flex-col gap-1.5'>
         <div className='h-5 w-48 rounded-[10px] bg-slate-100 animate-pulse' />
-        <div className='h-3.5 w-80 rounded-[10px] bg-slate-100 animate-pulse' />
+        <div className='h-3.5 w-full max-w-80 rounded-[10px] bg-slate-100 animate-pulse' />
       </div>
 
       <div className='grid grid-cols-1 md:grid-cols-[minmax(0,1.15fr)_minmax(0,2fr)] gap-3.5'>
@@ -21,9 +21,9 @@ export function WadSkeletonCard() {
         </div>
       </div>
 
-      <div className='flex items-center justify-between pt-2.5 border-t border-border/70'>
-        <div className='h-3 w-28 rounded bg-slate-100 animate-pulse' />
-        <div className='h-3 w-56 rounded bg-slate-100 animate-pulse' />
+      <div className='flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-border/70'>
+        <div className='h-3 w-28 shrink-0 rounded bg-slate-100 animate-pulse' />
+        <div className='h-3 w-56 min-w-0 rounded bg-slate-100 animate-pulse' />
       </div>
     </div>
   );
@@ -94,7 +94,7 @@ export function TaigaSkeletonCard() {
 export function CalendarSkeletonCard() {
   return (
     <div
-      className='bg-surface border border-border rounded-[18px] p-5 shadow-sm flex flex-col gap-3'
+      className='bg-surface border border-border rounded-[18px] p-5 shadow-sm flex flex-col gap-3 h-full'
       aria-label='Memuat kalender beban kerja...'
     >
       <div className='flex justify-between items-center'>
@@ -127,6 +127,9 @@ export function CalendarSkeletonCard() {
 
       {/* Legend row */}
       <div className='h-4 w-11/12 rounded bg-slate-100 animate-pulse' />
+
+      {/* Month summary block */}
+      <div className='mt-1 flex-1 min-h-[120px] rounded-xl bg-slate-100 animate-pulse' />
     </div>
   );
 }
@@ -138,7 +141,7 @@ export function ActivityPanelSkeleton({
 }) {
   return (
     <div
-      className='bg-surface border border-border rounded-[18px] p-5 shadow-sm flex flex-col flex-1 gap-3.5'
+      className='bg-surface border border-border rounded-[18px] p-5 shadow-sm flex flex-col flex-1 h-full gap-3.5'
       style={customHeight ? { height: customHeight, maxHeight: customHeight } : {}}
       aria-label='Memuat linimasa aktivitas...'
     >

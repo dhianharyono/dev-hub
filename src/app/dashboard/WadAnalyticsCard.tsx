@@ -3,25 +3,54 @@
 import Link from 'next/link';
 import { Settings, ZapOff } from 'lucide-react';
 import type { WorkloadData } from '@/lib/workload';
+import { DAILY_TARGET_HOURS } from '@/lib/workload/daily-target';
 import { EmptyState } from '@/components/EmptyState';
 import { WadSkeletonCard } from './DashboardSkeleton';
-
-function getRatioToneClass(value: number, target: number) {
-  if (target <= 0) return 'text-slate-text';
-
-  const ratio = (value / target) * 100;
-  return ratio >= 70
-    ? 'text-emerald-600'
-    : ratio >= 55
-      ? 'text-amber-600'
-      : 'text-rose-600';
-}
 
 interface WadAnalyticsCardProps {
   workload: WorkloadData | null;
   connected?: boolean;
   loading?: boolean;
 }
+
+type WadStatus = 'Fit' | 'Underload' | 'Overload' | 'Empty';
+
+const STATUS_PALETTE: Record<
+  WadStatus,
+  { box: string; badge: string; text: string; pill: string }
+> = {
+  Fit: {
+    box: 'bg-emerald-50/60 border-emerald-200 text-emerald-950',
+    badge: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    text: 'text-emerald-600',
+    pill: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  },
+  Underload: {
+    box: 'bg-amber-50/60 border-amber-200 text-amber-950',
+    badge: 'bg-amber-100 text-amber-800 border-amber-300',
+    text: 'text-amber-600',
+    pill: 'bg-amber-50 text-amber-700 border-amber-200',
+  },
+  Overload: {
+    box: 'bg-purple-50/60 border-purple-200 text-purple-950',
+    badge: 'bg-purple-100 text-purple-800 border-purple-300',
+    text: 'text-purple-600',
+    pill: 'bg-purple-50 text-purple-700 border-purple-200',
+  },
+  Empty: {
+    box: 'bg-rose-50/60 border-rose-200 text-rose-950',
+    badge: 'bg-rose-100 text-rose-800 border-rose-300',
+    text: 'text-rose-600',
+    pill: 'bg-rose-50 text-rose-700 border-rose-200',
+  },
+};
+
+const PORTAL_LABEL: Record<WadStatus, string> = {
+  Fit: 'Fit',
+  Underload: 'Perlu Pengisian',
+  Overload: 'Lembur',
+  Empty: 'Perlu Pengisian',
+};
 
 export function WadAnalyticsCard({
   workload,
@@ -38,7 +67,7 @@ export function WadAnalyticsCard({
   const rawStatus = (kpis?.status || '').toLowerCase();
   const percentage = kpis?.percentage ?? 0;
 
-  let statusType: 'Fit' | 'Underload' | 'Overload' | 'Empty' = 'Empty';
+  let statusType: WadStatus = 'Empty';
 
   if (!workload || percentage === 0) {
     statusType = 'Empty';
@@ -53,41 +82,66 @@ export function WadAnalyticsCard({
     statusType = 'Underload';
   }
 
-  const boxColors = {
-    Fit: 'bg-emerald-50/60 border-emerald-200 text-emerald-950',
-    Underload: 'bg-amber-50/60 border-amber-200 text-amber-950',
-    Overload: 'bg-purple-50/60 border-purple-200 text-purple-950',
-    Empty: 'bg-rose-50/60 border-rose-200 text-rose-950',
-  }[statusType];
+  const palette = STATUS_PALETTE[statusType];
+  const statusLabel =
+    statusType === 'Empty' ? 'BELUM LOG' : statusType.toUpperCase();
 
-  const badgeColors = {
-    Fit: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-    Underload: 'bg-amber-100 text-amber-800 border-amber-300',
-    Overload: 'bg-purple-100 text-purple-800 border-purple-300',
-    Empty: 'bg-rose-100 text-rose-800 border-rose-300',
-  }[statusType];
-
-  const textColors = {
-    Fit: 'text-emerald-600',
-    Underload: 'text-amber-600',
-    Overload: 'text-rose-600',
-    Empty: 'text-rose-600',
-  }[statusType];
+  const stats = [
+    {
+      label: 'Jam Kerja Aktif',
+      value: `${kpis?.timeSpent || 0}h`,
+      hint: `dari ${kpis?.expectedHours || 0}h`,
+      tone: 'text-slate-text',
+    },
+    {
+      label: 'Tugas Selesai',
+      value: `${workload?.statusBreakdown?.done || 0}`,
+      hint: `dari ${kpis?.activitiesCount || 0}`,
+      tone: 'text-slate-text',
+    },
+    {
+      label: 'Hari Kerja',
+      value: `${kpis?.workdaysPassed || 0}`,
+      hint: `dari ${kpis?.totalMonthWorkdays || 0}`,
+      tone: 'text-slate-text',
+    },
+    {
+      label: 'Status Portal',
+      value: PORTAL_LABEL[statusType],
+      hint: '',
+      tone:
+        statusType === 'Overload'
+          ? 'text-purple-600'
+          : statusType === 'Fit'
+            ? 'text-emerald-600'
+            : statusType === 'Underload'
+              ? 'text-amber-600'
+              : 'text-rose-600',
+    },
+  ];
 
   return (
     <section
-      className='bg-surface border border-border rounded-card p-5 shadow-card flex flex-col gap-3.5'
+      className='bg-surface border border-border rounded-card p-5 shadow-card flex flex-col gap-4'
       aria-label='Analitik WAD Kepatuhan dan Workload'
     >
-      <div className='flex items-center justify-between pb-2.5 border-b border-border'>
+      <div className='flex items-start justify-between gap-3 pb-3 border-b border-border'>
         <div>
           <h2 className='text-[15px] font-bold tracking-tight text-slate-text leading-tight'>
             WAD · Workload Analysis
           </h2>
           <span className='text-[11.5px] text-slate-muted mt-0.5 block'>
-            Monitoring kepatuhan jam kerja wajib 8h/hari (weekday)
+            Kepatuhan jam kerja 8 jam/hari kerja, dihitung dari log aktivitas
+            tugas terverifikasi.
           </span>
         </div>
+        {!isDisconnected && (
+          <span
+            className={`shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase border ${palette.pill}`}
+          >
+            {statusLabel}
+          </span>
+        )}
       </div>
 
       {isDisconnected ? (
@@ -110,113 +164,57 @@ export function WadAnalyticsCard({
           />
         </div>
       ) : (
-        <>
-          <div className='grid grid-cols-1 md:grid-cols-[minmax(0,1.15fr)_minmax(0,2fr)] gap-3.5 items-stretch'>
-            <div
-              className={`rounded-xl p-3.5 border flex flex-col gap-2 ${boxColors}`}
-            >
-              <div className='flex items-center justify-between'>
-                <span
-                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase border ${badgeColors}`}
-                >
-                  STATUS{' '}
-                  {statusType === 'Empty'
-                    ? 'BELUM LOG'
-                    : statusType.toUpperCase()}
-                </span>
-                <span className={`text-[12.5px] font-extrabold ${textColors}`}>
-                  {percentage.toFixed(0)}%
-                </span>
-              </div>
-              <div>
-                <div className='text-xl font-extrabold text-slate-text leading-snug my-2'>
-                  {kpis?.compliance ||
-                    (percentage === 0
-                      ? 'Belum Ada Log Hari Ini'
-                      : 'Status Belum Terdata')}
-                </div>
-                <p className='text-[11px] text-slate-muted leading-relaxed mt-1'>
-                  Target 8 jam/hari kerja dihitung berdasarkan log aktivitas
-                  tugas terverifikasi.
-                </p>
-              </div>
+        <div className='grid grid-cols-1 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,2fr)] gap-4 items-stretch'>
+          <div
+            className={`rounded-xl p-3.5 border flex flex-col gap-2 ${palette.box}`}
+          >
+            <div className='flex items-center justify-between gap-2'>
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase border ${palette.badge}`}
+              >
+                STATUS {statusLabel}
+              </span>
+              <span className={`text-[12.5px] font-extrabold ${palette.text}`}>
+                {percentage.toFixed(0)}%
+              </span>
             </div>
-
-            <div className='grid grid-cols-1 sm:grid-cols-2 gap-2.5'>
-              <div className='bg-slate-50/80 border border-border rounded-xl p-2.5 px-3 flex flex-col justify-between min-h-13.75 gap-0.5 transition-all hover:bg-surface-hover hover:border-border-strong hover:shadow-xs'>
-                <span className='text-[10px] font-bold uppercase tracking-wider text-slate-muted leading-tight'>
-                  Jam Kerja Aktif
-                </span>
-                <div className='flex items-baseline gap-1'>
-                  <span
-                    className={`text-[16px] font-extrabold tracking-tight leading-none ${getRatioToneClass(workload?.kpis?.timeSpent || 0, workload?.kpis?.expectedHours || 0)}`}
-                  >
-                    {workload?.kpis?.timeSpent || 0}h
-                  </span>
-                  <span className='text-[10.5px] font-normal text-slate-dim'>
-                    / {workload?.kpis?.expectedHours || 0}h
-                  </span>
-                </div>
+            <div>
+              <div className='text-xl font-extrabold text-slate-text leading-snug my-2'>
+                {kpis?.compliance ||
+                  (percentage === 0
+                    ? 'Belum Ada Log Hari Ini'
+                    : 'Status Belum Terdata')}
               </div>
-
-              <div className='bg-slate-50/80 border border-border rounded-xl p-2.5 px-3 flex flex-col justify-between min-h-13.75 gap-0.5 transition-all hover:bg-surface-hover hover:border-border-strong hover:shadow-xs'>
-                <span className='text-[10px] font-bold uppercase tracking-wider text-slate-muted leading-tight'>
-                  Tugas Selesai
-                </span>
-                <div className='flex items-baseline gap-1'>
-                  <span
-                    className={`text-[16px] font-extrabold tracking-tight leading-none ${getRatioToneClass(workload?.statusBreakdown?.done || 0, workload?.kpis?.activitiesCount || 0)}`}
-                  >
-                    {workload?.statusBreakdown?.done || 0}
-                  </span>
-                  <span className='text-[10.5px] font-normal text-slate-dim'>
-                    / {workload?.kpis?.activitiesCount || 0}
-                  </span>
-                </div>
-              </div>
-
-              <div className='bg-slate-50/80 border border-border rounded-xl p-2.5 px-3 flex flex-col justify-between min-h-13.75 gap-0.5 transition-all hover:bg-surface-hover hover:border-border-strong hover:shadow-xs'>
-                <span className='text-[10px] font-bold uppercase tracking-wider text-slate-muted leading-tight'>
-                  Hari Kerja
-                </span>
-                <div className='flex items-baseline gap-1'>
-                  <span
-                    className={`text-[16px] font-extrabold tracking-tight leading-none`}
-                  >
-                    {workload?.kpis?.workdaysPassed || 0}
-                  </span>
-                  <span className='text-[10.5px] font-normal text-slate-dim'>
-                    / {workload?.kpis?.totalMonthWorkdays || 0}
-                  </span>
-                </div>
-              </div>
-
-              <div className='bg-slate-50/80 border border-border rounded-xl p-2.5 px-3 flex flex-col justify-between min-h-13.75 gap-0.5 transition-all hover:bg-surface-hover hover:border-border-strong hover:shadow-xs'>
-                <span className='text-[10px] font-bold uppercase tracking-wider text-slate-muted leading-tight'>
-                  Status Portal
-                </span>
-                <span
-                  className={`text-[13.5px] font-extrabold tracking-tight leading-tight break-words ${textColors}`}
-                >
-                  {statusType === 'Fit'
-                    ? 'Fit'
-                    : statusType === 'Overload'
-                      ? 'Lembur'
-                      : 'Perlu Pengisian'}
-                </span>
-              </div>
+              <p className='text-[11px] text-slate-muted leading-relaxed mt-1'>
+                Target {DAILY_TARGET_HOURS} jam/hari kerja dihitung berdasarkan
+                log aktivitas tugas terverifikasi.
+              </p>
             </div>
           </div>
 
-          <div className='flex items-center justify-between text-[11px] text-slate-muted pt-2.5 border-t border-border flex-wrap gap-2'>
-            <div className='flex items-center'>
-              <span>Periode {workload?.monthLabel || 'Bulan Berjalan'}</span>
-            </div>
-            <span className='font-semibold text-slate-dim'>
-              Standar Kepatuhan: 08:00 - 17:00 WIB (8 Jam / Hari)
-            </span>
+          <div className='grid grid-cols-2 lg:grid-cols-4 gap-3'>
+            {stats.map((stat) => (
+              <div
+                key={stat.label}
+                className='bg-slate-50/80 border border-border rounded-xl p-4 flex flex-col justify-center gap-1 min-h-[104px] transition-all hover:bg-surface-hover hover:border-border-strong'
+              >
+                <span className='text-[10px] font-bold uppercase tracking-wider text-slate-muted leading-tight'>
+                  {stat.label}
+                </span>
+                <span
+                  className={`text-[22px] font-extrabold tracking-tight leading-none ${stat.tone}`}
+                >
+                  {stat.value}
+                </span>
+                {stat.hint && (
+                  <span className='text-[11px] font-normal text-slate-dim'>
+                    {stat.hint}
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
-        </>
+        </div>
       )}
     </section>
   );

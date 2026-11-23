@@ -188,12 +188,14 @@ export default function SettingsView() {
           onToggleMinimize={() => toggleCard('gemini')}
         />
 
-        <ReleaseNoteSettingsSection
-          form={form}
-          onChange={handleChange}
-          minimized={minimizedCards.releaseNote}
-          onToggleMinimize={() => toggleCard('releaseNote')}
-        />
+        {!isMonitoring && (
+          <ReleaseNoteSettingsSection
+            form={form}
+            onChange={handleChange}
+            minimized={minimizedCards.releaseNote}
+            onToggleMinimize={() => toggleCard('releaseNote')}
+          />
+        )}
 
         <Pm2SettingsSection
           status={pm2Status}

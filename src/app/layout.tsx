@@ -40,7 +40,7 @@ export default function RootLayout({
             <AiTaskProvider>
               <div className='flex min-h-screen bg-canvas max-lg:flex-col'>
                 <Sidebar />
-                <main className='flex-1 min-w-0 px-9 pt-7 pb-16 max-w-[1440px] mx-auto max-lg:px-4 max-lg:py-5 max-lg:pb-12'>
+                <main className='flex-1 min-w-0 px-9 pt-7 pb-16 max-w-[1440px] mx-auto max-lg:w-full max-lg:px-4 max-lg:py-5 max-lg:pb-12'>
                   {children}
                 </main>
               </div>

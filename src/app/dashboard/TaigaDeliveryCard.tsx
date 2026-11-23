@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { useAppMode } from '@/components/AppModeContext';
 import { TaigaSkeletonCard } from './DashboardSkeleton';
 import { TaigaActiveTasksList } from './TaigaActiveTasksList';
+import { TaigaReleaseNoteSection } from './TaigaReleaseNoteSection';
 
 interface TaigaDeliveryCardProps {
   workload: WorkloadData | null;
@@ -51,6 +52,8 @@ export function TaigaDeliveryCard({
         name: string;
         count: number;
         doneCount: number;
+        progCount: number;
+        todoCount: number;
         hours: number;
       }
     >();
@@ -61,6 +64,8 @@ export function TaigaDeliveryCard({
         name: key,
         count: 0,
         doneCount: 0,
+        progCount: 0,
+        todoCount: 0,
         hours: 0,
       };
       cur.count += 1;
@@ -74,6 +79,14 @@ export function TaigaDeliveryCard({
         s.includes('resolved')
       ) {
         cur.doneCount += 1;
+      } else if (
+        s.includes('progress') ||
+        s.includes('review') ||
+        s.includes('test')
+      ) {
+        cur.progCount += 1;
+      } else {
+        cur.todoCount += 1;
       }
       map.set(key, cur);
     }
@@ -108,102 +121,105 @@ export function TaigaDeliveryCard({
 
   const isDisconnected = !connected;
 
-  const renderPipelineFlow = () => (
-    <div className='flex flex-col gap-2 p-5 bg-surface-subtle border border-border rounded-2xl'>
-      <div className='flex items-center justify-between text-xs font-bold text-slate-text'>
-        <span>Pipeline Status Delivery</span>
-        <span className='text-emerald-600 font-extrabold'>{donePct}%</span>
-      </div>
-      {(() => {
-        const doneBarStyle: React.CSSProperties = { width: `${donePct}%` };
-        const progBarStyle: React.CSSProperties = { width: `${progPct}%` };
-        const todoBarStyle: React.CSSProperties = { width: `${todoPct}%` };
-        return (
-          <div className='flex h-2.5 w-full rounded-full bg-slate-200 overflow-hidden gap-0.5'>
-            <div
-              className='bg-emerald-500 transition-all duration-500'
-              style={doneBarStyle}
-              title={`Selesai: ${doneCount} tugas`}
-            />
-            <div
-              className='bg-blue-500 transition-all duration-500'
-              style={progBarStyle}
-              title={`Dalam Proses: ${inProgressCount} tugas`}
-            />
-            <div
-              className='bg-slate-400 transition-all duration-500'
-              style={todoBarStyle}
-              title={`Antrean: ${todoCount} tugas`}
-            />
-          </div>
-        );
-      })()}
-      <div className='flex items-center gap-4 flex-wrap pt-0.5'>
-        <div className='flex items-center gap-1.5 text-[11.5px] font-semibold text-slate-text-2'>
-          <span className='w-2 h-2 rounded-full bg-emerald-500' />
-          <span>Selesai: {doneCount}</span>
+  const renderPipelineFlow = (detailed = false) => (
+    <div
+      className={`flex flex-col gap-2 p-5 bg-surface-subtle border border-border rounded-2xl${
+        detailed ? ' h-full gap-3' : ''
+      }`}
+    >
+      <div className='flex flex-col gap-2'>
+        <div className='flex items-center justify-between text-xs font-bold text-slate-text'>
+          <span>Pipeline Status Delivery</span>
+          <span className='text-emerald-600 font-extrabold'>{donePct}%</span>
         </div>
-        <div className='flex items-center gap-1.5 text-[11.5px] font-semibold text-slate-text-2'>
-          <span className='w-2 h-2 rounded-full bg-blue-500' />
-          <span>Proses: {inProgressCount}</span>
-        </div>
-        <div className='flex items-center gap-1.5 text-[11.5px] font-semibold text-slate-text-2'>
-          <span className='w-2 h-2 rounded-full bg-slate-400' />
-          <span>Antrean: {todoCount}</span>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderMonthlyTrends = () => (
-    <div className='flex flex-col justify-between gap-4 p-5 sm:p-6 bg-slate-50/70 border border-border rounded-2xl min-h-60'>
-      <div className='flex items-center justify-between'>
-        <span className='text-[12px] font-bold text-slate-text'>
-          Tren Tugas Bulanan
-        </span>
-        <span className='xs dim'>Rolling 6 Bulan</span>
-      </div>
-      {workload?.trends && workload.trends.length > 0 ? (
-        <div className='flex items-end justify-between gap-2.5 flex-1 min-h-30 p-2 pt-0'>
-          {workload.trends.slice(-6).map((tr) => {
-            const maxAct = Math.max(
-              ...workload.trends.map((t) => t.totalActivities),
-              1,
-            );
-            const heightPct = Math.round((tr.totalActivities / maxAct) * 100);
-            const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-            const isCurrent = tr.month === (workload.month || currentMonthKey);
-            const barHeightStyle: React.CSSProperties = {
-              height: `${tr.totalActivities > 0 ? Math.max(16, heightPct) : 0}%`,
-            };
-            return (
+        {(() => {
+          const doneBarStyle: React.CSSProperties = { width: `${donePct}%` };
+          const progBarStyle: React.CSSProperties = { width: `${progPct}%` };
+          const todoBarStyle: React.CSSProperties = { width: `${todoPct}%` };
+          return (
+            <div className='flex h-2.5 w-full rounded-full bg-slate-200 overflow-hidden gap-0.5'>
               <div
-                key={`trend-${tr.month}`}
-                className='flex flex-col items-center gap-1.5 flex-1 h-full'
+                className='bg-emerald-500 transition-all duration-500'
+                style={doneBarStyle}
+                title={`Selesai: ${doneCount} tugas`}
+              />
+              <div
+                className='bg-blue-500 transition-all duration-500'
+                style={progBarStyle}
+                title={`Dalam Proses: ${inProgressCount} tugas`}
+              />
+              <div
+                className='bg-slate-400 transition-all duration-500'
+                style={todoBarStyle}
+                title={`Antrean: ${todoCount} tugas`}
+              />
+            </div>
+          );
+        })()}
+        <div className='flex items-center gap-4 flex-wrap pt-0.5'>
+          <div className='flex items-center gap-1.5 text-[11.5px] font-semibold text-slate-text-2'>
+            <span className='w-2 h-2 rounded-full bg-emerald-500' />
+            <span>Selesai: {doneCount}</span>
+          </div>
+          <div className='flex items-center gap-1.5 text-[11.5px] font-semibold text-slate-text-2'>
+            <span className='w-2 h-2 rounded-full bg-blue-500' />
+            <span>Proses: {inProgressCount}</span>
+          </div>
+          <div className='flex items-center gap-1.5 text-[11.5px] font-semibold text-slate-text-2'>
+            <span className='w-2 h-2 rounded-full bg-slate-400' />
+            <span>Antrean: {todoCount}</span>
+          </div>
+        </div>
+      </div>
+
+      {detailed && projectAllocations.length > 0 && (
+        <div className='flex flex-1 flex-col gap-2.5 border-t border-border/60 pt-3'>
+          <div className='flex items-center justify-between gap-2'>
+            <span className='text-[10.5px] font-bold uppercase tracking-wider text-slate-muted'>
+              Status per Proyek
+            </span>
+            <span className='grid w-36 shrink-0 grid-cols-3 gap-1 text-right text-[9.5px] font-bold uppercase tracking-wide text-slate-muted'>
+              <span>Selesai</span>
+              <span>Proses</span>
+              <span>Antrean</span>
+            </span>
+          </div>
+
+          <div className='flex flex-1 flex-col gap-1.5'>
+            {projectAllocations.slice(0, 4).map((p) => (
+              <div
+                key={`pipe-proj-${p.name}`}
+                className='flex flex-1 items-center justify-between gap-2 rounded-lg border border-border bg-surface px-3 py-2'
               >
-                <span className='text-[11px] font-bold text-slate-text-2'>
-                  {tr.totalActivities}
-                </span>
-                <div className='w-full max-w-7 flex-1 min-h-15 bg-slate-100 rounded-lg flex items-end overflow-hidden'>
-                  <div
-                    className={`w-full rounded-lg bg-violet-500 transition-all duration-500 ${
-                      isCurrent
-                        ? 'bg-linear-to-b! from-violet-500! to-indigo-500! shadow-[0_2px_8px_rgba(139,92,246,0.35)]'
-                        : ''
-                    }`}
-                    style={barHeightStyle}
+                <span className='flex items-center gap-1.5 min-w-0'>
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${p.colorClass}`}
                   />
-                </div>
-                <span className='text-[11px] font-bold text-slate-text-3'>
-                  {tr.label.split(' ')[0]}
+                  <span
+                    className='text-[11.5px] font-semibold text-slate-text truncate'
+                    title={p.name}
+                  >
+                    {p.name}
+                  </span>
+                </span>
+                <span className='grid w-36 shrink-0 grid-cols-3 gap-1 text-right text-[11px] font-bold tabular-nums'>
+                  <span className='text-emerald-600'>{p.doneCount}</span>
+                  <span className='text-blue-600'>{p.progCount}</span>
+                  <span className='text-slate-400'>{p.todoCount}</span>
                 </span>
               </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className='py-6 text-center text-xs text-slate-text-3'>
-          Belum ada data tren tugas Taiga untuk periode ini.
+            ))}
+            {projectAllocations.length > 4 && (
+              <span className='text-[10.5px] font-semibold text-slate-muted'>
+                +{projectAllocations.length - 4} proyek lain
+              </span>
+            )}
+          </div>
+
+          <div className='mt-auto flex items-center justify-between gap-2 border-t border-border/60 pt-2 text-[10.5px] font-semibold text-slate-muted'>
+            <span>{projectAllocations.length} proyek terpantau</span>
+            <span>{inProgressCount + todoCount} tugas belum selesai</span>
+          </div>
         </div>
       )}
     </div>
@@ -350,6 +366,8 @@ export function TaigaDeliveryCard({
         </div>
       ) : (
         <>
+          {!isMonitoring && <TaigaReleaseNoteSection />}
+
           {/* Task Delivery KPIs */}
           {isMonitoring ? (
             <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 bg-surface-subtle border border-border rounded-2xl p-5 sm:p-6'>
@@ -470,8 +488,7 @@ export function TaigaDeliveryCard({
             <>
               <div className='grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch'>
                 <div className='flex flex-col gap-4'>
-                  {renderPipelineFlow()}
-                  {renderMonthlyTrends()}
+                  {renderPipelineFlow(true)}
                 </div>
                 <div className='flex flex-col'>
                   {renderProjectAllocations(5)}
@@ -487,10 +504,10 @@ export function TaigaDeliveryCard({
           ) : (
             <>
               {renderPipelineFlow()}
-              {renderMonthlyTrends()}
               {renderProjectAllocations(3)}
             </>
           )}
+
         </>
       )}
     </section>

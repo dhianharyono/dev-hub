@@ -2,7 +2,16 @@
 
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Clock, Settings } from 'lucide-react';
+import {
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  CircleDashed,
+  Clock,
+  Flame,
+  ListChecks,
+  Settings,
+} from 'lucide-react';
 import type { WorkloadData, WorkloadDaySummary } from '@/lib/workload';
 import {
   DAILY_TARGET_META,
@@ -104,6 +113,27 @@ export function WorkloadCalendarCard({
       }
     }
     return map;
+  }, [workload]);
+
+  // Ringkasan bulan berjalan, dihitung dari data kalender yang sudah ada
+  const monthSummary = useMemo(() => {
+    const days = workload?.days ?? [];
+    if (!workload || days.length === 0) return null;
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const elapsed = days.filter((d) => d.date <= todayStr);
+    const weekdays = elapsed.filter((d) => d.isWeekday);
+    const fit = weekdays.filter((d) => d.status === 'fit').length;
+    const workdays = workload.kpis.workdaysPassed;
+    return {
+      hours: workload.kpis.timeSpent,
+      fit,
+      over: elapsed.filter((d) => d.status === 'over').length,
+      noLog: weekdays.filter((d) => d.hoursSpent === 0).length,
+      workdays,
+      tasks: workload.tasks.length,
+      fitPct: workdays > 0 ? Math.round((fit / workdays) * 100) : 0,
+    };
   }, [workload]);
 
   // Calendar dates structure
@@ -263,7 +293,7 @@ export function WorkloadCalendarCard({
 
   return (
     <div
-      className='card flex flex-col gap-4'
+      className='card flex flex-col gap-4 h-full'
       aria-label='Kalender Kepatuhan Jam Kerja Harian'
     >
       {/* Calendar Header with Navigation */}
@@ -464,6 +494,98 @@ export function WorkloadCalendarCard({
               <span>Libur</span>
             </div>
           </div>
+
+          {monthSummary && (
+            <div className='flex flex-1 flex-col justify-between gap-2.5 rounded-xl border border-border bg-slate-50/70 p-3 mt-1'>
+              <div className='flex items-center justify-between gap-2'>
+                <span className='text-[11px] font-bold uppercase tracking-wider text-slate-text-2'>
+                  Ringkasan Bulan Berjalan
+                </span>
+                <span className='inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-text-2'>
+                  <ListChecks size={11} className='text-brand' />
+                  {monthSummary.tasks} task
+                </span>
+              </div>
+
+              <div className='flex flex-col gap-2'>
+                <div className='flex items-end justify-between gap-2'>
+                  <div className='flex items-baseline gap-1.5 min-w-0'>
+                    <span className='text-[26px] font-extrabold leading-none text-slate-text tabular-nums'>
+                      {monthSummary.hours}
+                      <span className='ml-0.5 text-[13px] font-bold text-slate-text-2'>
+                        h
+                      </span>
+                    </span>
+                    <span className='text-[10.5px] font-semibold text-slate-muted pb-0.5 truncate'>
+                      jam tercatat
+                    </span>
+                  </div>
+                  <span className='text-[11px] font-bold text-emerald-700 tabular-nums whitespace-nowrap'>
+                    {monthSummary.fitPct}% sesuai target
+                  </span>
+                </div>
+                <div className='h-1.5 w-full overflow-hidden rounded-full bg-slate-200/80'>
+                  <div
+                    className='h-full rounded-full bg-emerald-500 transition-all'
+                    style={{
+                      width: `${Math.min(100, monthSummary.fitPct)}%`,
+                    }}
+                  />
+                </div>
+                <span className='text-[10px] font-semibold text-slate-muted'>
+                  {monthSummary.fit} dari {monthSummary.workdays} hari kerja
+                  berjalan sesuai target
+                </span>
+              </div>
+
+              <div className='grid grid-cols-3 gap-2.5'>
+                {[
+                  {
+                    label: 'Sesuai',
+                    value: monthSummary.fit,
+                    icon: CheckCircle2,
+                    iconClass: 'text-emerald-500',
+                  },
+                  {
+                    label: 'Lembur',
+                    value: monthSummary.over,
+                    icon: Flame,
+                    iconClass: 'text-violet-500',
+                  },
+                  {
+                    label: 'Belum log',
+                    value: monthSummary.noLog,
+                    icon: CircleDashed,
+                    iconClass: 'text-rose-500',
+                  },
+                ].map((tile) => {
+                  const Icon = tile.icon;
+                  return (
+                    <div
+                      key={tile.label}
+                      className='flex flex-col justify-between gap-1.5 rounded-lg border border-slate-200/80 bg-white px-3 py-2.5'
+                    >
+                      <span className='flex items-start gap-1 text-[10px] font-bold leading-tight tracking-normal text-slate-muted'>
+                        <Icon
+                          size={11}
+                          className={`${tile.iconClass} shrink-0 mt-0.5`}
+                        />
+                        <span className='min-w-0'>{tile.label}</span>
+                      </span>
+                      <span className='flex items-baseline gap-1 text-slate-text'>
+                        <span className='text-[18px] font-extrabold leading-none tabular-nums'>
+                          {tile.value}
+                        </span>
+                        <span className='text-[10px] font-semibold text-slate-muted'>
+                          hari
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

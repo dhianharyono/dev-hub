@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useIntegrations, useMetrics, useSync } from '@/components/hooks';
 import { triggerTelemetryRefresh } from '@/components/SidebarTelemetry';
 import { useAppMode } from '@/components/AppModeContext';
@@ -14,11 +14,6 @@ import { WorkloadCalendarCard } from './dashboard/WorkloadCalendarCard';
 
 export default function Home() {
   const { isMonitoring } = useAppMode();
-  const mainColRef = useRef<HTMLElement>(null);
-  const calendarCardRef = useRef<HTMLDivElement>(null);
-  const [activityPanelHeight, setActivityPanelHeight] = useState<
-    number | undefined
-  >(undefined);
 
   const { integrations, loading: integrationsLoading } = useIntegrations();
   const gitlabConnected = Boolean(integrations?.gitlab?.connected);
@@ -37,7 +32,7 @@ export default function Home() {
     loading: metricsLoading,
     error: metricsError,
     reload: reloadMetrics,
-  } = useMetrics(velocityDays);
+  } = useMetrics(velocityDays, 'identity');
 
   const loadScorecardData = useCallback(async (d: number) => {
     try {
@@ -91,36 +86,6 @@ export default function Home() {
       ignore = true;
     };
   }, [currentMonth]);
-
-  useEffect(() => {
-    const syncHeight = () => {
-      if (typeof window === 'undefined') return;
-      if (window.innerWidth <= 1200) {
-        setActivityPanelHeight(undefined);
-        return;
-      }
-      if (mainColRef.current && calendarCardRef.current) {
-        const mainHeight = mainColRef.current.offsetHeight;
-        const calHeight = calendarCardRef.current.offsetHeight;
-        const target = mainHeight - calHeight - 20;
-        if (target > 220) {
-          setActivityPanelHeight(target);
-        }
-      }
-    };
-
-    const timeout = setTimeout(syncHeight, 60);
-    const observer = new ResizeObserver(syncHeight);
-    if (mainColRef.current) observer.observe(mainColRef.current);
-    if (calendarCardRef.current) observer.observe(calendarCardRef.current);
-    window.addEventListener('resize', syncHeight);
-
-    return () => {
-      clearTimeout(timeout);
-      observer.disconnect();
-      window.removeEventListener('resize', syncHeight);
-    };
-  }, [workload, metrics]);
 
   const effectiveWorkloadLoading = integrationsLoading || workloadLoading;
   const effectiveMetricsLoading = integrationsLoading || metricsLoading;
@@ -201,83 +166,75 @@ export default function Home() {
         </div>
       </header>
 
-      <div className='grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start'>
-        <main
-          ref={mainColRef}
-          className='@container flex flex-col gap-6 min-w-0'
-        >
-          <WadAnalyticsCard
-            workload={workload}
-            connected={taigaConnected}
-            loading={effectiveWorkloadLoading}
+      <WadAnalyticsCard
+        workload={workload}
+        connected={taigaConnected}
+        loading={effectiveWorkloadLoading}
+      />
+
+      {isMonitoring ? (
+        <TaigaDeliveryCard
+          workload={workload}
+          connected={taigaConnected}
+          loading={effectiveWorkloadLoading}
+          activeTasks={activeTasks}
+          totalTasks={totalTasks}
+          doneCount={doneCount}
+          inProgressCount={inProgressCount}
+          todoCount={todoCount}
+          donePct={donePct}
+          progPct={progPct}
+          todoPct={todoPct}
+          avgHoursPerTask={avgHoursPerTask}
+          projectCount={projectDistribution.length}
+        />
+      ) : (
+        <div className='grid grid-cols-1 xl:grid-cols-2 gap-6'>
+          <GitlabVelocityCard
+            metrics={metrics}
+            scorecard={scorecard}
+            connected={gitlabConnected}
+            loading={effectiveMetricsLoading}
+            error={metricsError}
+            days={velocityDays}
+            onDaysChange={setVelocityDays}
+            onSync={() => startGitlabSync(velocityDays)}
+            isSyncing={Boolean(gitlabSyncStatus?.running)}
           />
 
-          {isMonitoring ? (
-            <TaigaDeliveryCard
-              workload={workload}
-              connected={taigaConnected}
-              loading={effectiveWorkloadLoading}
-              activeTasks={activeTasks}
-              totalTasks={totalTasks}
-              doneCount={doneCount}
-              inProgressCount={inProgressCount}
-              todoCount={todoCount}
-              donePct={donePct}
-              progPct={progPct}
-              todoPct={todoPct}
-              avgHoursPerTask={avgHoursPerTask}
-              projectCount={projectDistribution.length}
-            />
-          ) : (
-            <div className='grid grid-cols-1 @[640px]:grid-cols-2 gap-4'>
-              <GitlabVelocityCard
-                metrics={metrics}
-                scorecard={scorecard}
-                connected={gitlabConnected}
-                loading={effectiveMetricsLoading}
-                error={metricsError}
-                days={velocityDays}
-                onDaysChange={setVelocityDays}
-                onSync={() => startGitlabSync(velocityDays)}
-                isSyncing={Boolean(gitlabSyncStatus?.running)}
-              />
-
-              <TaigaDeliveryCard
-                workload={workload}
-                connected={taigaConnected}
-                loading={effectiveWorkloadLoading}
-                activeTasks={activeTasks}
-                totalTasks={totalTasks}
-                doneCount={doneCount}
-                inProgressCount={inProgressCount}
-                todoCount={todoCount}
-                donePct={donePct}
-                progPct={progPct}
-                todoPct={todoPct}
-                avgHoursPerTask={avgHoursPerTask}
-                projectCount={projectDistribution.length}
-              />
-            </div>
-          )}
-        </main>
-
-        <div className='flex flex-col gap-6 w-full xl:w-[400px] shrink-0'>
-          <div ref={calendarCardRef}>
-            <WorkloadCalendarCard
-              workload={workload}
-              connected={taigaConnected}
-              currentMonth={currentMonth}
-              onMonthChange={handleMonthChange}
-              loading={effectiveWorkloadLoading}
-            />
-          </div>
-          <RightActivityPanel
+          <TaigaDeliveryCard
             workload={workload}
             connected={taigaConnected}
             loading={effectiveWorkloadLoading}
-            customHeight={activityPanelHeight}
+            activeTasks={activeTasks}
+            totalTasks={totalTasks}
+            doneCount={doneCount}
+            inProgressCount={inProgressCount}
+            todoCount={todoCount}
+            donePct={donePct}
+            progPct={progPct}
+            todoPct={todoPct}
+            avgHoursPerTask={avgHoursPerTask}
+            projectCount={projectDistribution.length}
           />
         </div>
+      )}
+
+      <div className='grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6 items-stretch xl:h-[740px]'>
+        <div className='min-h-0 xl:h-full'>
+          <WorkloadCalendarCard
+            workload={workload}
+            connected={taigaConnected}
+            currentMonth={currentMonth}
+            onMonthChange={handleMonthChange}
+            loading={effectiveWorkloadLoading}
+          />
+        </div>
+        <RightActivityPanel
+          workload={workload}
+          connected={taigaConnected}
+          loading={effectiveWorkloadLoading}
+        />
       </div>
     </div>
   );
