@@ -214,7 +214,7 @@ function DatabaseInputs({
       </div>
 
       <div className='mt-3.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2'>
-        <div className='field'>
+        <div className='field sm:col-span-2'>
           <FieldLabel
             htmlFor={`${idPrefix}-db-name`}
             label='Nama Database'
@@ -233,9 +233,9 @@ function DatabaseInputs({
             label='Nama Tabel Database'
             badge={idPrefix === 'be' ? ROLE_BADGES[DATABASE_FIELDS.be.table.id] : undefined}
           />
-          <input
+          <textarea
             id={`${idPrefix}-db-table`}
-            className='input'
+            className='textarea !min-h-[72px]'
             value={values.table}
             onChange={(event) => onChange({ table: event.target.value })}
           />
@@ -246,22 +246,22 @@ function DatabaseInputs({
             label='Nama Field/Kolom Database'
             badge={idPrefix === 'be' ? ROLE_BADGES[DATABASE_FIELDS.be.column.id] : undefined}
           />
-          <input
+          <textarea
             id={`${idPrefix}-db-column`}
-            className='input'
+            className='textarea !min-h-[72px]'
             value={values.column}
             onChange={(event) => onChange({ column: event.target.value })}
           />
         </div>
-        <div className='field'>
+        <div className='field sm:col-span-2'>
           <FieldLabel
             htmlFor={`${idPrefix}-db-desc`}
             label='Deskripsi Perubahan Database'
             badge={idPrefix === 'be' ? ROLE_BADGES[DATABASE_FIELDS.be.description.id] : undefined}
           />
-          <input
+          <textarea
             id={`${idPrefix}-db-desc`}
-            className='input'
+            className='textarea !min-h-[96px]'
             value={values.description}
             onChange={(event) => onChange({ description: event.target.value })}
           />
@@ -683,9 +683,9 @@ export function DeploymentFormStep({
                 label='Env/Vault BE'
                 badge={ROLE_BADGES[FORM_FIELDS.envVaultBe.id]}
               />
-              <input
+              <textarea
                 id='deploy-env-vault-be'
-                className='input'
+                className='textarea !min-h-[72px]'
                 value={input.envVaultBe}
                 onChange={(event) => patch({ envVaultBe: event.target.value })}
               />
@@ -743,9 +743,9 @@ export function DeploymentFormStep({
                 label='Env/Vault FE'
                 badge={ROLE_BADGES[FORM_FIELDS.envVaultFe.id]}
               />
-              <input
+              <textarea
                 id='deploy-env-vault-fe'
-                className='input'
+                className='textarea !min-h-[72px]'
                 value={input.envVaultFe}
                 onChange={(event) => patch({ envVaultFe: event.target.value })}
               />
@@ -862,9 +862,9 @@ export function DeploymentFormStep({
           <div className='mt-3.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2'>
             <div className='field'>
               <FieldLabel htmlFor='deploy-env-vault' label='Env/Vault' />
-              <input
+              <textarea
                 id='deploy-env-vault'
-                className='input'
+                className='textarea !min-h-[72px]'
                 value={input.envVault}
                 onChange={(event) => patch({ envVault: event.target.value })}
               />
