@@ -9,8 +9,8 @@ interface ReportMethodologyPageProps {
 
 export function ReportMethodologyPage({
   methodology = referenceReportData.methodology,
-  currentPage = 8,
-  totalPages = 8,
+  currentPage = 7,
+  totalPages = 7,
 }: ReportMethodologyPageProps) {
   return (
     <article className='report-sheet bg-white text-slate-900 border border-slate-200 rounded-lg p-[36px_42px_26px] mb-8 shadow-sm flex flex-col justify-between min-h-[1350px] box-border'>

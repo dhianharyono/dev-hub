@@ -12,7 +12,7 @@ const STAGE_ORDER = ['develop', 'release', 'master', 'other'];
 export function ReportReleaseFlowPage({
   data = referenceReportData,
   currentPage = 2,
-  totalPages = 8,
+  totalPages = 7,
 }: ReportReleaseFlowPageProps) {
   const flow = data.talentProfile.releaseFlow;
   const monthly = data.talentProfile.monthlyContributions;

@@ -6,7 +6,6 @@ import { ReportTalentProfilePage } from './ReportTalentProfilePage';
 import { ReportReleaseFlowPage } from './ReportReleaseFlowPage';
 import { ReportReworkPage } from './ReportReworkPage';
 import { ReportSkillPage } from './ReportSkillPage';
-import { ReportCodeReviewPage } from './ReportCodeReviewPage';
 import { ReportWorkAreaPage } from './ReportWorkAreaPage';
 import { ReportHotspotPage } from './ReportHotspotPage';
 
@@ -17,7 +16,7 @@ interface ReportViewProps {
 export default function ReportView({ initialData }: ReportViewProps) {
   // Active dataset: Realtime GitLab performance data
   const activeData: FullReportData = initialData || referenceReportData;
-  const totalPages = 8;
+  const totalPages = 7;
 
   const handlePrint = () => {
     window.print();
@@ -42,19 +41,16 @@ export default function ReportView({ initialData }: ReportViewProps) {
       {/* 4. Skill kode: temuan statis, bahasa, commit yang perlu dicek */}
       <ReportSkillPage data={activeData} currentPage={4} totalPages={totalPages} />
 
-      {/* 5. Review kode AI + commit per minggu */}
-      <ReportCodeReviewPage data={activeData} currentPage={5} totalPages={totalPages} />
+      {/* 5. Commit per minggu, area kerja, pola waktu, tipe file, catatan pengembangan */}
+      <ReportWorkAreaPage data={activeData} currentPage={5} totalPages={totalPages} />
 
-      {/* 6. Area kerja, pola waktu, tipe file, catatan pengembangan */}
-      <ReportWorkAreaPage data={activeData} currentPage={6} totalPages={totalPages} />
+      {/* 6. Hotspot dan contoh self-rework */}
+      <ReportHotspotPage data={activeData} currentPage={6} totalPages={totalPages} />
 
-      {/* 7. Hotspot dan contoh self-rework */}
-      <ReportHotspotPage data={activeData} currentPage={7} totalPages={totalPages} />
-
-      {/* 8. Metodologi penilaian */}
+      {/* 7. Metodologi penilaian */}
       <ReportMethodologyPage
         methodology={activeData.methodology}
-        currentPage={8}
+        currentPage={7}
         totalPages={totalPages}
       />
     </div>

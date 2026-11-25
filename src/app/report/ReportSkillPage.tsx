@@ -17,7 +17,7 @@ const statusClass = (status: 'critical' | 'warn' | 'good') =>
 export function ReportSkillPage({
   data = referenceReportData,
   currentPage = 4,
-  totalPages = 8,
+  totalPages = 7,
 }: ReportSkillPageProps) {
   const skill = data.talentProfile.skill;
   const review = data.talentProfile.review;

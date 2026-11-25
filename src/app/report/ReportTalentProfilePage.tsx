@@ -11,7 +11,7 @@ interface ReportTalentProfilePageProps {
 export function ReportTalentProfilePage({
   data = referenceReportData,
   currentPage = 1,
-  totalPages = 8,
+  totalPages = 7,
   onPrint,
 }: ReportTalentProfilePageProps) {
   const { talentProfile, meta, overallScore } = data;

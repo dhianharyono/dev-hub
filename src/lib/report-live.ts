@@ -637,7 +637,7 @@ export function getLiveReportData(days = 0): FullReportData {
       createdText: `Dibuat pada ${endFmt}`,
       totalProjectsCount: projectRows.length,
       footerTitle: 'Rapor Talent : Rahasia, untuk keperluan internal',
-      totalPages: 8,
+      totalPages: 7,
     },
     overallScore: {
       name: glUser.name,

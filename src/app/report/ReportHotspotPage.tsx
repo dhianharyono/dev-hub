@@ -9,8 +9,8 @@ interface ReportHotspotPageProps {
 
 export function ReportHotspotPage({
   data = referenceReportData,
-  currentPage = 7,
-  totalPages = 8,
+  currentPage = 6,
+  totalPages = 7,
 }: ReportHotspotPageProps) {
   const { hotspots, reworkExamples } = data.talentProfile;
   const fmt = (n: number) => n.toLocaleString('id-ID');

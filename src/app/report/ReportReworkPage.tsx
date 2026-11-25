@@ -10,7 +10,7 @@ interface ReportReworkPageProps {
 export function ReportReworkPage({
   data = referenceReportData,
   currentPage = 3,
-  totalPages = 8,
+  totalPages = 7,
 }: ReportReworkPageProps) {
   const issues = data.talentProfile.repeatedIssues;
   const fixCommitCount = issues?.fixCommitCount ?? 0;
