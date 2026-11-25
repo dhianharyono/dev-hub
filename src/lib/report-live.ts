@@ -211,10 +211,10 @@ Tuliskan analisis performa teknis dengan gaya objektif, solutif, dan bebas bias.
   return fallbackResult;
 }
 
-export function getLiveReportData(): FullReportData {
+export function getLiveReportData(days = 0): FullReportData {
   const d = db();
   const s = getSettings();
-  const score = loadScorecard(0);
+  const score = loadScorecard(days);
   const start = new Date(score.period.start);
   const end = new Date(score.period.end);
   const sIso = start.toISOString();

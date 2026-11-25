@@ -10,7 +10,9 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic';
 
-export default function Page() {
-  const initialData = getLiveReportData();
+export default async function Page({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
+  const params = await searchParams;
+  const days = Number.isFinite(Number(params.days)) ? Number(params.days) : 0;
+  const initialData = getLiveReportData(days);
   return <ReportView initialData={initialData} />;
 }
