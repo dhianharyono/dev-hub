@@ -37,6 +37,7 @@ export function buildPerformanceInsights(card: Scorecard): ReviewInsight[] {
 
   // 3. Profil bahasa: bahasa terlemah di antara yang Intensif/Aktif.
   const weakestLanguage = [...card.skill.languages]
+    .filter((language): language is typeof language & { score: number } => language.score !== null)
     .sort((a, b) => a.score - b.score || b.lines - a.lines)
     .find((language) => language.intensity !== "Dasar");
   if (weakestLanguage) {

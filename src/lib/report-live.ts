@@ -1,7 +1,7 @@
 import 'server-only';
 import { db } from './db';
 import { getSettings } from './settings';
-import { loadMetrics, loadScorecard } from './stats';
+import { loadScorecard } from './stats';
 import { runAiCompletion, extractJsonFromAiResponse } from './ai/client';
 import { resolveAiModel } from './ai/models';
 import {
@@ -17,7 +17,7 @@ import {
   type FlowMr,
   type ReachRow,
 } from './talent-report';
-import { analyzeRework, isFixLikeCommit, type ScoreFile } from './scoring';
+import { analyzeRework, type ScoreFile } from './scoring';
 import {
   referenceReportData,
   type FullReportData,
@@ -114,15 +114,16 @@ export function saveCachedReportAiAnalysis(data: ReportAiAnalysisCache) {
   }
 }
 
-export async function generateLiveReportAi(metricsData?: ReturnType<typeof loadMetrics>): Promise<ReportAiAnalysisCache> {
+export async function generateLiveReportAi(scoreData?: ReturnType<typeof loadScorecard>): Promise<ReportAiAnalysisCache> {
   const s = getSettings();
   const activeModel = resolveAiModel(s, 'report');
 
-  const m = metricsData || loadMetrics(90);
-  const user = m.user || { name: 'dhian haryono', username: 'telkomdev-dhianharyono' };
+  const sc = scoreData || loadScorecard(0);
+  const user = sc.user || { name: s.gitlabUsername || 'talent', username: s.gitlabUsername || 'talent' };
+  const ev = sc.evidence;
 
   const systemInstruction = `Kamu adalah Asisten AI Evaluator Performa Software Engineer senior yang objektif, analitis, dan profesional.
-Tugasmu menyusun analisis performa teknis berdasarkan data metrik GitLab aktual.
+Tugasmu menyusun analisis performa teknis berdasarkan data metrik GitLab aktual (metodologi Ranking Talent 6 komponen).
 Output HARUS murni JSON valid tanpa markdown formatting tambahan di luar JSON:
 {
   "summary": "Paragraf ringkasan evaluasi performa menyeluruh (lugas, profesional, berbasis data)",
@@ -130,30 +131,30 @@ Output HARUS murni JSON valid tanpa markdown formatting tambahan di luar JSON:
   "improvements": ["Poin rekomendasi 1", "Poin rekomendasi 2", "Poin rekomendasi 3", "Poin rekomendasi 4"]
 }`;
 
-  const topProjectsSummary = m.topProjects
+  const topHotspots = sc.hotspots
     .slice(0, 5)
-    .map((p) => `- ${p.name}: ${p.commits} commit, ${p.mrs} MR`)
+    .map((h) => `- ${h.path}: ${h.commits} commit, ${h.selfReworkLines} baris self-rework (${h.selfReworkPct}%)`)
     .join('\n');
 
-  const prompt = `DATA METRIK PERFORMA GITLAB:
+  const prompt = `DATA METRIK PERFORMA GITLAB (YTD / ${sc.period.months} bulan):
 - Nama Developer: ${user.name} (@${user.username})
-- Periode Evaluasi: ${m.period.days} hari (${Math.max(1, Math.round(m.period.days / 30))} bulan)
-- Total Commit (non-merge): ${m.kpis.commits}
-- Merge Commit: ${m.kpis.mergeCommits}
-- Baris Kode: +${m.kpis.linesAdded.toLocaleString('id-ID')} / -${m.kpis.linesDeleted.toLocaleString('id-ID')}
-- Merge Request: ${m.kpis.mrsCreated} diajukan, ${m.kpis.mrsMerged} di-merge
-- Review & Kolaborasi: ${m.kpis.reviews} review MR, ${m.kpis.comments} komentar
-- Hari Aktif: ${m.kpis.activeDays} hari (${m.kpis.weekendDays} hari di akhir pekan)
-- Rasio Fix/Rework: ${Math.round(m.kpis.fixRatio * 100)}%
-- Rata-rata Ukuran Commit: ${Math.round(m.kpis.avgCommitSize)} baris/commit
-- Skor Evaluasi (0-100):
-  * Produktivitas: ${m.scores.productivity}
-  * Kualitas: ${m.scores.quality}
-  * Kolaborasi: ${m.scores.collaboration}
-  * Konsistensi: ${m.scores.consistency}
-  * Skor Keseluruhan: ${m.scores.overall} (Grade: ${m.scores.grade} - ${m.scores.gradeLabel})
-- Proyek Utama yang Dikerjakan:
-${topProjectsSummary}
+- Total Commit (non-merge): ${ev.commits} (${ev.commitsPerMonth}/bulan)
+- Baris Berubah: ${ev.linesChanged.toLocaleString('id-ID')} (${ev.linesPerMonth.toLocaleString('id-ID')}/bulan)
+- Merge Request: ${ev.mrsCreated} dibuat, ${ev.mergedMrs} di-merge (${ev.mergedMrsPerMonth}/bulan)
+- Alur Rilis: ${ev.releasePoints} poin (${ev.releasePointsPerMonth}/bulan), ${ev.releaseReachPct}% commit sampai master
+- Kualitas & Rework: self-rework ${ev.selfReworkPct}%, fix-atas-fix ${ev.fixOnFix}, file fix berulang ${ev.repeatedFiles}, kode bolak-balik ${ev.backAndForthLines} baris, revert ${ev.revertCount}
+- Skill Kode: ${sc.skill.score ?? '-'} (porsi tes ${ev.testPct}%, ${ev.scannedLines.toLocaleString('id-ID')} baris dipindai)
+- Konsistensi: ${ev.activeWorkdayRatio}% hari kerja aktif, ${ev.weeksWithCommit}/${ev.totalWeeks} minggu aktif, kualitas pesan ${ev.messageQuality}%
+- Skor 6 Komponen (0-100):
+  * Produktivitas (20%): ${sc.scores.productivity ?? '-'}
+  * Kualitas Kode (25%): ${sc.scores.quality ?? '-'}
+  * Skill Kode (15%): ${sc.scores.skill ?? '-'}
+  * Kolaborasi (15%): ${sc.scores.collaboration ?? '-'}
+  * Konsistensi (10%): ${sc.scores.consistency ?? '-'}
+  * Alur Rilis (15%): ${sc.scores.releaseFlow ?? '-'}
+  * Skor Keseluruhan: ${sc.overall} (Grade: ${sc.grade} - ${sc.gradeLabel})
+- File Hotspot Utama:
+${topHotspots || '- Tidak ada data hotspot'}
 
 Instruksi:
 Tuliskan analisis performa teknis dengan gaya objektif, solutif, dan bebas bias. Berikan 4 poin kekuatan dan 4 poin area perbaikan yang relevan dengan metrik di atas.`;
@@ -193,18 +194,18 @@ Tuliskan analisis performa teknis dengan gaya objektif, solutif, dan bebas bias.
   const fallbackResult: ReportAiAnalysisCache = {
     model: activeModel,
     generatedAt: new Date().toISOString(),
-    summary: `${user.name} menunjukkan volume kontribusi kode yang sangat aktif dengan total ${m.kpis.commits.toLocaleString('id-ID')} commit non-merge dan ${m.kpis.mrsMerged} Merge Request berhasil di-merge. Fokus kontribusi terdistribusi kuat pada proyek arsitektur utama. Kecepatan delivery tergolong tinggi, namun memerlukan penguatan pada pilar kolaborasi tim serta efisiensi pengujian sebelum push untuk menekan rasio commit perbaikan (fix/revert).`,
+    summary: `${user.name} mencatat skor keseluruhan ${sc.overall} (${sc.grade} · ${sc.gradeLabel}) selama ${sc.period.months} bulan dengan ${ev.commits.toLocaleString('id-ID')} commit non-merge (${ev.commitsPerMonth}/bln) dan ${ev.mergedMrs} MR merged. Sebanyak ${ev.releaseReachPct}% commit sudah sampai master/production, dengan fokus perbaikan utama pada penguatan kolaborasi (${sc.scores.collaboration ?? '-'}), skill kode (${sc.scores.skill ?? '-'}), dan penurunan self-rework (${ev.selfReworkPct}%).`,
     strengths: [
-      `Volume produksi kode sangat masif dengan +${m.kpis.linesAdded.toLocaleString('id-ID')} baris kode bersih yang terefleksi dalam ${m.kpis.commits} commit.`,
-      `Eksekusi fitur dan penyelesaian MR konsisten dengan ${m.kpis.mrsMerged} dari ${m.kpis.mrsCreated} MR berhasil di-merge ke branch utama.`,
-      `Fokus kerja terarah dengan kontribusi dominan pada repository sentral dashboard developer dan control tower.`,
-      `Tingkat inisiatif implementasi mandiri tinggi dalam menyelesaikan kebutuhan antarmuka dan integrasi data portal.`,
+      `Konsistensi kerja tinggi (${sc.scores.consistency ?? '-'}) dengan ${ev.activeWorkdayRatio}% hari kerja aktif dan ${ev.weeksWithCommit}/${ev.totalWeeks} minggu ber-commit.`,
+      `Produktivitas solid (${sc.scores.productivity ?? '-'}) dengan rata-rata ${ev.commitsPerMonth} commit/bulan dan ${ev.mergedMrs} MR berhasil di-merge.`,
+      `Alur rilis efektif (${sc.scores.releaseFlow ?? '-'}) dengan ${ev.releasePoints} poin alur kerja dan ${ev.releaseReachPct}% commit mencapai master.`,
+      `Porsi kode tes mencapai ${ev.testPct}% dari total baris yang dianalisis.`,
     ],
     improvements: [
-      `Tingkatkan partisipasi aktif dalam melakukan code review terhadap MR rekan tim untuk mengangkat skor kolaborasi (saat ini ${m.scores.collaboration}).`,
-      `Kurangi rasio rework/fix commit (${Math.round(m.kpis.fixRatio * 100)}%) melalui uji coba lokal komprehensif sebelum commit ke repository.`,
-      `Pecah commit besar ke unit commit yang lebih modular untuk memudahkan tracking dan audit kode.`,
-      `Pertahankan batas ritme kerja yang seimbang pada hari kerja dan batasi commit di akhir pekan (${m.kpis.weekendDays} hari tercatat).`,
+      `Tingkatkan kolaborasi tim (skor ${sc.scores.collaboration ?? '-'}) melalui review aktif terhadap MR rekan.`,
+      `Benahi temuan statis untuk menaikkan Skill Kode (skor ${sc.scores.skill ?? '-'}).`,
+      `Turunkan self-rework (${ev.selfReworkPct}%) dan fix-atas-fix (${ev.fixOnFix} commit) dengan menyelesaikan akar masalah sekaligus.`,
+      `Prioritaskan refactor file hotspot ber-rework tinggi agar tidak terus dibuka ulang.`,
     ],
   };
   saveCachedReportAiAnalysis(fallbackResult);
@@ -272,10 +273,11 @@ export function getLiveReportData(days = 0): FullReportData {
     .prepare(
       `SELECT m.project_id, m.role, m.created_at, m.merged_at, m.source_branch, m.target_branch
        FROM gl_mrs m
-       WHERE m.role = 'author' AND ${mrIdentity}
-         AND (m.created_at BETWEEN ? AND ? OR m.merged_at BETWEEN ? AND ?)`,
+       WHERE ((m.role = 'author' AND ${mrIdentity}
+         AND (m.created_at BETWEEN ? AND ? OR m.merged_at BETWEEN ? AND ?))
+         OR (m.role != 'author' AND m.merged_at BETWEEN ? AND ?))`,
     )
-    .all(...names, sIso, eIso, sIso, eIso) as unknown as FlowMr[];
+    .all(...names, sIso, eIso, sIso, eIso, sIso, eIso) as unknown as FlowMr[];
 
   const flowEvents = d
     .prepare('SELECT created_at, action, project_id, ref FROM gl_events WHERE created_at BETWEEN ? AND ?')
@@ -358,31 +360,28 @@ export function getLiveReportData(days = 0): FullReportData {
   const repeatedFiles = analysis.repeatedFixFiles;
   const backAndForthCommits = new Set(analysis.backAndForthFiles.flatMap((f) => f.shas)).size;
 
-  const fixLikeByPath = new Map<string, { sha: string; at: number; lines: number }[]>();
-  for (const f of files) {
-    const commit = commitBySha.get(f.sha);
-    if (!commit || !isFixLikeCommit(commit)) continue;
-    const list = fixLikeByPath.get(f.path) ?? [];
-    list.push({ sha: f.sha, at: new Date(commit.authored_at).getTime(), lines: f.added + f.deleted });
-    fixLikeByPath.set(f.path, list);
-  }
-  const fixOnFixExamples: ReworkExample[] = [];
-  for (const [path, list] of fixLikeByPath) {
-    list.sort((a, b) => a.at - b.at);
-    for (let i = 1; i < list.length; i++) {
-      const gapDays = Math.round(((list[i].at - list[i - 1].at) / 864e5) * 10) / 10;
-      if (gapDays > 45) continue;
-      fixOnFixExamples.push({
-        file: path,
-        initialCommit: list[i - 1].sha.slice(0, 8),
-        modifyingCommit: list[i].sha.slice(0, 8),
-        lines: list[i].lines,
-        gap: `${gapDays.toLocaleString('id-ID', { maximumFractionDigits: 1 })} hari`,
-      });
-    }
-  }
-  fixOnFixExamples.sort((a, b) => b.lines - a.lines);
-  const reworkExamples: ReworkExample[] = fixOnFixExamples.slice(0, 6);
+  const commitLabel = (sha: string) => {
+    const title = commitBySha.get(sha)?.title;
+    return title ? title.slice(0, 46) + (title.length > 46 ? '…' : '') : sha.slice(0, 8);
+  };
+
+  // Contoh fix atas fix (≤45 hari, konsisten dengan kartu ringkasan)
+  const fixOnFixExamples = analysis.fixOnFixExamples.slice(0, 6).map((e) => ({
+    file: e.path,
+    first: commitLabel(e.firstSha),
+    second: commitLabel(e.secondSha),
+    lines: e.lines,
+    gapDays: e.gapDays,
+  }));
+
+  // Contoh kode sendiri yang segera diubah lagi (self-rework ≤21 hari)
+  const reworkExamples: ReworkExample[] = analysis.selfReworkExamples.slice(0, 6).map((e) => ({
+    file: e.path,
+    initialCommit: commitLabel(e.firstSha),
+    modifyingCommit: commitLabel(e.secondSha),
+    lines: e.lines,
+    gap: `${e.gapDays.toLocaleString('id-ID', { maximumFractionDigits: 1 })} hr`,
+  }));
 
   const hotspots: HotspotRow[] = analysis.hotspots.slice(0, 10).map((h) => ({
     file: h.path,
@@ -501,6 +500,9 @@ export function getLiveReportData(days = 0): FullReportData {
   const recurringOf = (key: string) => score.recurringIssues.find((r) => r.key === key);
   const goodWarn = (value: number, good: number, warn: number): 'good' | 'warn' | 'critical' =>
     value <= good ? 'good' : value <= warn ? 'warn' : 'critical';
+  const fixOnFixPct = score.evidence.commits
+    ? Math.round((score.evidence.fixOnFix / score.evidence.commits) * 1000) / 10
+    : 0;
   const qualityIndicators: QualityIndicator[] = [
     {
       label: 'Self-rework (kode sendiri diubah lagi ≤ 21 hari)',
@@ -509,8 +511,14 @@ export function getLiveReportData(days = 0): FullReportData {
       statusText: score.evidence.selfReworkPct <= 10 ? 'Baik' : score.evidence.selfReworkPct <= 15 ? 'Perhatian' : 'Kritis',
     },
     {
+      label: 'Commit bug-fix atas kode sendiri',
+      value: `${fmtNum(score.evidence.selfBugFixCommits)} (${fmt1(score.evidence.selfBugFixPct)}%)`,
+      status: goodWarn(score.evidence.selfBugFixPct, 10, 15),
+      statusText: score.evidence.selfBugFixPct <= 10 ? 'Baik' : score.evidence.selfBugFixPct <= 15 ? 'Perhatian' : 'Kritis',
+    },
+    {
       label: 'Fix atas fix (≤ 45 hari)',
-      value: `${fmtNum(score.evidence.fixOnFix)} commit`,
+      value: `${fmtNum(score.evidence.fixOnFix)} (${fmt1(fixOnFixPct)}%)`,
       status: recurringOf('fixOnFix')?.status ?? 'good',
       statusText: recurringOf('fixOnFix')?.statusLabel ?? 'Baik',
     },
@@ -527,7 +535,7 @@ export function getLiveReportData(days = 0): FullReportData {
       statusText: recurringOf('backAndForth')?.statusLabel ?? 'Baik',
     },
     {
-      label: 'Proporsi commit fix',
+      label: 'Proporsi commit "fix"',
       value: `${fmt1(score.evidence.fixRatio)}%`,
       status: goodWarn(score.evidence.fixRatio, 20, 30),
       statusText: score.evidence.fixRatio <= 20 ? 'Baik' : score.evidence.fixRatio <= 30 ? 'Perhatian' : 'Kritis',
@@ -543,12 +551,6 @@ export function getLiveReportData(days = 0): FullReportData {
       value: `${fmt1(score.evidence.messageQuality)}%`,
       status: score.evidence.messageQuality >= 90 ? 'good' : score.evidence.messageQuality >= 70 ? 'warn' : 'critical',
       statusText: score.evidence.messageQuality >= 90 ? 'Baik' : score.evidence.messageQuality >= 70 ? 'Perhatian' : 'Kritis',
-    },
-    {
-      label: 'Kode bertahan (> 21 hari)',
-      value: `${fmt1(100 - score.evidence.selfReworkPct)}%`,
-      status: 100 - score.evidence.selfReworkPct >= 85 ? 'good' : 100 - score.evidence.selfReworkPct >= 75 ? 'warn' : 'critical',
-      statusText: 100 - score.evidence.selfReworkPct >= 85 ? 'Baik' : 100 - score.evidence.selfReworkPct >= 75 ? 'Perhatian' : 'Kritis',
     },
   ];
 
@@ -715,13 +717,7 @@ export function getLiveReportData(days = 0): FullReportData {
         fixOnFix: {
           count: analysis.fixOnFixCommits,
           lines: analysis.fixOnFixLines,
-          examples: reworkExamples.map((e) => ({
-            file: e.file,
-            first: e.initialCommit,
-            second: e.modifyingCommit,
-            lines: e.lines,
-            gapDays: Number(e.gap.replace(' hari', '')),
-          })),
+          examples: fixOnFixExamples,
         },
         backAndForth: {
           lines: analysis.backAndForthLines,

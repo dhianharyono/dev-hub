@@ -268,10 +268,12 @@ describe('Fase 1: agregasi rework dan hotspot', () => {
   it('mengelompokkan file fix berulang dan hotspot', () => {
     const result = analyzeRework(fixtures.files, fixtures.commits);
     expect(result.repeatedFixFiles).toHaveLength(1);
-    expect(result.repeatedFixFiles[0]).toMatchObject({ path: 'src/b.ts', fixCount: 3 });
-    expect(result.hotspots[0]).toMatchObject({ path: 'src/a.ts', selfReworkLines: 1 });
-    expect(result.hotspots[1]).toMatchObject({ path: 'src/b.ts', commits: 6 });
-    expect(result.hotspots[1].selfReworkLines).toBe(2);
+    expect(result.repeatedFixFiles[0]).toMatchObject({ path: 'src/b.ts', fixCount: 3, kind: 'perbaikan kecil rutin' });
+    // Hotspot diurutkan berdasarkan baris self-rework terbanyak (sesuai PDF)
+    expect(result.hotspots[0]).toMatchObject({ path: 'src/b.ts', commits: 6, selfReworkLines: 2 });
+    expect(result.hotspots[1]).toMatchObject({ path: 'src/a.ts', selfReworkLines: 1 });
+    expect(result.selfReworkExamples.length).toBeGreaterThan(0);
+    expect(result.fixOnFixExamples.length).toBeGreaterThan(0);
   });
 
   it('tidak menghitung revert yang hanya menyebut kata revert', () => {

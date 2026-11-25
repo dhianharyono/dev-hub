@@ -318,7 +318,7 @@ export const referenceReportData: FullReportData = {
         name: 'Alur Rilis',
         weight: '15%',
         calculation:
-          '60% volume poin alur kerja per bulan (target 200) dan 40% jangkauan commit sampai master/production (target 25%). Poin dari MR merged: develop 2, release 3, master 5, branch baru 1.',
+          '60% volume poin alur kerja per bulan (target 300) dan 40% jangkauan commit sampai master/production (target 75%). Poin dari MR merged: develop 2, release 3, master 5, branch baru 1, ikut terbawa 50%.',
       },
     ],
     assignmentTenure:

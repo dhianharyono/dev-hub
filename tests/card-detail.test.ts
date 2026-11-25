@@ -14,6 +14,7 @@ const counts = (patch: Partial<IssueCounts>): IssueCounts => ({
 
 const emptyRework = (): ReworkAnalysis => ({
   selfReworkLines: 0,
+  selfBugFixCommits: 0,
   backAndForthLines: 0,
   fixOnFixCommits: 0,
   fixOnFixLines: 0,
@@ -22,6 +23,8 @@ const emptyRework = (): ReworkAnalysis => ({
   revertCount: 0,
   fixOnFixFiles: [],
   backAndForthFiles: [],
+  selfReworkExamples: [],
+  fixOnFixExamples: [],
   revertCommits: [],
 });
 

@@ -62,9 +62,9 @@ export const STAGE_LABELS: Record<Exclude<FlowStage, "other">, string> = {
 export const BRANCH_POINTS = 1;
 export const CARRIED_FACTOR = 0.5;
 
-/** Target for a full release-flow score. Kept as constants so they are easy to tune. */
-export const RELEASE_TARGET_POINTS_PER_MONTH = 200;
-export const RELEASE_TARGET_REACH_RATE = 0.25;
+/** Target for a full release-flow score, calibrated from team distribution. */
+export const RELEASE_TARGET_POINTS_PER_MONTH = 300;
+export const RELEASE_TARGET_REACH_RATE = 0.75;
 export const FIX_ON_FIX_WINDOW_DAYS = 45;
 
 /** Finding status thresholds, calibrated from the reference reports. */
@@ -137,18 +137,25 @@ export function stageOfTarget(target: string | null): FlowStage {
   return "other";
 }
 
+const BACKEND_TS_PATH_RE =
+  /(^|\/)(api|services?|controllers?|repositories?|models?|db|database|migrations?|server|backend|prisma|sql|queries|webhook)(\/|\.|$)|\.(service|controller|repository|model|route)\.[cm]?[jt]s$/i;
+
 export function classifyArea(path: string): "frontend" | "backend" | "qa" | null {
   const p = path.toLowerCase();
   if (
-    /(^|\/)(__tests__|tests?|e2e|__mocks__)\//.test(p) ||
+    /(^|\/)(__tests__|tests?|e2e|__mocks__|cypress|playwright)\//.test(p) ||
     /\.(test|spec)\.[a-z0-9]+$/.test(p) ||
-    p.endsWith(".snap")
+    p.endsWith(".snap") ||
+    p.endsWith(".feature")
   )
     return "qa";
   const ext = p.slice(p.lastIndexOf("."));
   if ([".tsx", ".jsx", ".vue", ".svelte", ".css", ".scss", ".less", ".html", ".astro"].includes(ext)) return "frontend";
-  if ([".ts", ".js", ".mjs", ".cjs", ".go", ".py", ".php", ".java", ".kt", ".rb", ".cs", ".rs", ".sql", ".graphql"].includes(ext))
+  if ([".go", ".py", ".php", ".java", ".kt", ".rb", ".cs", ".rs", ".sql", ".graphql"].includes(ext))
     return "backend";
+  if ([".ts", ".js", ".mjs", ".cjs"].includes(ext)) {
+    return BACKEND_TS_PATH_RE.test(p) ? "backend" : "frontend";
+  }
   return null;
 }
 
@@ -286,6 +293,7 @@ export function computeReleaseFlow(input: ReleaseFlowInput): ReleaseFlowResult {
         inRange(m.merged_at, start, end) &&
         stageOfTarget(m.target_branch) === stage &&
         m.source_branch &&
+        stageOfTarget(m.source_branch) === "other" &&
         pushedRefs.has(`${m.project_id}:${m.source_branch}`),
     ).length;
     const pointsPerMr = stage === "other" ? 0 : STAGE_POINTS[stage];
@@ -303,7 +311,7 @@ export function computeReleaseFlow(input: ReleaseFlowInput): ReleaseFlowResult {
   const branchPoints = branchCount * BRANCH_POINTS;
   const mrPoints = stageRows.reduce((s, r) => s + r.points, 0);
   const totalPoints = branchPoints + mrPoints;
-  const monthCount = Math.max(1, months.length);
+  const monthCount = Math.max(1, (end.getTime() - start.getTime()) / (DAY_MS * 30.4375));
 
   const monthly: MonthlyFlowRow[] = months.map((ym) => {
     const row: MonthlyFlowRow = {
@@ -329,7 +337,7 @@ export function computeReleaseFlow(input: ReleaseFlowInput): ReleaseFlowResult {
       if (monthKey(m.merged_at!) !== ym) continue;
       const stage = stageOfTarget(m.target_branch);
       if (stage === "other") continue;
-      if (!m.source_branch || !pushedRefs.has(`${m.project_id}:${m.source_branch}`)) continue;
+      if (!m.source_branch || stageOfTarget(m.source_branch) !== "other" || !pushedRefs.has(`${m.project_id}:${m.source_branch}`)) continue;
       row.points += STAGE_POINTS[stage] * CARRIED_FACTOR;
     }
     return row;

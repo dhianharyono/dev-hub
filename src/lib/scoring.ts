@@ -178,6 +178,8 @@ export interface ScoreEvidence {
   totalWeeks: number;
   fixRatio: number;
   selfReworkPct: number;
+  selfBugFixCommits: number;
+  selfBugFixPct: number;
   fixOnFix: number;
   repeatedFiles: number;
   backAndForthLines: number;
@@ -220,7 +222,7 @@ export interface LanguageSkill {
   lines: number;
   commits: number;
   intensity: "Intensif" | "Aktif" | "Dasar";
-  score: number;
+  score: number | null;
   findings: number;
 }
 
@@ -363,34 +365,59 @@ interface FileHistoryEntry {
   lines: number;
 }
 
+export interface ReworkPairExample {
+  path: string;
+  firstSha: string;
+  secondSha: string;
+  lines: number;
+  gapDays: number;
+}
+
 export interface FileHistoryStats {
   rework: number;
   backAndForth: number;
   fixOnFixShas: Set<string>;
   fixOnFixLines: number;
+  selfBugFixShas: Set<string>;
   reworkShas: Set<string>;
   backAndForthShas: Set<string>;
+  selfReworkPairs: Omit<ReworkPairExample, "path">[];
+  fixOnFixPairs: Omit<ReworkPairExample, "path">[];
 }
 
 /** Metodologi PDF: baris diganti ≤21 hari setelah ditulis; fix atas fix ≤45 hari. */
 function analyzeFileHistory(list: FileHistoryEntry[]): FileHistoryStats {
-  const addedAt = new Map<string, number>();
+  const addedAt = new Map<string, { at: number; sha: string }>();
   const deletedAt = new Map<string, number>();
   const seenRework = new Set<string>();
   const seenBack = new Set<string>();
   const reworkShas = new Set<string>();
   const backAndForthShas = new Set<string>();
+  const selfBugFixShas = new Set<string>();
+  const reworkPairMap = new Map<string, { firstSha: string; secondSha: string; lines: number; gapDays: number }>();
   let rework = 0;
   let backAndForth = 0;
   for (const entry of list) {
     for (const hash of entry.deleted) {
-      const at = addedAt.get(hash);
-      if (at !== undefined && entry.at > at && entry.at - at <= REWORK_WINDOW_DAYS * DAY_MS) {
-        const key = `${entry.sha}:${hash}`;
-        if (!seenRework.has(key)) {
-          seenRework.add(key);
-          rework++;
-          reworkShas.add(entry.sha);
+      const origin = addedAt.get(hash);
+      if (origin !== undefined && entry.at > origin.at) {
+        if (entry.fixLike) selfBugFixShas.add(entry.sha);
+        if (entry.at - origin.at <= REWORK_WINDOW_DAYS * DAY_MS) {
+          const key = `${entry.sha}:${hash}`;
+          if (!seenRework.has(key)) {
+            seenRework.add(key);
+            rework++;
+            reworkShas.add(entry.sha);
+            const pairKey = `${origin.sha}->${entry.sha}`;
+            const cur = reworkPairMap.get(pairKey) ?? {
+              firstSha: origin.sha,
+              secondSha: entry.sha,
+              lines: 0,
+              gapDays: round1((entry.at - origin.at) / DAY_MS),
+            };
+            cur.lines++;
+            reworkPairMap.set(pairKey, cur);
+          }
         }
       }
     }
@@ -405,29 +432,49 @@ function analyzeFileHistory(list: FileHistoryEntry[]): FileHistoryStats {
         }
       }
     }
-    for (const hash of entry.added) addedAt.set(hash, entry.at);
+    for (const hash of entry.added) addedAt.set(hash, { at: entry.at, sha: entry.sha });
     for (const hash of entry.deleted) deletedAt.set(hash, entry.at);
   }
 
   // Fix atas fix: commit perbaikan yang mengganti baris hasil perbaikan sebelumnya.
-  const fixAddedAt = new Map<string, number>();
+  const fixAddedAt = new Map<string, { at: number; sha: string }>();
   const fixOnFixShas = new Set<string>();
+  const fixPairMap = new Map<string, { firstSha: string; secondSha: string; lines: number; gapDays: number }>();
   let fixOnFixLines = 0;
   for (const entry of list) {
     if (!entry.isFix) continue;
     let hit = false;
     for (const hash of entry.deleted) {
-      const at = fixAddedAt.get(hash);
-      if (at !== undefined && entry.at > at && entry.at - at <= FIX_ON_FIX_WINDOW_DAYS * DAY_MS) {
+      const origin = fixAddedAt.get(hash);
+      if (origin !== undefined && entry.at > origin.at && entry.at - origin.at <= FIX_ON_FIX_WINDOW_DAYS * DAY_MS) {
         hit = true;
         fixOnFixLines++;
+        const pairKey = `${origin.sha}->${entry.sha}`;
+        const cur = fixPairMap.get(pairKey) ?? {
+          firstSha: origin.sha,
+          secondSha: entry.sha,
+          lines: 0,
+          gapDays: round1((entry.at - origin.at) / DAY_MS),
+        };
+        cur.lines++;
+        fixPairMap.set(pairKey, cur);
       }
     }
     if (hit) fixOnFixShas.add(entry.sha);
-    for (const hash of entry.added) fixAddedAt.set(hash, entry.at);
+    for (const hash of entry.added) fixAddedAt.set(hash, { at: entry.at, sha: entry.sha });
   }
 
-  return { rework, backAndForth, fixOnFixShas, fixOnFixLines, reworkShas, backAndForthShas };
+  return {
+    rework,
+    backAndForth,
+    fixOnFixShas,
+    fixOnFixLines,
+    selfBugFixShas,
+    reworkShas,
+    backAndForthShas,
+    selfReworkPairs: [...reworkPairMap.values()],
+    fixOnFixPairs: [...fixPairMap.values()],
+  };
 }
 
 /**
@@ -476,6 +523,7 @@ export interface ReworkFileEvidence {
 
 export interface ReworkAnalysis {
   selfReworkLines: number;
+  selfBugFixCommits: number;
   backAndForthLines: number;
   fixOnFixCommits: number;
   fixOnFixLines: number;
@@ -484,8 +532,12 @@ export interface ReworkAnalysis {
   revertCount: number;
   fixOnFixFiles: ReworkFileEvidence[];
   backAndForthFiles: ReworkFileEvidence[];
+  selfReworkExamples: ReworkPairExample[];
+  fixOnFixExamples: ReworkPairExample[];
   revertCommits: { sha: string; title: string; authored_at: string }[];
 }
+
+const NON_CODE_HOTSPOT_RE = /\.(txt|md|markdown|csv|log|svg|lock)$/i;
 
 /** Menghitung rework, fix atas fix, file fix berulang, dan hotspot per file. */
 export function analyzeRework(files: ScoreFile[], commits: ScoreCommit[]): ReworkAnalysis {
@@ -512,10 +564,13 @@ export function analyzeRework(files: ScoreFile[], commits: ScoreCommit[]): Rewor
   let backAndForthLines = 0;
   let fixOnFixLines = 0;
   const fixOnFixShas = new Set<string>();
+  const selfBugFixShas = new Set<string>();
   const repeatedFixFiles: RepeatedFixFile[] = [];
   const hotspots: HotspotFile[] = [];
   const fixOnFixFiles: ReworkFileEvidence[] = [];
   const backAndForthFiles: ReworkFileEvidence[] = [];
+  const selfReworkExamples: ReworkPairExample[] = [];
+  const fixOnFixExamples: ReworkPairExample[] = [];
 
   for (const [path, list] of byPath) {
     list.sort((a, b) => a.at - b.at);
@@ -524,6 +579,11 @@ export function analyzeRework(files: ScoreFile[], commits: ScoreCommit[]): Rewor
     backAndForthLines += stats.backAndForth;
     fixOnFixLines += stats.fixOnFixLines;
     for (const sha of stats.fixOnFixShas) fixOnFixShas.add(sha);
+    for (const sha of stats.selfBugFixShas) selfBugFixShas.add(sha);
+    if (!NON_CODE_HOTSPOT_RE.test(path)) {
+      for (const pair of stats.selfReworkPairs) selfReworkExamples.push({ path, ...pair });
+    }
+    for (const pair of stats.fixOnFixPairs) fixOnFixExamples.push({ path, ...pair });
     if (stats.fixOnFixShas.size) {
       fixOnFixFiles.push({ path, count: stats.fixOnFixShas.size, shas: [...stats.fixOnFixShas] });
     }
@@ -544,34 +604,38 @@ export function analyzeRework(files: ScoreFile[], commits: ScoreCommit[]): Rewor
         path,
         fixCount: fixes.length,
         avgLines: round1(avgLines),
-        kind:
-          fixes.length >= 5 || avgLines >= 20 ? "perbaikan berulang" : "perbaikan kecil rutin",
+        kind: avgLines <= 20 ? "perbaikan kecil rutin" : "perbaikan berulang",
         shas: fixes.map((entry) => entry.sha),
       });
     }
 
-    const lines = list.reduce((sum, entry) => sum + entry.lines, 0);
-    hotspots.push({
-      path,
-      commits: new Set(list.map((entry) => entry.sha)).size,
-      lines,
-      selfReworkLines: stats.rework,
-      selfReworkPct: lines ? round1((stats.rework / lines) * 100) : 0,
-      fixCommits: fixes.length,
-    });
+    if (!NON_CODE_HOTSPOT_RE.test(path)) {
+      const lines = list.reduce((sum, entry) => sum + entry.lines, 0);
+      hotspots.push({
+        path,
+        commits: new Set(list.map((entry) => entry.sha)).size,
+        lines,
+        selfReworkLines: stats.rework,
+        selfReworkPct: lines ? round1((stats.rework / lines) * 100) : 0,
+        fixCommits: fixes.length,
+      });
+    }
   }
 
   repeatedFixFiles.sort((a, b) => b.fixCount - a.fixCount || a.path.localeCompare(b.path));
-  hotspots.sort((a, b) => b.lines - a.lines || a.path.localeCompare(b.path));
+  hotspots.sort((a, b) => b.selfReworkLines - a.selfReworkLines || b.lines - a.lines || a.path.localeCompare(b.path));
 
   const revertCount = commits.filter((commit) => /^revert\s+["“]/i.test(commit.title.trim()))
     .length;
 
   fixOnFixFiles.sort((a, b) => b.count - a.count || a.path.localeCompare(b.path));
   backAndForthFiles.sort((a, b) => b.count - a.count || a.path.localeCompare(b.path));
+  selfReworkExamples.sort((a, b) => b.lines - a.lines || a.path.localeCompare(b.path));
+  fixOnFixExamples.sort((a, b) => b.lines - a.lines || a.path.localeCompare(b.path));
 
   return {
     selfReworkLines,
+    selfBugFixCommits: selfBugFixShas.size,
     backAndForthLines,
     fixOnFixCommits: fixOnFixShas.size,
     fixOnFixLines,
@@ -580,6 +644,8 @@ export function analyzeRework(files: ScoreFile[], commits: ScoreCommit[]): Rewor
     revertCount,
     fixOnFixFiles,
     backAndForthFiles,
+    selfReworkExamples,
+    fixOnFixExamples,
     revertCommits: commits
       .filter((commit) => /^revert\s+["“]/i.test(commit.title.trim()))
       .map((commit) => ({ sha: commit.sha, title: commit.title, authored_at: commit.authored_at })),
@@ -836,7 +902,7 @@ function buildSkillDetail(files: ScoreFile[], testPct: number): SkillDetail {
         lines: bucket.lines,
         commits: bucket.commits.size,
         intensity: bucket.lines >= 3000 ? "Intensif" : bucket.lines >= 800 ? "Aktif" : "Dasar",
-        score: Math.round(score),
+        score: bucket.lines >= 30 ? Math.round(score) : null,
         findings: ISSUE_KEYS.reduce((sum, key) => sum + bucket.bundle.counts[key], 0),
       };
     })
@@ -992,7 +1058,7 @@ export function computeScorecard(input: ScoreInput): Scorecard {
 
   const collaborationAvailable = mrs.length > 0 || events.length > 0;
   const collaboration = collaborationAvailable
-    ? 60 * clamp01(reviewActions / months / 40) + 40 * clamp01(authCreated.length / months / 60)
+    ? 60 * clamp01(reviewActions / months / 60) + 40 * clamp01(authCreated.length / months / 80)
     : null;
 
   const consistencyAvailable = totalCommits > 0;
@@ -1076,6 +1142,8 @@ export function computeScorecard(input: ScoreInput): Scorecard {
     totalWeeks,
     fixRatio: round1(fixRatio * 100),
     selfReworkPct: round1(selfReworkPct),
+    selfBugFixCommits: rework.selfBugFixCommits,
+    selfBugFixPct: totalCommits ? round1((rework.selfBugFixCommits / totalCommits) * 100) : 0,
     fixOnFix: rework.fixOnFixCommits,
     repeatedFiles: rework.repeatedFixFiles.length,
     backAndForthLines: rework.backAndForthLines,

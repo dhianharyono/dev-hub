@@ -79,15 +79,17 @@ describe("Rapor Talent: alur rilis", () => {
 
   it("scores volume and production reach", () => {
     expect(scoreReleaseFlow(0, 0)).toBe(0);
-    expect(scoreReleaseFlow(200, 0.25)).toBe(100);
-    expect(scoreReleaseFlow(100, 0.25)).toBe(70);
+    expect(scoreReleaseFlow(300, 0.75)).toBe(100);
+    expect(scoreReleaseFlow(150, 0.75)).toBe(70);
   });
 });
 
 describe("Rapor Talent: area dan bahasa", () => {
   it("classifies test, frontend, and backend files", () => {
     expect(classifyArea("src/app/page.tsx")).toBe("frontend");
+    expect(classifyArea("src/lib/format.ts")).toBe("frontend");
     expect(classifyArea("src/lib/api.ts")).toBe("backend");
+    expect(classifyArea("src/app/api/users/route.ts")).toBe("backend");
     expect(classifyArea("src/lib/api.spec.ts")).toBe("qa");
     expect(classifyArea("tests/api.test.ts")).toBe("qa");
     expect(languageOf("src/app/page.tsx")).toBe("TypeScript (React)");

@@ -104,8 +104,8 @@ export function ReportReworkPage({
               {(issues?.fixOnFix.examples ?? []).map((e, idx) => (
                 <tr key={`${e.file}-${idx}`}>
                   <td className='font-mono text-[13.0px] text-slate-800 break-all' title={e.file}>{e.file}</td>
-                  <td className='font-mono text-[13.0px] text-slate-600'>{e.first.slice(0, 8)}</td>
-                  <td className='font-mono text-[13.0px] text-slate-600'>{e.second.slice(0, 8)}</td>
+                  <td className='text-[12.5px] text-slate-600'>{e.first}</td>
+                  <td className='text-[12.5px] text-slate-600'>{e.second}</td>
                   <td className='num mono text-right'>{e.lines.toLocaleString('id-ID')}</td>
                   <td className='num mono text-right'>{e.gapDays.toLocaleString('id-ID')} hr</td>
                 </tr>

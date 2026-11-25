@@ -1,4 +1,4 @@
-import type { Scorecard } from '@/lib/scoring';
+import { gradeOfScore, type Scorecard } from '@/lib/scoring';
 
 interface ScoreHeaderCardProps {
   card: Scorecard;
@@ -98,7 +98,7 @@ export function ScoreHeaderCard({ card, userName }: ScoreHeaderCardProps) {
           <div className='mt-3.5'>
             <div className='flex justify-between text-[11px] font-semibold text-slate-muted mb-1.5'>
               <span>Sekarang: {card.overall}</span>
-              <span>Target: {target} (B)</span>
+              <span>Target: {target} ({gradeOfScore(target).grade})</span>
             </div>
             <div className='relative h-2.5 rounded-full bg-slate-200 overflow-hidden'>
               <div

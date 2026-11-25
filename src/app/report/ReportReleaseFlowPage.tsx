@@ -84,7 +84,7 @@ export function ReportReleaseFlowPage({
             </tbody>
           </table>
           <div className='text-[11.7px] text-slate-500 mt-1 leading-snug print:text-[8.8px]'>
-            Poin hanya dihitung dari MR yang Anda buat sendiri. Poin master paling besar karena pekerjaannya dipakai di production.
+            Pekerjaan yang ikut masuk dalam MR milik rekan dihitung setengah poin (50%). Poin master paling besar karena pekerjaannya dipakai di production.
           </div>
         </div>
 

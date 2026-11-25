@@ -86,7 +86,7 @@ export function ReportHotspotPage({
             </tbody>
           </table>
           <div className='text-[11.7px] text-slate-500 mt-1 print:text-[8.8px]'>
-            Contoh diambil dari pasangan commit perbaikan pada file yang sama dengan jeda ≤45 hari.
+            Contoh diambil dari baris kode sendiri yang dihapus/diubah lagi dalam ≤21 hari (self-rework).
           </div>
         </section>
       </div>

@@ -256,10 +256,11 @@ export function loadScorecard(days: number, endDate = new Date()) {
     .prepare(
       `SELECT m.project_id, m.role, m.created_at, m.merged_at, m.source_branch, m.target_branch
        FROM gl_mrs m
-       WHERE m.role = 'author' AND ${mrIdentity}
-         AND (m.created_at BETWEEN ? AND ? OR m.merged_at BETWEEN ? AND ?)`,
+       WHERE ((m.role = 'author' AND ${mrIdentity}
+         AND (m.created_at BETWEEN ? AND ? OR m.merged_at BETWEEN ? AND ?))
+         OR (m.role != 'author' AND m.merged_at BETWEEN ? AND ?))`,
     )
-    .all(...mrIdentityParams, startIso, endIso, startIso, endIso) as unknown as FlowMr[];
+    .all(...mrIdentityParams, startIso, endIso, startIso, endIso, startIso, endIso) as unknown as FlowMr[];
 
   const events = d
     .prepare(

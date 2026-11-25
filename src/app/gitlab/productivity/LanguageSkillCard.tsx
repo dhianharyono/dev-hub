@@ -12,7 +12,8 @@ interface LanguageSkillCardProps {
   days: number;
 }
 
-function toneOf(score: number): 'green' | 'amber' | 'rose' {
+function toneOf(score: number | null): 'green' | 'amber' | 'rose' {
+  if (score === null) return 'amber';
   if (score >= 70) return 'green';
   if (score >= 40) return 'amber';
   return 'rose';
@@ -66,9 +67,11 @@ export function LanguageSkillCard({ card, days }: LanguageSkillCardProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const sortedLanguages = [...languages].sort(
-    (a, b) => a.score - b.score || b.lines - a.lines,
+    (a, b) => (a.score ?? 101) - (b.score ?? 101) || b.lines - a.lines,
   );
-  const weakest = sortedLanguages.find((language) => language.intensity !== 'Dasar');
+  const weakest = sortedLanguages.find(
+    (language) => language.intensity !== 'Dasar' && language.score !== null,
+  );
 
   useEffect(() => {
     if (!selected) return;
@@ -144,8 +147,8 @@ export function LanguageSkillCard({ card, days }: LanguageSkillCardProps) {
                           {language.intensity}
                         </span>
                       </td>
-                      <td className={`num text-[13px] font-extrabold ${SCORE_TEXT[tone]}`}>
-                        {language.score}
+                      <td className={`num text-[13px] font-extrabold ${language.score === null ? 'text-slate-400' : SCORE_TEXT[tone]}`}>
+                        {language.score ?? '—'}
                       </td>
                       <td className='text-right'>
                         <button
@@ -188,7 +191,9 @@ export function LanguageSkillCard({ card, days }: LanguageSkillCardProps) {
         }
         explanation={
           selected
-            ? `Skor ${selected.language} ${selected.score}/100. Penalti datang dari temuan statis di file ${selected.language}; semakin padat temuannya per 100 baris, semakin besar penaltinya.`
+            ? selected.score === null
+              ? `Skor ${selected.language} belum dihitung karena baris tambahan di bawah 30 baris.`
+              : `Skor ${selected.language} ${selected.score}/100. Penalti datang dari temuan statis di file ${selected.language}; semakin padat temuannya per 100 baris, semakin besar penaltinya.`
             : ''
         }
         stats={
@@ -196,7 +201,7 @@ export function LanguageSkillCard({ card, days }: LanguageSkillCardProps) {
             ? [
                 { label: 'Baris', value: fmt(selected.lines) },
                 { label: 'Commit', value: fmt(selected.commits) },
-                { label: 'Skor', value: String(selected.score) },
+                { label: 'Skor', value: selected.score === null ? '—' : String(selected.score) },
               ]
             : []
         }
